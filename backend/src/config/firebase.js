@@ -1,7 +1,7 @@
 import admin from 'firebase-admin';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, resolve, isAbsolute } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -9,45 +9,107 @@ const __dirname = dirname(__filename);
 // Initialize Firebase Admin SDK
 let firebaseApp = null;
 
+function parseServiceAccount(jsonString, source) {
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.error(`Invalid Firebase service account JSON from ${source}:`, error.message);
+    throw error;
+  }
+}
+
+function loadServiceAccountFromPath() {
+  const rawPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+  if (!rawPath) {
+    return null;
+  }
+
+  const normalizedRelativePath = rawPath.replace(/^\.\/+/, '');
+  const candidatePaths = new Set();
+
+  if (isAbsolute(rawPath)) {
+    candidatePaths.add(rawPath);
+  } else {
+    candidatePaths.add(resolve(process.cwd(), rawPath));
+    candidatePaths.add(resolve(process.cwd(), normalizedRelativePath));
+    candidatePaths.add(resolve(__dirname, rawPath));
+    candidatePaths.add(resolve(__dirname, normalizedRelativePath));
+    candidatePaths.add(resolve(__dirname, '..', rawPath));
+    candidatePaths.add(resolve(__dirname, '..', normalizedRelativePath));
+    candidatePaths.add(resolve(__dirname, '..', '..', normalizedRelativePath));
+  }
+
+  for (const candidate of candidatePaths) {
+    if (existsSync(candidate)) {
+      const serviceAccount = parseServiceAccount(readFileSync(candidate, 'utf8'), `file (${candidate})`);
+      console.log(`Firebase service account loaded from ${candidate}`);
+      return serviceAccount;
+    }
+  }
+
+  console.warn(`Firebase service account file not found at "${rawPath}". Checked paths: ${Array.from(candidatePaths).join(', ')}`);
+  return null;
+}
+
+function loadServiceAccountFromEnv() {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    return parseServiceAccount(process.env.FIREBASE_SERVICE_ACCOUNT, 'FIREBASE_SERVICE_ACCOUNT');
+  }
+
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+    const decoded = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf8');
+    return parseServiceAccount(decoded, 'FIREBASE_SERVICE_ACCOUNT_BASE64');
+  }
+
+  return null;
+}
+
+function loadServiceAccountFromIndividualEnv() {
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  const privateKeyBase64 = process.env.FIREBASE_PRIVATE_KEY_BASE64;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+
+  if (!(projectId && (privateKey || privateKeyBase64) && clientEmail)) {
+    return null;
+  }
+
+  if (!privateKey && privateKeyBase64) {
+    privateKey = Buffer.from(privateKeyBase64, 'base64').toString('utf8');
+  }
+
+  return {
+    projectId,
+    privateKey: privateKey.replace(/\\n/g, '\n'),
+    clientEmail,
+  };
+}
+
 export function initializeFirebase() {
   if (firebaseApp) {
     return firebaseApp;
   }
 
   try {
-    // Option 1: Use service account JSON file (recommended for production)
-    if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
-      const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH.startsWith('/')
-        ? process.env.FIREBASE_SERVICE_ACCOUNT_PATH
-        : join(process.cwd(), process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
-      
-      const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
-      
-      firebaseApp = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
+    let serviceAccount = loadServiceAccountFromPath();
+
+    if (!serviceAccount) {
+      serviceAccount = loadServiceAccountFromEnv();
     }
-    // Option 2: Use service account JSON from environment variable
-    else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      
-      firebaseApp = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
+
+    if (!serviceAccount) {
+      serviceAccount = loadServiceAccountFromIndividualEnv();
     }
-    // Option 3: Use individual credentials from environment variables
-    else if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
-      firebaseApp = admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        }),
-      });
+
+    if (!serviceAccount) {
+      throw new Error(
+        'Firebase configuration not found. Set FIREBASE_SERVICE_ACCOUNT_PATH, FIREBASE_SERVICE_ACCOUNT, FIREBASE_SERVICE_ACCOUNT_BASE64, or FIREBASE_PROJECT_ID/FIREBASE_PRIVATE_KEY/FIREBASE_CLIENT_EMAIL.'
+      );
     }
-    else {
-      throw new Error('Firebase configuration not found. Please set FIREBASE_SERVICE_ACCOUNT_PATH, FIREBASE_SERVICE_ACCOUNT, or individual Firebase credentials in environment variables.');
-    }
+
+    firebaseApp = admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
 
     console.log('Firebase Admin SDK initialized successfully');
     return firebaseApp;

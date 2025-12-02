@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,68 +21,127 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { getApiUrl } from '@/lib/api';
+
+const defaultNotificationSettings = {
+  emailAlerts: true,
+  smsAlerts: true,
+  pushNotifications: true,
+  hearingReminders: true,
+  clientUpdates: true,
+  billingAlerts: false,
+  weeklyReports: true
+};
+
+const defaultPreferenceSettings = {
+  theme: 'light',
+  language: 'en-IN',
+  timezone: 'Asia/Kolkata',
+  dateFormat: 'DD/MM/YYYY',
+  currency: 'INR'
+};
+
+const defaultSecuritySettings = {
+  twoFactorEnabled: false,
+  sessionTimeout: '30',
+  loginNotifications: true
+};
 
 const Settings = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { toast } = useToast();
   
   // Profile settings
   const [profileData, setProfileData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    phone: '+91 98765 43210',
-    barNumber: user?.barNumber || '',
-    firm: user?.firm || '',
+    name: '',
+    email: '',
+    phone: '',
+    barNumber: '',
+    firm: '',
     address: '',
     bio: ''
   });
 
   // Notification settings
-  const [notifications, setNotifications] = useState({
-    emailAlerts: true,
-    smsAlerts: true,
-    pushNotifications: true,
-    hearingReminders: true,
-    clientUpdates: true,
-    billingAlerts: false,
-    weeklyReports: true
-  });
+  const [notifications, setNotifications] = useState(defaultNotificationSettings);
 
   // System preferences
-  const [preferences, setPreferences] = useState({
-    theme: 'light',
-    language: 'en-IN',
-    timezone: 'Asia/Kolkata',
-    dateFormat: 'DD/MM/YYYY',
-    currency: 'INR'
-  });
+  const [preferences, setPreferences] = useState(defaultPreferenceSettings);
 
   // Security settings
-  const [security, setSecurity] = useState({
-    twoFactorEnabled: false,
-    sessionTimeout: '30',
-    loginNotifications: true
-  });
+  const [security, setSecurity] = useState(defaultSecuritySettings);
+
+  useEffect(() => {
+    if (!user) return;
+    setProfileData({
+      name: user.name || '',
+      email: user.email || '',
+      phone: user.phone || '',
+      barNumber: user.barNumber || '',
+      firm: user.firm || '',
+      address: user.address || '',
+      bio: user.bio || ''
+    });
+    setNotifications({
+      ...defaultNotificationSettings,
+      ...(user.notifications || {})
+    });
+    setPreferences({
+      ...defaultPreferenceSettings,
+      ...(user.preferences || {})
+    });
+    setSecurity({
+      ...defaultSecuritySettings,
+      ...(user.security || {})
+    });
+  }, [user]);
+
+  const saveSettings = async (updates: Record<string, unknown>, successMessage: string) => {
+    try {
+      const res = await fetch(getApiUrl('/api/auth/me'), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(updates)
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Failed to update settings' }));
+        throw new Error(data.error || 'Failed to update settings');
+      }
+      await refreshUser();
+      toast({
+        title: successMessage
+      });
+    } catch (error) {
+      toast({
+        title: 'Update failed',
+        description: error instanceof Error ? error.message : 'Unable to save settings. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  };
 
   const handleSaveProfile = () => {
-    toast({
-      title: "Profile Updated",
-      description: "Your profile information has been saved successfully.",
-    });
+    saveSettings({
+      name: profileData.name.trim(),
+      barNumber: profileData.barNumber.trim(),
+      firm: profileData.firm.trim(),
+      phone: profileData.phone.trim(),
+      address: profileData.address.trim(),
+      bio: profileData.bio.trim()
+    }, "Profile updated successfully");
   };
 
   const handleSaveNotifications = () => {
-    toast({
-      title: "Notification Settings Updated",
-      description: "Your notification preferences have been saved.",
-    });
+    saveSettings({ notifications }, "Notification settings updated");
   };
 
   const handleSavePreferences = () => {
-    toast({
-      title: "Preferences Updated",
-      description: "Your system preferences have been saved.",
-    });
+    saveSettings({ preferences }, "Preferences updated");
+  };
+
+  const handleSaveSecurity = () => {
+    saveSettings({ security }, "Security settings updated");
   };
 
   const handleExportData = () => {
@@ -445,6 +504,10 @@ const Settings = () => {
                 onCheckedChange={(checked) => setSecurity(prev => ({ ...prev, loginNotifications: checked }))}
               />
             </div>
+
+            <Button onClick={handleSaveSecurity}>
+              Save Security Settings
+            </Button>
 
             <Separator />
 

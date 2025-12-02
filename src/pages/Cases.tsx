@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,21 @@ import { Textarea } from '@/components/ui/textarea';
 import { CaseConflictChecker } from '@/components/CaseConflictChecker';
 import { CaseSummaryGenerator } from '@/components/CaseSummaryGenerator';
 import { CaseDetailsPopup } from '@/components/CaseDetailsPopup';
+import { useToast } from '@/hooks/use-toast';
+
+const COURT_OPTIONS = [
+  'Supreme Court of India',
+  'Delhi High Court',
+  'Bombay High Court',
+  'Calcutta High Court',
+  'Madras High Court',
+  'Allahabad High Court',
+  'Punjab and Haryana High Court',
+  'Gujarat High Court',
+  'Karnataka High Court',
+  'Kerala High Court',
+  'District Court'
+];
 
 const Cases = () => {
   const { cases, clients, addCase, updateCase, deleteCase, addClient } = useLegalData();
@@ -34,6 +49,18 @@ const Cases = () => {
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
   const [showCaseDetails, setShowCaseDetails] = useState(false);
   const [caseForDetails, setCaseForDetails] = useState<Case | null>(null);
+  const { toast } = useToast();
+  const [clientSelection, setClientSelection] = useState<{ mode: 'existing' | 'custom'; clientId?: string }>({ mode: 'custom' });
+  const [courtSelectValue, setCourtSelectValue] = useState('');
+  const todayIsoString = new Date().toISOString().split('T')[0];
+
+  useEffect(() => {
+    if (!caseForDetails) return;
+    const latest = cases.find(c => c.id === caseForDetails.id);
+    if (latest && latest !== caseForDetails) {
+      setCaseForDetails(latest);
+    }
+  }, [cases, caseForDetails]);
 
   // Form state for adding/editing cases
   const [formData, setFormData] = useState({
@@ -66,63 +93,178 @@ const Cases = () => {
       description: '',
       notes: ''
     });
+    setClientSelection({ mode: 'custom' });
+    setCourtSelectValue('');
+  };
+
+  const handleClientSelect = (value: string) => {
+    if (value === '__custom__') {
+      setClientSelection({ mode: 'custom' });
+      setFormData(prev => ({ ...prev, clientName: '' }));
+      return;
+    }
+    setClientSelection({ mode: 'existing', clientId: value });
+    const selected = clients.find(client => client.id === value);
+    setFormData(prev => ({ ...prev, clientName: selected?.name || '' }));
+  };
+
+  const handleCourtSelect = (value: string) => {
+    if (value === '__custom__') {
+      setCourtSelectValue('__custom__');
+      setFormData(prev => ({ ...prev, courtName: '' }));
+    } else {
+      setCourtSelectValue(value);
+      setFormData(prev => ({ ...prev, courtName: value }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    const trimmedCaseNumber = formData.caseNumber.trim();
+    const trimmedClientName = formData.clientName.trim();
+    const trimmedCourtName = formData.courtName.trim();
+    const trimmedDescription = formData.description.trim();
+    const trimmedNotes = formData.notes.trim();
+
+    if (!trimmedCaseNumber) {
+      toast({
+        title: 'Validation error',
+        description: 'Case number is required',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    let selectedClientRecord = null;
+    if (clientSelection.mode === 'existing') {
+      if (!clientSelection.clientId) {
+        toast({
+          title: 'Validation error',
+          description: 'Please select an existing client or add a new one',
+          variant: 'destructive'
+        });
+        return;
+      }
+      selectedClientRecord = clients.find(client => client.id === clientSelection.clientId);
+      if (!selectedClientRecord) {
+        toast({
+          title: 'Client not found',
+          description: 'Please refresh the page and try again.',
+          variant: 'destructive'
+        });
+        return;
+      }
+    } else if (!trimmedClientName) {
+      toast({
+        title: 'Validation error',
+        description: 'Client name is required',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!trimmedCourtName) {
+      toast({
+        title: 'Validation error',
+        description: 'Court name is required',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (formData.hearingDate) {
+      const parsed = new Date(formData.hearingDate);
+      if (Number.isNaN(parsed.getTime())) {
+        toast({
+          title: 'Validation error',
+          description: 'Please provide a valid hearing date',
+          variant: 'destructive'
+        });
+        return;
+      }
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      if (parsed < startOfToday) {
+        toast({
+          title: 'Validation error',
+          description: 'Next hearing date cannot be in the past',
+          variant: 'destructive'
+        });
+        return;
+      }
+    }
+    
     if (selectedCase) {
       // Update existing case
       updateCase(selectedCase.id, {
         ...formData,
-        hearingDate: new Date(formData.hearingDate),
+        caseNumber: trimmedCaseNumber,
+        clientName: selectedClientRecord ? selectedClientRecord.name : trimmedClientName,
+        courtName: trimmedCourtName,
+        description: trimmedDescription,
+        notes: trimmedNotes,
+        hearingDate: formData.hearingDate ? new Date(formData.hearingDate) : selectedCase.hearingDate,
         documents: selectedCase.documents,
         alerts: selectedCase.alerts
       });
     } else {
-      // Check if client exists, if not create a new client
-      const existingClient = clients.find(client => 
-        client.name.toLowerCase() === formData.clientName.toLowerCase()
+      // Ensure client exists if a new one was entered
+      const existingClient = selectedClientRecord || clients.find(client => 
+        client.name.toLowerCase() === trimmedClientName.toLowerCase()
       );
-      
-      if (!existingClient) {
+
+      if (!existingClient && clientSelection.mode === 'custom') {
         try {
-          console.log('Creating new client:', formData.clientName);
-          // Create new client with minimal information
           await addClient({
-            name: formData.clientName,
-            email: 'pending@example.com', // Temporary email, will be updated later
-            phone: '0000000000', // Temporary phone, will be updated later
-            address: '', // Will be filled later in client interface
-            panNumber: '', // Will be filled later in client interface
-            aadharNumber: '', // Will be filled later in client interface
+            name: trimmedClientName,
+            email: 'pending@example.com',
+            phone: '0000000000',
+            address: '',
+            panNumber: '',
+            aadharNumber: '',
             cases: [],
             documents: [],
-            notes: `Auto-created when adding case: ${formData.caseNumber}. Please update email and phone details.`
+            notes: `Auto-created when adding case: ${trimmedCaseNumber}. Please update email and phone details.`
           });
-          console.log('Client created successfully');
         } catch (error) {
           console.error('Error creating client:', error);
+          toast({
+            title: 'Failed to add client',
+            description: error instanceof Error ? error.message : 'Unable to create client. Please try again.',
+            variant: 'destructive'
+          });
+          return;
         }
-      } else {
-        console.log('Client already exists:', formData.clientName);
       }
       
-      // Add new case
       try {
-        console.log('Creating new case:', formData.caseNumber);
         await addCase({
           ...formData,
-          hearingDate: new Date(formData.hearingDate),
+          caseNumber: trimmedCaseNumber,
+          clientName: selectedClientRecord ? selectedClientRecord.name : trimmedClientName,
+          courtName: trimmedCourtName,
+          description: trimmedDescription,
+          notes: trimmedNotes,
+          hearingDate: formData.hearingDate ? new Date(formData.hearingDate) : undefined as unknown as Date,
           documents: [],
           alerts: []
         });
-        console.log('Case created successfully');
       } catch (error) {
         console.error('Error creating case:', error);
+        toast({
+          title: 'Failed to create case',
+          description: error instanceof Error ? error.message : 'Unable to create case. Please try again.',
+          variant: 'destructive'
+        });
+        return;
       }
     }
     
+    toast({
+      title: selectedCase ? 'Case updated' : 'Case created',
+      description: selectedCase ? 'Case details have been updated.' : 'Case has been added successfully.'
+    });
     setShowAddDialog(false);
     setSelectedCase(null);
     resetForm();
@@ -209,14 +351,37 @@ const Cases = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="clientName">Client Name*</Label>
-                  <Input
-                    id="clientName"
-                    value={formData.clientName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, clientName: e.target.value }))}
-                    placeholder="Client's full name"
-                    required
-                  />
+                  <Label htmlFor="clientSelect">Client*</Label>
+                  <Select 
+                    value={clientSelection.mode === 'existing' ? (clientSelection.clientId ?? '') : '__custom__'}
+                    onValueChange={handleClientSelect}
+                  >
+                    <SelectTrigger id="clientSelect">
+                      <SelectValue placeholder="Select an existing client or add new" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients.map(client => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="__custom__">+ Add new client</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {clientSelection.mode === 'custom' && (
+                    <Input
+                      className="mt-2"
+                      value={formData.clientName}
+                      onChange={(e) => setFormData(prev => ({ ...prev, clientName: e.target.value }))}
+                      placeholder="Client's full name"
+                      required
+                    />
+                  )}
+                  {clientSelection.mode === 'existing' && clientSelection.clientId && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Selected client: {formData.clientName || clients.find(c => c.id === clientSelection.clientId)?.name}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -253,13 +418,31 @@ const Cases = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="courtName">Court Name*</Label>
-                  <Input
-                    id="courtName"
-                    value={formData.courtName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, courtName: e.target.value }))}
-                    placeholder="e.g., Delhi High Court"
-                    required
-                  />
+                  <Select
+                    value={courtSelectValue || undefined}
+                    onValueChange={handleCourtSelect}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a court" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COURT_OPTIONS.map(option => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="__custom__">Other (enter manually)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {courtSelectValue === '__custom__' && (
+                    <Input
+                      className="mt-2"
+                      value={formData.courtName}
+                      onChange={(e) => setFormData(prev => ({ ...prev, courtName: e.target.value }))}
+                      placeholder="Enter court name"
+                      required
+                    />
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="judgeName">Judge Name</Label>
@@ -280,6 +463,7 @@ const Cases = () => {
                     type="date"
                     value={formData.hearingDate}
                     onChange={(e) => setFormData(prev => ({ ...prev, hearingDate: e.target.value }))}
+                    min={todayIsoString}
                   />
                 </div>
                 <div>
@@ -482,7 +666,7 @@ const Cases = () => {
                       opposingParty: case_.opposingParty,
                       courtName: case_.courtName,
                       judgeName: case_.judgeName,
-                      hearingDate: case_.hearingDate.toISOString().split('T')[0],
+                      hearingDate: case_.hearingDate ? case_.hearingDate.toISOString().split('T')[0] : '',
                       hearingTime: case_.hearingTime,
                       status: case_.status,
                       priority: case_.priority,
@@ -490,6 +674,13 @@ const Cases = () => {
                       description: case_.description,
                       notes: case_.notes
                     });
+                    const matchedClient = clients.find(client => client.name.toLowerCase() === case_.clientName.toLowerCase());
+                    if (matchedClient) {
+                      setClientSelection({ mode: 'existing', clientId: matchedClient.id });
+                    } else {
+                      setClientSelection({ mode: 'custom' });
+                    }
+                    setCourtSelectValue(COURT_OPTIONS.includes(case_.courtName) ? case_.courtName : '__custom__');
                     setShowAddDialog(true);
                   }}
                 >

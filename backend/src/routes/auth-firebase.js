@@ -1,16 +1,18 @@
 import express from 'express';
+import crypto from 'crypto';
 import { 
   createFirebaseUser, 
   verifyFirebaseToken,
   updateFirebaseUser,
-  deleteFirebaseUser,
-  getFirestore
+  getFirestore,
+  getFirebaseAuth
 } from '../config/firebase.js';
 import admin from 'firebase-admin';
 import { 
   createDocument, 
   getDocumentById, 
   updateDocument,
+  deleteDocument,
   queryDocuments,
   COLLECTIONS 
 } from '../services/firestore.js';
@@ -20,6 +22,114 @@ const db = getFirestore();
 import { sendPasswordResetEmail } from '../utils/mailer.js';
 
 const router = express.Router();
+
+const FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY;
+const PASSWORD_RESET_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+const ALLOWED_ROLES = ['lawyer', 'assistant'];
+
+const defaultNotificationSettings = {
+  emailAlerts: true,
+  smsAlerts: true,
+  pushNotifications: true,
+  hearingReminders: true,
+  clientUpdates: true,
+  billingAlerts: false,
+  weeklyReports: true
+};
+
+const defaultPreferenceSettings = {
+  theme: 'light',
+  language: 'en-IN',
+  timezone: 'Asia/Kolkata',
+  dateFormat: 'DD/MM/YYYY',
+  currency: 'INR'
+};
+
+const defaultSecuritySettings = {
+  twoFactorEnabled: false,
+  sessionTimeout: '30',
+  loginNotifications: true
+};
+
+const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
+function normalizeRole(role) {
+  if (!role) return 'lawyer';
+  const normalized = role.toString().toLowerCase();
+  return ALLOWED_ROLES.includes(normalized) ? normalized : 'lawyer';
+}
+
+function mergeSettings(defaults, existing = {}, incoming = {}) {
+  return {
+    ...defaults,
+    ...existing,
+    ...incoming
+  };
+}
+
+function buildUserResponse(userId, profile) {
+  return {
+    id: userId,
+    name: profile.name,
+    email: profile.email,
+    role: profile.role || 'lawyer',
+    barNumber: profile.barNumber,
+    firm: profile.firm,
+    phone: profile.phone || '',
+    address: profile.address || '',
+    bio: profile.bio || '',
+    notifications: mergeSettings(
+      defaultNotificationSettings,
+      profile.notifications
+    ),
+    preferences: mergeSettings(
+      defaultPreferenceSettings,
+      profile.preferences
+    ),
+    security: mergeSettings(
+      defaultSecuritySettings,
+      profile.security
+    )
+  };
+}
+
+async function verifyPasswordWithFirebase(email, password) {
+  if (!FIREBASE_WEB_API_KEY) {
+    const err = new Error('Firebase Web API key is not configured');
+    err.code = 'MISSING_FIREBASE_WEB_API_KEY';
+    throw err;
+  }
+
+  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_WEB_API_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email,
+      password,
+      returnSecureToken: true
+    })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    const firebaseMessage = data?.error?.message || 'INVALID_LOGIN_CREDENTIALS';
+    if (['EMAIL_NOT_FOUND', 'INVALID_PASSWORD', 'USER_DISABLED', 'INVALID_LOGIN_CREDENTIALS'].includes(firebaseMessage)) {
+      const err = new Error('Invalid credentials');
+      err.code = 'INVALID_CREDENTIALS';
+      throw err;
+    }
+
+    const err = new Error(firebaseMessage);
+    err.code = firebaseMessage;
+    throw err;
+  }
+
+  return {
+    uid: data.localId,
+    email: data.email
+  };
+}
 
 // Register new user
 router.post('/register', async (req, res) => {
@@ -42,6 +152,9 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters long' });
     }
     
+    // Normalize role input (prevent admin self sign-ups)
+    const normalizedRole = normalizeRole(role);
+
     // Check if user already exists in Firestore
     const existingUsers = await queryDocuments(COLLECTIONS.USERS, [
       { field: 'email', operator: '==', value: email.toLowerCase() }
@@ -57,7 +170,7 @@ router.post('/register', async (req, res) => {
       password,
       name.trim(),
       {
-        role: role || 'lawyer',
+        role: normalizedRole,
         barNumber: barNumber || null,
         firm: firm || null,
       }
@@ -68,7 +181,7 @@ router.post('/register', async (req, res) => {
       firebaseUid: firebaseUser.uid,
       name: name.trim(),
       email: email.toLowerCase(),
-      role: role || 'lawyer',
+      role: normalizedRole,
     };
     
     // Only add optional fields if they have values
@@ -82,17 +195,25 @@ router.post('/register', async (req, res) => {
     // Use Firebase UID as document ID for easy lookup
     await db.collection(COLLECTIONS.USERS).doc(firebaseUser.uid).set({
       ...userProfileData,
+      notifications: defaultNotificationSettings,
+      preferences: defaultPreferenceSettings,
+      security: defaultSecuritySettings,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     
-    const userProfile = { id: firebaseUser.uid, ...userProfileData };
+    const userProfile = buildUserResponse(firebaseUser.uid, {
+      ...userProfileData,
+      notifications: defaultNotificationSettings,
+      preferences: defaultPreferenceSettings,
+      security: defaultSecuritySettings,
+    });
     
     // Create session token for automatic login
     const sessionToken = Buffer.from(JSON.stringify({
       uid: firebaseUser.uid,
       email: email.toLowerCase(),
-      role: role || 'lawyer'
+      role: normalizedRole
     })).toString('base64');
     
     // Set cookie with session token
@@ -108,14 +229,7 @@ router.post('/register', async (req, res) => {
     return res.status(201).json({
       message: 'Registration successful',
       token: sessionToken,
-      user: {
-        id: firebaseUser.uid,
-        name: name.trim(),
-        email: email.toLowerCase(),
-        role: role || 'lawyer',
-        barNumber: barNumber?.trim(),
-        firm: firm?.trim(),
-      }
+      user: userProfile
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -198,95 +312,75 @@ router.post('/login', async (req, res) => {
     
     let decodedToken;
     
-    // If idToken provided, use it (for Firebase SDK clients)
     if (idToken) {
       decodedToken = await verifyFirebaseToken(idToken);
-    } 
-    // If email/password provided, verify with Firebase
-    else if (email && password) {
+    } else if (email && password) {
+      const normalizedEmail = email.toLowerCase().trim();
       try {
-        const { getFirebaseAuth } = await import('../config/firebase.js');
-        const auth = getFirebaseAuth();
-        
-        // Get user by email from Firebase Auth
-        const userRecord = await auth.getUserByEmail(email.toLowerCase());
-        
-        // Get user profile from Firestore to verify they exist
-        const userProfile = await getDocumentById(COLLECTIONS.USERS, userRecord.uid);
-        
-        if (!userProfile) {
-          // User exists in Firebase Auth but not in Firestore - create profile
-          console.warn(`User ${userRecord.uid} exists in Firebase Auth but not in Firestore. Creating profile...`);
-          await db.collection(COLLECTIONS.USERS).doc(userRecord.uid).set({
-            firebaseUid: userRecord.uid,
-            name: userRecord.displayName || email.split('@')[0],
-            email: email.toLowerCase(),
-            role: 'lawyer',
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-          
-          decodedToken = {
-            uid: userRecord.uid,
-            email: userRecord.email,
-            role: 'lawyer'
-          };
-        } else {
-          decodedToken = {
-            uid: userRecord.uid,
-            email: userRecord.email,
-            role: userProfile.role || 'lawyer'
-          };
-        }
-        
-        // Note: Password verification requires Firebase Web API Key
-        // For now, we trust that if user exists in Firebase Auth, password is correct
-        // In production, add FIREBASE_WEB_API_KEY to .env for proper password verification
+        const verifiedUser = await verifyPasswordWithFirebase(normalizedEmail, password);
+        decodedToken = {
+          uid: verifiedUser.uid,
+          email: (verifiedUser.email || normalizedEmail)
+        };
       } catch (error) {
-        console.error('Login error:', error);
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        if (error.code === 'MISSING_FIREBASE_WEB_API_KEY') {
+          return res.status(500).json({
+            error: 'Password verification is not configured on the server. Please set FIREBASE_WEB_API_KEY.'
+          });
+        }
+        if (error.code === 'INVALID_CREDENTIALS') {
           return res.status(401).json({ error: 'Invalid credentials' });
         }
+        console.error('Password verification failed:', error);
         return res.status(401).json({ error: 'Invalid credentials' });
       }
     } else {
       return res.status(400).json({ error: 'Email and password, or ID token is required' });
     }
     
-    // Get user profile from Firestore (if not already retrieved)
     let userProfile = await getDocumentById(COLLECTIONS.USERS, decodedToken.uid);
     
     if (!userProfile) {
-      return res.status(404).json({ error: 'User profile not found' });
+      const auth = getFirebaseAuth();
+      const authRecord = await auth.getUser(decodedToken.uid);
+      console.warn(`User ${decodedToken.uid} exists without profile. Creating default profile...`);
+      const fallbackName = authRecord.displayName || decodedToken.email?.split('@')[0] || 'User';
+      const profileData = {
+        firebaseUid: decodedToken.uid,
+        name: fallbackName,
+        email: (decodedToken.email || authRecord.email || '').toLowerCase(),
+        role: 'lawyer',
+        notifications: defaultNotificationSettings,
+        preferences: defaultPreferenceSettings,
+        security: defaultSecuritySettings,
+      };
+      await db.collection(COLLECTIONS.USERS).doc(decodedToken.uid).set({
+        ...profileData,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      userProfile = { id: decodedToken.uid, ...profileData };
     }
     
-    // Create session token
+    const responseUser = buildUserResponse(decodedToken.uid, userProfile);
+    
     const sessionToken = Buffer.from(JSON.stringify({
       uid: decodedToken.uid,
-      email: decodedToken.email,
-      role: decodedToken.role || userProfile.role
+      email: responseUser.email,
+      role: responseUser.role
     })).toString('base64');
     
-    // Set cookie with session token
-    // Use 'lax' for development (works with Vite proxy) and 'none' for production (cross-origin)
     res.cookie('token', sessionToken, {
       httpOnly: true,
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/'
     });
     
     return res.json({
       token: sessionToken,
-      user: {
-        id: decodedToken.uid,
-        name: userProfile.name,
-        email: userProfile.email,
-        role: decodedToken.role || userProfile.role,
-        barNumber: userProfile.barNumber,
-        firm: userProfile.firm,
-      }
+      user: responseUser
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -334,14 +428,7 @@ router.get('/me', requireAuth, async (req, res) => {
     }
     
     return res.json({
-      user: {
-        id: req.user.userId,
-        name: userProfile.name,
-        email: userProfile.email,
-        role: req.user.role,
-        barNumber: userProfile.barNumber,
-        firm: userProfile.firm,
-      }
+      user: buildUserResponse(req.user.userId, userProfile)
     });
   } catch (error) {
     console.error('Auth check error:', error);
@@ -358,17 +445,58 @@ router.get('/me', requireAuth, async (req, res) => {
 // Update user profile
 router.put('/me', requireAuth, async (req, res) => {
   try {
-    const { name, barNumber, firm } = req.body;
+    const { 
+      name, 
+      barNumber, 
+      firm, 
+      phone,
+      address,
+      bio,
+      notifications,
+      preferences,
+      security 
+    } = req.body;
+    
+    const existingProfile = await getDocumentById(COLLECTIONS.USERS, req.user.userId);
+    if (!existingProfile) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
     const updates = {};
     
-    if (name) updates.name = name.trim();
+    if (name !== undefined) updates.name = name?.trim() || existingProfile.name;
     if (barNumber !== undefined) updates.barNumber = barNumber?.trim() || null;
     if (firm !== undefined) updates.firm = firm?.trim() || null;
+    if (phone !== undefined) updates.phone = phone?.trim() || '';
+    if (address !== undefined) updates.address = address?.trim() || '';
+    if (bio !== undefined) updates.bio = bio?.trim() || '';
     
-    // Update Firestore
+    if (notifications) {
+      updates.notifications = mergeSettings(
+        defaultNotificationSettings,
+        existingProfile.notifications,
+        notifications
+      );
+    }
+    
+    if (preferences) {
+      updates.preferences = mergeSettings(
+        defaultPreferenceSettings,
+        existingProfile.preferences,
+        preferences
+      );
+    }
+    
+    if (security) {
+      updates.security = mergeSettings(
+        defaultSecuritySettings,
+        existingProfile.security,
+        security
+      );
+    }
+    
     const updatedProfile = await updateDocument(COLLECTIONS.USERS, req.user.userId, updates);
     
-    // Update Firebase Auth display name if name changed
     if (name) {
       try {
         await updateFirebaseUser(req.user.userId, { displayName: name.trim() });
@@ -378,14 +506,7 @@ router.put('/me', requireAuth, async (req, res) => {
     }
     
     return res.json({
-      user: {
-        id: req.user.userId,
-        name: updatedProfile.name,
-        email: updatedProfile.email,
-        role: updatedProfile.role,
-        barNumber: updatedProfile.barNumber,
-        firm: updatedProfile.firm,
-      }
+      user: buildUserResponse(req.user.userId, updatedProfile)
     });
   } catch (error) {
     console.error('Update profile error:', error);
@@ -401,26 +522,121 @@ router.post('/forgot', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
     
-    // Check if user exists
+    const normalizedEmail = email.toLowerCase().trim();
     const users = await queryDocuments(COLLECTIONS.USERS, [
-      { field: 'email', operator: '==', value: email.toLowerCase() }
+      { field: 'email', operator: '==', value: normalizedEmail }
     ]);
     
     if (users.length === 0) {
-      // Don't reveal if user exists
       return res.json({ ok: true });
     }
     
-    // Firebase handles password reset via email
-    // You can use Firebase Admin SDK to generate reset link
-    // For now, return success (client should use Firebase Auth SDK)
-    return res.json({ 
-      ok: true,
-      message: 'Password reset email will be sent if account exists'
+    const userProfile = users[0];
+    const userId = userProfile.id || userProfile._id;
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashToken(token);
+    const expiresAt = admin.firestore.Timestamp.fromDate(
+      new Date(Date.now() + PASSWORD_RESET_EXPIRY_MS)
+    );
+    
+    // Remove existing tokens for user
+    const existingTokens = await queryDocuments(COLLECTIONS.PASSWORD_RESETS, [
+      { field: 'userId', operator: '==', value: userId }
+    ]);
+    await Promise.all(
+      existingTokens.map(tokenDoc => deleteDocument(COLLECTIONS.PASSWORD_RESETS, tokenDoc.id))
+    );
+    
+    await createDocument(COLLECTIONS.PASSWORD_RESETS, {
+      userId,
+      email: normalizedEmail,
+      tokenHash,
+      expiresAt
     });
+    
+    const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:8080';
+    const resetUrl = `${appUrl.replace(/\/$/, '')}/reset-password?token=${token}`;
+    
+    let previewUrl;
+    try {
+      const mailResult = await sendPasswordResetEmail({
+        to: normalizedEmail,
+        resetUrl
+      });
+      previewUrl = mailResult?.previewUrl;
+    } catch (mailError) {
+      console.error('Failed to send password reset email:', mailError?.message || mailError);
+    }
+    
+    const response = {
+      ok: true,
+      message: 'If the email exists, a reset link has been sent.'
+    };
+    
+    if (process.env.NODE_ENV !== 'production') {
+      response.token = token;
+      response.resetUrl = resetUrl;
+      if (previewUrl) {
+        response.previewUrl = previewUrl;
+      }
+    }
+    
+    return res.json(response);
   } catch (error) {
     console.error('Forgot password error:', error);
     return res.status(500).json({ error: 'Failed to process request' });
+  }
+});
+
+router.post('/reset', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+    
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+    
+    const tokenHash = hashToken(token);
+    const resetRequests = await queryDocuments(COLLECTIONS.PASSWORD_RESETS, [
+      { field: 'tokenHash', operator: '==', value: tokenHash }
+    ]);
+    
+    if (resetRequests.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+    
+    const now = new Date();
+    const validRequest = resetRequests.find(request => {
+      const expires = request.expiresAt?.toDate ? request.expiresAt.toDate() : new Date(request.expiresAt);
+      return expires && expires > now;
+    });
+    
+    if (!validRequest) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+    
+    const userId = validRequest.userId;
+    if (!userId) {
+      return res.status(400).json({ error: 'Invalid reset token' });
+    }
+    
+    const auth = getFirebaseAuth();
+    await auth.updateUser(userId, { password });
+    
+    const userTokens = await queryDocuments(COLLECTIONS.PASSWORD_RESETS, [
+      { field: 'userId', operator: '==', value: userId }
+    ]);
+    await Promise.all(
+      userTokens.map(record => deleteDocument(COLLECTIONS.PASSWORD_RESETS, record.id))
+    );
+    
+    return res.json({ ok: true, message: 'Password has been reset successfully.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return res.status(500).json({ error: 'Failed to reset password' });
   }
 });
 

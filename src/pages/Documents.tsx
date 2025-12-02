@@ -23,6 +23,7 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import { useLegalData } from '@/contexts/LegalDataContext';
+import { getApiUrl } from '@/lib/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -47,6 +48,7 @@ interface ApiFolder {
   name: string; 
   parentId?: string;
   ownerId: string;
+  caseId?: string | null;
   createdAt: string;
 }
 
@@ -68,15 +70,6 @@ const Documents = () => {
   const [selectedFile, setSelectedFile] = useState<ApiFile | null>(null);
   const [showFileDetailsDialog, setShowFileDetailsDialog] = useState(false);
   
-  // Import API utility
-  const getApiUrl = (path: string) => {
-    const apiUrl = (import.meta as any).env?.VITE_API_URL;
-    if (apiUrl) {
-      return `${apiUrl}${path.startsWith('/') ? path : `/${path}`}`;
-    }
-    return path.startsWith('/') ? path : `/${path}`;
-  };
-
   const detectType = (mimetype: string): DocType => {
     if (mimetype.includes('pdf')) return 'pdf';
     if (mimetype.includes('image')) return 'image';
@@ -326,7 +319,7 @@ const Documents = () => {
   const createFoldersForExistingCases = async () => {
     try {
       // Get all existing folders
-      const foldersRes = await fetch('/api/documents/folders', { credentials: 'include' });
+      const foldersRes = await fetch(getApiUrl('/api/documents/folders'), { credentials: 'include' });
       if (!foldersRes.ok) return;
       
       const foldersData = await foldersRes.json();
@@ -335,7 +328,9 @@ const Documents = () => {
       // Check each case to see if it has a corresponding folder
       for (const case_ of cases) {
         const expectedFolderName = `${case_.caseNumber} - ${case_.clientName}`;
-        const folderExists = existingFolders.some((folder: any) => folder.name === expectedFolderName);
+        const folderExists = existingFolders.some((folder: ApiFolder) => 
+          folder.caseId === case_.id || folder.name === expectedFolderName
+        );
         
         if (!folderExists) {
           try {
@@ -343,7 +338,7 @@ const Documents = () => {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
-              body: JSON.stringify({ name: expectedFolderName })
+              body: JSON.stringify({ name: expectedFolderName, caseId: case_.id })
             });
             
             if (folderRes.ok) {

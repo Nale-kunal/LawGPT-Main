@@ -89,3 +89,5 @@ Before deploying to Vercel, verify all features are working:
 - **Cookies not working**: Check cookie domain settings
 - **File upload fails**: Check Cloudinary credentials
 
+
+

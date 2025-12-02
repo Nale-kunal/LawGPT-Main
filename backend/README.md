@@ -5,15 +5,17 @@ Express.js backend API for the Lawyer Zen application.
 ## Features
 
 - RESTful API with Express.js
-- MongoDB database with Mongoose
-- JWT authentication
-- File upload handling with Multer
+- **Firebase Firestore** for structured data
+- **Firebase Authentication** (via ID tokens) with optional JWT compatibility
+- **Cloudinary** for file/media storage (images, videos, documents)
+- File upload handling with Multer (memory storage → Cloudinary)
 - CORS support for cross-origin requests
 
 ## Prerequisites
 
 - Node.js (v18 or higher)
-- MongoDB (local installation or MongoDB Atlas)
+- Firebase project with Firestore + Auth enabled
+- Cloudinary account for media storage
 
 ## Setup
 
@@ -31,23 +33,12 @@ Copy the `env.example` file to `.env`:
 cp env.example .env
 ```
 
-Edit `.env` and update the following variables:
+Edit `.env` and update the variables documented in `env.example`, including:
 
-```env
-PORT=5000
-MONGODB_URI=mongodb://127.0.0.1:27017/lawyer_zen
-JWT_SECRET=your-super-secret-jwt-key-change-in-production
-CORS_ORIGIN=http://localhost:8080
-NODE_ENV=development
-```
-
-3. **Create uploads directory:**
-
-The uploads directory will be automatically created when you start the server, but you can create it manually:
-
-```bash
-mkdir uploads
-```
+- `PORT`, `CORS_ORIGIN`, `JWT_SECRET`
+- Firebase Admin credentials (one of `FIREBASE_SERVICE_ACCOUNT_*` or `FIREBASE_PROJECT_ID` / `FIREBASE_PRIVATE_KEY` / `FIREBASE_CLIENT_EMAIL`)
+- `FIREBASE_WEB_API_KEY`
+- Cloudinary credentials (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`)
 
 ## Running the Server
 
@@ -57,7 +48,7 @@ mkdir uploads
 npm run dev
 ```
 
-This will start the server with auto-reload on file changes.
+This will start the server with auto-reload on file changes, using **Firestore** as the database and **Cloudinary** for media storage.
 
 ### Production Mode
 
@@ -85,7 +76,7 @@ All API endpoints are prefixed with `/api`:
 
 ## Database
 
-The application uses MongoDB. Make sure MongoDB is running before starting the server.
+All application data is stored in **Firebase Firestore**. Collection names are defined in `src/services/firestore.js` (`COLLECTIONS`).
 
 ### Seed Legal Sections (Optional)
 
@@ -105,9 +96,9 @@ npm run seed:legal
 
 ## File Uploads
 
-Uploaded files are stored in the `uploads/` directory in the backend root. The directory is automatically created on first upload.
+New uploads are sent to **Cloudinary** using in-memory uploads via Multer and the helper in `src/config/cloudinary.js`.
 
-Files are served at the `/uploads` endpoint.
+Existing legacy files in `uploads/` may still be served via `/uploads` for backwards compatibility, but new uploads are stored in Cloudinary and referenced from Firestore.
 
 ## CORS Configuration
 
@@ -127,8 +118,33 @@ The API uses JWT tokens stored in HTTP-only cookies. All protected routes requir
 1. Set `NODE_ENV=production` in your `.env` file
 2. Update `CORS_ORIGIN` to your production frontend URL
 3. Use a strong `JWT_SECRET` (generate with: `openssl rand -base64 32`)
-4. Ensure MongoDB connection string is correct for your production database
+4. Ensure Firebase + Cloudinary credentials are set correctly in your hosting environment
 5. Run `npm start` or use a process manager like PM2
+
+## Migration & Testing Helpers
+
+- **Migrate legacy MongoDB data to Firestore** (one-time, optional):
+
+  ```bash
+  # from backend/
+  npm run migrate-local-to-firestore
+  ```
+
+- **Upload legacy local files to Cloudinary** (one-time, optional):
+
+  ```bash
+  # from backend/
+  npm run upload-media-to-cloudinary
+  ```
+
+- **Smoke-test key CRUD endpoints**:
+
+  ```bash
+  # from backend/
+  npm run test:db
+  ```
+
+For a full end-to-end checklist, see `../migration-checklist.md`.
 
 ## Troubleshooting
 

@@ -164,7 +164,6 @@ const Signup = () => {
                 <SelectContent>
                   <SelectItem value="lawyer">Lawyer</SelectItem>
                   <SelectItem value="assistant">Legal Assistant</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -20,9 +20,11 @@ import { useLegalData, Case } from '@/contexts/LegalDataContext';
 import { CaseDetailsPopup } from '@/components/CaseDetailsPopup';
 import { CaseConflictChecker } from '@/components/CaseConflictChecker';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 const Calendar = () => {
   const { cases, clients, addCase, updateCase, deleteCase, addClient, hearings } = useLegalData();
+  const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -198,18 +200,61 @@ const Calendar = () => {
 
   const handleSave = async () => {
     if (!selectedDate) return;
+    const trimmedCaseNumber = formCaseNumber.trim();
+    const trimmedClientName = formClientName.trim();
+    const trimmedCourtName = formCourtName.trim();
+    const trimmedDescription = formDescription.trim();
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    if (selectedDate < startOfToday) {
+      toast({
+        title: 'Invalid date',
+        description: 'You cannot schedule hearings in the past.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!trimmedCaseNumber) {
+      toast({
+        title: 'Validation error',
+        description: 'Case number is required.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!trimmedClientName) {
+      toast({
+        title: 'Validation error',
+        description: 'Client name is required.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!trimmedCourtName) {
+      toast({
+        title: 'Validation error',
+        description: 'Court name is required.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     const basePayload = {
-      caseNumber: formCaseNumber.trim(),
-      clientName: formClientName.trim(),
+      caseNumber: trimmedCaseNumber,
+      clientName: trimmedClientName,
       opposingParty: '',
-      courtName: formCourtName.trim(),
+      courtName: trimmedCourtName,
       judgeName: formJudgeName.trim(),
       hearingDate: selectedDate,
       hearingTime: formHearingTime.trim(),
       status: 'active' as const,
       priority: formPriority,
       caseType: '',
-      description: formDescription.trim(),
+      description: trimmedDescription,
       nextHearing: undefined as unknown as Date,
       documents: [] as string[],
       notes: '',
@@ -245,9 +290,19 @@ const Calendar = () => {
         console.log('Case created successfully from calendar');
       } catch (error) {
         console.error('Error creating case from calendar:', error);
+        toast({
+          title: 'Failed to create case',
+          description: error instanceof Error ? error.message : 'Unable to create case. Please try again.',
+          variant: 'destructive'
+        });
+        return;
       }
     }
     resetModal();
+    toast({
+      title: editingCase ? 'Case updated' : 'Case created',
+      description: editingCase ? 'Case has been updated.' : 'Case has been scheduled.'
+    });
   };
 
   const handleDelete = async (c: Case) => {

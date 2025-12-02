@@ -21,6 +21,8 @@ import {
 import { useLegalData } from '@/contexts/LegalDataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { AlertManager } from '@/components/AlertManager';
+import { useNavigate } from 'react-router-dom';
+import { getApiUrl } from '@/lib/api';
 
 interface DashboardStats {
   totalCases: number;
@@ -51,6 +53,7 @@ const Dashboard = () => {
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
   
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -58,8 +61,8 @@ const Dashboard = () => {
         setLoading(true);
         
         const [statsRes, activityRes] = await Promise.all([
-          fetch('/api/dashboard/stats', { credentials: 'include' }),
-          fetch('/api/dashboard/activity', { credentials: 'include' })
+          fetch(getApiUrl('/api/dashboard/stats'), { credentials: 'include' }),
+          fetch(getApiUrl('/api/dashboard/activity'), { credentials: 'include' })
         ]);
         
         if (statsRes.ok) {
@@ -158,14 +161,14 @@ const Dashboard = () => {
       value: dashboardStats?.totalCases ?? cases.length,
       description: `${dashboardStats?.activeCases ?? activeCases.length} active`,
       icon: FileText,
-      trend: "+12% from last month"
+      trend: undefined
     },
     {
       title: "Clients",
       value: dashboardStats?.totalClients ?? clients.length,
       description: "Total registered",
       icon: Users,
-      trend: "+8% from last month"
+      trend: undefined
     },
     {
       title: "Today's Hearings",
@@ -183,7 +186,7 @@ const Dashboard = () => {
       icon: IndianRupee,
       trend: dashboardStats?.revenue && dashboardStats.revenue.growth !== undefined
         ? `${parseFloat(dashboardStats.revenue.growth) >= 0 ? '+' : ''}${dashboardStats.revenue.growth}% from last month`
-        : "No data for comparison"
+        : undefined
     }
   ];
 
@@ -192,28 +195,28 @@ const Dashboard = () => {
       title: "Add New Case",
       description: "Register a new legal case",
       icon: FileText,
-      action: () => window.location.href = '/dashboard/cases',
+      action: () => navigate('/dashboard/cases'),
       color: "bg-primary"
     },
     {
       title: "Schedule Hearing",
       description: "Add court appearance",
       icon: Calendar,
-      action: () => window.location.href = '/dashboard/calendar',
+      action: () => navigate('/dashboard/calendar'),
       color: "bg-secondary"
     },
     {
       title: "Add Client",
       description: "Register new client",
       icon: Users,
-      action: () => window.location.href = '/dashboard/clients',
+      action: () => navigate('/dashboard/clients'),
       color: "bg-accent"
     },
     {
       title: "Legal Research",
       description: "Search law database",
       icon: Gavel,
-      action: () => window.location.href = '/dashboard/legal-research',
+      action: () => navigate('/dashboard/legal-research'),
       color: "bg-warning"
     }
   ];
@@ -232,7 +235,7 @@ const Dashboard = () => {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button 
-            onClick={() => window.location.href = '/dashboard/cases'}
+            onClick={() => navigate('/dashboard/cases')}
             className="flex-1 sm:flex-initial"
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -240,7 +243,7 @@ const Dashboard = () => {
           </Button>
           <Button 
             variant="outline"
-            onClick={() => window.location.href = '/dashboard/clients'}
+            onClick={() => navigate('/dashboard/clients')}
             className="flex-1 sm:flex-initial"
           >
             <Users className="mr-2 h-4 w-4" />
@@ -260,10 +263,12 @@ const Dashboard = () => {
             <CardContent>
               <div className="text-2xl font-bold text-primary">{stat.value}</div>
               <p className="text-xs text-muted-foreground">{stat.description}</p>
-              <div className="flex items-center pt-1">
-                <TrendingUp className="h-3 w-3 text-success mr-1" />
-                <span className="text-xs text-success">{stat.trend}</span>
-              </div>
+              {stat.trend && (
+                <div className="flex items-center pt-1">
+                  <TrendingUp className="h-3 w-3 text-success mr-1" />
+                  <span className="text-xs text-success">{stat.trend}</span>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -309,13 +314,13 @@ const Dashboard = () => {
                         <Button 
                           size="sm" 
                           variant="outline"
-                          onClick={() => window.location.href = `/dashboard/cases`}
+                          onClick={() => navigate('/dashboard/cases')}
                         >
                           View
                         </Button>
                         <Button 
                           size="sm"
-                          onClick={() => window.location.href = `/dashboard/calendar`}
+                          onClick={() => navigate('/dashboard/calendar')}
                         >
                           Details
                         </Button>
@@ -329,7 +334,7 @@ const Dashboard = () => {
                   <Button 
                     variant="outline" 
                     className="w-full"
-                    onClick={() => window.location.href = '/dashboard/calendar'}
+                    onClick={() => navigate('/dashboard/calendar')}
                   >
                     View Full Calendar
                   </Button>

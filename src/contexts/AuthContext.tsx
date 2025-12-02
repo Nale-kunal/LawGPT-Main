@@ -1,5 +1,29 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { getApiUrl } from '@/lib/api';
+
+interface NotificationSettings {
+  emailAlerts: boolean;
+  smsAlerts: boolean;
+  pushNotifications: boolean;
+  hearingReminders: boolean;
+  clientUpdates: boolean;
+  billingAlerts: boolean;
+  weeklyReports: boolean;
+}
+
+interface PreferenceSettings {
+  theme: string;
+  language: string;
+  timezone: string;
+  dateFormat: string;
+  currency: string;
+}
+
+interface SecuritySettings {
+  twoFactorEnabled: boolean;
+  sessionTimeout: string;
+  loginNotifications: boolean;
+}
 
 interface User {
   id: string;
@@ -8,6 +32,12 @@ interface User {
   role: 'lawyer' | 'assistant' | 'admin';
   barNumber?: string;
   firm?: string;
+  phone?: string;
+  address?: string;
+  bio?: string;
+  notifications?: NotificationSettings;
+  preferences?: PreferenceSettings;
+  security?: SecuritySettings;
 }
 
 interface AuthContextType {
@@ -15,6 +45,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   register: (userData: RegisterData) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   isLoading: boolean;
   isAuthenticated: boolean;
 }
@@ -46,52 +77,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Check authentication status only once on app initialization
-    const checkAuthStatus = async () => {
-      try {
-        // First check if we have a stored user and it's still valid
-        const storedUser = localStorage.getItem('legal_pro_user');
-        if (storedUser) {
-          // Verify the stored user with the server
-          const res = await fetch(getApiUrl('/api/auth/me'), { credentials: 'include' });
-          if (res.ok) {
-            const data = await res.json();
-            setUser(data.user);
-            localStorage.setItem('legal_pro_user', JSON.stringify(data.user));
-          } else {
-            // Server says we're not authenticated, clear everything
-            setUser(null);
-            localStorage.removeItem('legal_pro_user');
-            // Clear any existing cookies
-            document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-          }
-        } else {
-          // No stored user, check if server has a valid session
-          const res = await fetch(getApiUrl('/api/auth/me'), { credentials: 'include' });
-          if (res.ok) {
-            const data = await res.json();
-            setUser(data.user);
-            localStorage.setItem('legal_pro_user', JSON.stringify(data.user));
-          } else {
-            setUser(null);
-            // Clear any existing cookies
-            document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-          }
-        }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        setUser(null);
-        localStorage.removeItem('legal_pro_user');
-        // Clear any existing cookies
-        document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuthStatus();
+  const persistUser = useCallback((userData: User | null) => {
+    if (userData) {
+      setUser(userData);
+      localStorage.setItem('legal_pro_user', JSON.stringify(userData));
+    } else {
+      setUser(null);
+      localStorage.removeItem('legal_pro_user');
+      document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    }
   }, []);
+
+  const refreshUser = useCallback(async () => {
+    try {
+      const res = await fetch(getApiUrl('/api/auth/me'), { credentials: 'include' });
+      if (!res.ok) {
+        persistUser(null);
+        return;
+      }
+      const data = await res.json();
+      persistUser(data.user as User);
+    } catch (error) {
+      console.error('Auth refresh failed:', error);
+      persistUser(null);
+    }
+  }, [persistUser]);
+
+  useEffect(() => {
+    const init = async () => {
+      await refreshUser();
+      setIsLoading(false);
+    };
+    init();
+  }, [refreshUser]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
@@ -103,23 +121,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         body: JSON.stringify({ email, password }),
       });
       if (!res.ok) {
+        persistUser(null);
         setIsLoading(false);
         return false;
       }
       const data = await res.json();
-      const newUser: User = {
-        id: data.user.id,
-        name: data.user.name,
-        email: data.user.email,
-        role: data.user.role,
-        barNumber: data.user.barNumber,
-        firm: data.user.firm,
-      };
-      setUser(newUser);
-      localStorage.setItem('legal_pro_user', JSON.stringify(newUser));
+      persistUser(data.user as User);
       setIsLoading(false);
       return true;
     } catch (error) {
+      persistUser(null);
       setIsLoading(false);
       return false;
     }
@@ -138,26 +149,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const data = await res.json();
       
       if (!res.ok) {
+        persistUser(null);
         setIsLoading(false);
         return { success: false, error: data.error || 'Registration failed' };
       }
       
-      const newUser: User = {
-        id: data.user.id,
-        name: data.user.name,
-        email: data.user.email,
-        role: data.user.role,
-        barNumber: data.user.barNumber,
-        firm: data.user.firm,
-      };
-      
-      // Token is automatically set in cookie by backend
-      // Store user in localStorage
-      setUser(newUser);
-      localStorage.setItem('legal_pro_user', JSON.stringify(newUser));
+      persistUser(data.user as User);
       setIsLoading(false);
       return { success: true };
     } catch (error) {
+      persistUser(null);
       setIsLoading(false);
       return { success: false, error: 'Network error occurred' };
     }
@@ -170,8 +171,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('Logout request failed:', error);
     } finally {
       // Always clear local state regardless of server response
-      setUser(null);
-      localStorage.removeItem('legal_pro_user');
+      persistUser(null);
       // Clear cookies manually
       document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
       // Force reload to clear any cached state
@@ -184,6 +184,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     register,
     logout,
+    refreshUser,
     isLoading,
     isAuthenticated: !!user
   };

@@ -14,6 +14,18 @@ const router = express.Router();
 
 router.use(requireAuth);
 
+const normalizeDateInput = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const isBeforeToday = (date) => {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  return date < startOfToday;
+};
+
 // Get all hearings for a specific case
 router.get('/case/:caseId', async (req, res) => {
   try {
@@ -105,7 +117,37 @@ router.get('/:id', async (req, res) => {
 // Create a new hearing
 router.post('/', async (req, res) => {
   try {
-    const data = { ...req.body, owner: req.user.userId };
+    const normalizedHearingDate = normalizeDateInput(req.body.hearingDate);
+    if (!normalizedHearingDate) {
+      return res.status(400).json({ error: 'Valid hearing date is required' });
+    }
+    if (isBeforeToday(normalizedHearingDate)) {
+      return res.status(400).json({ error: 'Hearing date cannot be in the past' });
+    }
+    
+    let normalizedNextHearingDate = null;
+    if (req.body.nextHearingDate) {
+      normalizedNextHearingDate = normalizeDateInput(req.body.nextHearingDate);
+      if (!normalizedNextHearingDate) {
+        return res.status(400).json({ error: 'Invalid next hearing date' });
+      }
+      if (isBeforeToday(normalizedNextHearingDate)) {
+        return res.status(400).json({ error: 'Next hearing date cannot be in the past' });
+      }
+    }
+    
+    const data = { 
+      ...req.body, 
+      owner: req.user.userId,
+      hearingDate: normalizedHearingDate
+    };
+    
+    if (normalizedNextHearingDate) {
+      data.nextHearingDate = normalizedNextHearingDate;
+    } else if (req.body.nextHearingDate === null) {
+      data.nextHearingDate = null;
+    }
+    
     const hearing = await createDocument(COLLECTIONS.HEARINGS, data);
     
     // Log activity
@@ -138,7 +180,36 @@ router.put('/:id', async (req, res) => {
     if (!original) return res.status(404).json({ error: 'Hearing not found' });
     if (original.owner !== req.user.userId) return res.status(403).json({ error: 'Forbidden' });
     
-    const hearing = await updateDocument(COLLECTIONS.HEARINGS, req.params.id, req.body);
+    const updates = { ...req.body };
+    const resultingStatus = updates.status || original.status;
+    
+    if (updates.hearingDate) {
+      const normalized = normalizeDateInput(updates.hearingDate);
+      if (!normalized) {
+        return res.status(400).json({ error: 'Invalid hearing date' });
+      }
+      if (resultingStatus === 'scheduled' && isBeforeToday(normalized)) {
+        return res.status(400).json({ error: 'Hearing date cannot be in the past while scheduled' });
+      }
+      updates.hearingDate = normalized;
+    }
+    
+    if (updates.nextHearingDate !== undefined) {
+      if (!updates.nextHearingDate) {
+        updates.nextHearingDate = null;
+      } else {
+        const normalizedNext = normalizeDateInput(updates.nextHearingDate);
+        if (!normalizedNext) {
+          return res.status(400).json({ error: 'Invalid next hearing date' });
+        }
+        if (isBeforeToday(normalizedNext)) {
+          return res.status(400).json({ error: 'Next hearing date cannot be in the past' });
+        }
+        updates.nextHearingDate = normalizedNext;
+      }
+    }
+    
+    const hearing = await updateDocument(COLLECTIONS.HEARINGS, req.params.id, updates);
     
     // Populate case info
     if (hearing.caseId) {

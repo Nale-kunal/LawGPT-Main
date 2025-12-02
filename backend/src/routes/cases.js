@@ -44,6 +44,30 @@ router.post('/', async (req, res) => {
     const data = { ...req.body, owner: req.user.userId };
     const item = await createDocument(COLLECTIONS.CASES, data);
     
+    try {
+      const safeCaseNumber = (item.caseNumber || `Case ${item.id}`).replace(/[\\/]+/g, '-');
+      const folderNameRaw = `${safeCaseNumber} - ${item.clientName || 'Client Documents'}`;
+      const folderName = folderNameRaw.trim().substring(0, 120);
+      
+      const folder = await createDocument(COLLECTIONS.FOLDERS, {
+        name: folderName || `Case ${item.id}`,
+        ownerId: req.user.userId,
+        parentId: null,
+        caseId: item.id
+      });
+      
+      await updateDocument(COLLECTIONS.CASES, item.id, { folderId: folder.id });
+      item.folderId = folder.id;
+    } catch (folderError) {
+      console.error('Auto folder creation failed for case:', item.id, folderError);
+      try {
+        await deleteDocument(COLLECTIONS.CASES, item.id);
+      } catch (cleanupError) {
+        console.error('Failed to rollback case after folder creation error:', cleanupError);
+      }
+      return res.status(500).json({ error: 'Failed to create folder for the new case. Please try again.' });
+    }
+    
     // Log activity
     await logActivity(
       req.user.userId,
@@ -55,7 +79,8 @@ router.post('/', async (req, res) => {
         caseNumber: item.caseNumber,
         clientName: item.clientName,
         priority: item.priority,
-        status: item.status
+        status: item.status,
+        folderId: item.folderId
       }
     );
     

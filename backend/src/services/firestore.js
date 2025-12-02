@@ -238,6 +238,7 @@ export const COLLECTIONS = {
   TIME_ENTRIES: 'timeEntries',
   ACTIVITIES: 'activities',
   LEGAL_SECTIONS: 'legalSections',
+  PASSWORD_RESETS: 'passwordResets',
 };
 
 export default db;

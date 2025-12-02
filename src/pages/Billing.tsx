@@ -96,6 +96,9 @@ const Billing = () => {
   const paidAmount = invoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + (inv.total || 0), 0);
   const pendingAmount = invoices.filter(inv => inv.status === 'sent' || inv.status === 'overdue').reduce((sum, inv) => sum + (inv.total || 0), 0);
   const totalHours = timeEntries.reduce((sum, entry) => sum + entry.duration, 0);
+  const collectionRate = totalBilled > 0 ? Math.round((paidAmount / totalBilled) * 100) : 0;
+  const averageInvoice = invoices.length > 0 ? Math.round(totalBilled / invoices.length) : 0;
+  const avgHoursPerInvoice = invoices.length > 0 ? Math.round(totalHours / invoices.length) : 0;
 
   const getStatusColor = (status: Invoice['status']) => {
     switch (status) {
@@ -423,19 +426,19 @@ const Billing = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
               <div className="text-2xl font-bold text-success mb-1">
-                {Math.round((paidAmount / totalBilled) * 100)}%
+                {collectionRate}%
               </div>
               <p className="text-sm text-muted-foreground">Collection Rate</p>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold mb-1">
-                ₹{Math.round(totalBilled / invoices.length).toLocaleString('en-IN')}
+                ₹{averageInvoice.toLocaleString('en-IN')}
               </div>
               <p className="text-sm text-muted-foreground">Average Invoice</p>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-primary mb-1">
-                {Math.round(totalHours / invoices.length)}h
+                {avgHoursPerInvoice}h
               </div>
               <p className="text-sm text-muted-foreground">Avg. Hours per Invoice</p>
             </div>

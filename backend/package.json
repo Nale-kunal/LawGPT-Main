@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "node --env-file=.env --watch index.js",
     "start": "node index.js",
-    "seed:legal": "node src/scripts/seedLegalSections.js"
+    "seed:legal": "node src/scripts/seedLegalSections.js",
+    "migrate-local-to-firestore": "node ../scripts/migrate-to-firebase.js",
+    "upload-media-to-cloudinary": "node ../scripts/upload-media-to-cloudinary.js",
+    "test:db": "node test-api.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

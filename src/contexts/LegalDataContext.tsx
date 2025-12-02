@@ -21,6 +21,7 @@ export interface Case {
   alerts: Alert[];
   createdAt: Date;
   updatedAt: Date;
+  folderId?: string;
 }
 
 export interface Client {
@@ -130,7 +131,7 @@ export interface Invoice {
 interface LegalDataContextType {
   // Cases
   cases: Case[];
-  addCase: (caseData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addCase: (caseData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Case>;
   updateCase: (caseId: string, updates: Partial<Case>) => void;
   deleteCase: (caseId: string) => void;
   getCaseById: (caseId: string) => Case | undefined;
@@ -304,30 +305,14 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
   // Case management functions
   const addCase = async (caseData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>) => {
     const res = await fetch(getApiUrl('/api/cases'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(caseData) });
-    if (res.ok) {
-      const saved = await res.json();
-      const mappedCase = mapCaseFromApi(saved);
-      setCases(prev => [...prev, mappedCase]);
-      
-      // Automatically create a folder for the new case
-      try {
-        const folderName = `${saved.caseNumber} - ${saved.clientName}`;
-        const folderRes = await fetch(getApiUrl('/api/documents/folders'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ name: folderName })
-        });
-        
-        if (folderRes.ok) {
-          console.log(`Auto-created folder for case: ${folderName}`);
-        } else {
-          console.warn(`Failed to auto-create folder for case: ${folderName}`);
-        }
-      } catch (error) {
-        console.warn('Error auto-creating folder for case:', error);
-      }
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: 'Failed to create case' }));
+      throw new Error(errorData.error || 'Failed to create case');
     }
+    const saved = await res.json();
+    const mappedCase = mapCaseFromApi(saved);
+    setCases(prev => [...prev, mappedCase]);
+    return mappedCase;
   };
 
   const updateCase = async (caseId: string, updates: Partial<Case>) => {
@@ -582,6 +567,7 @@ function mapCaseFromApi(raw: any): Case {
     alerts: [],
     createdAt: raw.createdAt ? new Date(raw.createdAt) : new Date(),
     updatedAt: raw.updatedAt ? new Date(raw.updatedAt) : new Date(),
+    folderId: raw.folderId,
   } as Case;
 }
 

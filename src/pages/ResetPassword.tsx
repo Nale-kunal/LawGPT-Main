@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { getApiUrl } from '@/lib/api';
 
 const ResetPassword = () => {
   const [searchParams] = useSearchParams();
@@ -47,9 +48,10 @@ const ResetPassword = () => {
     
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/auth/reset', {
+      const res = await fetch(getApiUrl('/api/auth/reset'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ token, password }),
       });
       if (res.ok) {

@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Case, Hearing } from '@/contexts/LegalDataContext';
 import { useLegalData } from '@/contexts/LegalDataContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface HearingRecordPopupProps {
   case_: Case | null;
@@ -57,6 +58,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
   const { addHearing, updateHearing, deleteHearing } = useLegalData();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
 
   const [formData, setFormData] = useState({
     hearingDate: '',
@@ -84,6 +86,8 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
   const [newDocument, setNewDocument] = useState('');
   const [newWitness, setNewWitness] = useState('');
   const [newOrder, setNewOrder] = useState({ orderType: '', orderDetails: '' });
+  const todayIsoString = new Date().toISOString().split('T')[0];
+  const shouldEnforceFutureDates = !hearing || formData.status === 'scheduled';
 
   useEffect(() => {
     console.log('HearingRecordPopup: useEffect triggered', { hearing: hearing?.id, case_: case_?.id, isOpen });
@@ -165,21 +169,70 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
     e.preventDefault();
     if (!case_) return;
 
-    // Basic validation
     if (!formData.hearingDate) {
-      alert('Please select a hearing date');
+      toast({
+        title: 'Validation error',
+        description: 'Please select a hearing date',
+        variant: 'destructive'
+      });
       return;
     }
     if (!formData.courtName.trim()) {
-      alert('Please enter court name');
+      toast({
+        title: 'Validation error',
+        description: 'Please enter the court name',
+        variant: 'destructive'
+      });
       return;
+    }
+
+    const parsedHearingDate = new Date(formData.hearingDate);
+    if (Number.isNaN(parsedHearingDate.getTime())) {
+      toast({
+        title: 'Validation error',
+        description: 'Please provide a valid hearing date',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const enforceFutureDates = !hearing || formData.status === 'scheduled';
+    if (enforceFutureDates && parsedHearingDate < startOfToday) {
+      toast({
+        title: 'Validation error',
+        description: 'Hearing date cannot be in the past while status is scheduled',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (formData.nextHearingDate) {
+      const parsedNextDate = new Date(formData.nextHearingDate);
+      if (Number.isNaN(parsedNextDate.getTime())) {
+        toast({
+          title: 'Validation error',
+          description: 'Please provide a valid next hearing date',
+          variant: 'destructive'
+        });
+        return;
+      }
+      if (parsedNextDate < startOfToday) {
+        toast({
+          title: 'Validation error',
+          description: 'Next hearing date cannot be in the past',
+          variant: 'destructive'
+        });
+        return;
+      }
     }
 
     setIsSubmitting(true);
     try {
       const hearingData = {
         caseId: case_.id,
-        hearingDate: new Date(formData.hearingDate),
+        hearingDate: parsedHearingDate,
         hearingTime: formData.hearingTime || undefined,
         courtName: formData.courtName,
         judgeName: formData.judgeName || undefined,
@@ -373,6 +426,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                     value={formData.hearingDate}
                     onChange={(e) => setFormData(prev => ({ ...prev, hearingDate: e.target.value }))}
                     required
+                    min={shouldEnforceFutureDates ? todayIsoString : undefined}
                     className="bg-background text-foreground border-input"
                   />
                 </div>
@@ -656,6 +710,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                     type="date"
                     value={formData.nextHearingDate}
                     onChange={(e) => setFormData(prev => ({ ...prev, nextHearingDate: e.target.value }))}
+                    min={todayIsoString}
                     className="bg-background text-foreground border-input"
                   />
                 </div>

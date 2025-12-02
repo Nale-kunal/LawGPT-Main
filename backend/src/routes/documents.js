@@ -41,6 +41,7 @@ router.get('/folders', requireAuth, async (req, res) => {
     const transformedFolders = folders.map(folder => ({
       ...folder,
       _id: folder.id,
+      caseId: folder.caseId || null,
       createdAt: folder.createdAt?.toDate ? folder.createdAt.toDate().toISOString() : folder.createdAt
     }));
     
@@ -53,7 +54,7 @@ router.get('/folders', requireAuth, async (req, res) => {
 
 router.post('/folders', requireAuth, async (req, res) => {
   try {
-    const { name, parentId } = req.body;
+    const { name, parentId, caseId } = req.body;
     const ownerId = req.user.userId;
     
     if (!name || !ownerId) {
@@ -63,7 +64,8 @@ router.post('/folders', requireAuth, async (req, res) => {
     const folder = await createDocument(COLLECTIONS.FOLDERS, { 
       name: name.trim(), 
       parentId: parentId || null, 
-      ownerId 
+      ownerId,
+      caseId: caseId || null
     });
     
     // Transform folder to match frontend expectations (_id instead of id)

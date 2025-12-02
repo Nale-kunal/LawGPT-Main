@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { 
   LayoutDashboard, 
@@ -45,13 +46,32 @@ const navigation = [
 export const Sidebar = () => {
   const location = useLocation();
   const { alerts } = useLegalData();
-  const { state, toggleSidebar } = useSidebar();
+  const { state, toggleSidebar, setOpen, isMobile } = useSidebar();
   const unreadAlerts = alerts.filter(alert => !alert.isRead).length;
+  const hoverCollapsedRef = useRef(false);
+
+  const handleMouseEnter = () => {
+    if (isMobile) return;
+    hoverCollapsedRef.current = state === 'collapsed';
+    if (hoverCollapsedRef.current) {
+      setOpen(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (isMobile) return;
+    if (hoverCollapsedRef.current) {
+      setOpen(false);
+      hoverCollapsedRef.current = false;
+    }
+  };
 
   return (
     <SidebarComponent 
       className="border-sidebar-border group hover:[&_[data-sidebar=group-label]]:opacity-100"
       collapsible="icon"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <SidebarHeader className="border-b border-sidebar-border px-3">
         <div className="flex items-center gap-2 py-3">

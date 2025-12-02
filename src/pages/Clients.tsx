@@ -20,12 +20,14 @@ import { useLegalData, Client } from '@/contexts/LegalDataContext';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
 
 const Clients = () => {
   const { clients, cases, addClient, updateClient, deleteClient } = useLegalData();
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const { toast } = useToast();
 
   // Form state for adding/editing clients
   const [formData, setFormData] = useState({
@@ -50,28 +52,57 @@ const Clients = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (selectedClient) {
-      // Update existing client
-      updateClient(selectedClient.id, {
-        ...formData,
-        cases: selectedClient.cases,
-        documents: selectedClient.documents
+    const phoneDigits = formData.phone.replace(/\D/g, '');
+    if (!/^[6-9]\d{9}$/.test(phoneDigits)) {
+      toast({
+        title: 'Invalid phone number',
+        description: 'Phone number must be 10 digits and start with 6-9.',
+        variant: 'destructive'
       });
-    } else {
-      // Add new client
-      addClient({
-        ...formData,
-        cases: [],
-        documents: []
-      });
+      return;
+    }
+
+    if (formData.panNumber) {
+      const panPattern = /^[A-Z]{5}\d{4}[A-Z]$/;
+      if (!panPattern.test(formData.panNumber)) {
+        toast({
+          title: 'Invalid PAN',
+          description: 'PAN must follow the format AAAAA9999A.',
+          variant: 'destructive'
+        });
+        return;
+      }
     }
     
-    setShowAddDialog(false);
-    setSelectedClient(null);
-    resetForm();
+    try {
+      if (selectedClient) {
+        await updateClient(selectedClient.id, {
+          ...formData,
+          cases: selectedClient.cases,
+          documents: selectedClient.documents
+        });
+        toast({ title: 'Client updated successfully' });
+      } else {
+        await addClient({
+          ...formData,
+          cases: [],
+          documents: []
+        });
+        toast({ title: 'Client added successfully' });
+      }
+      setShowAddDialog(false);
+      setSelectedClient(null);
+      resetForm();
+    } catch (error) {
+      toast({
+        title: 'Failed to save client',
+        description: error instanceof Error ? error.message : 'Unable to save client details. Please try again.',
+        variant: 'destructive'
+      });
+    }
   };
 
   // Filter clients based on search
@@ -141,8 +172,13 @@ const Clients = () => {
                   <Input
                     id="phone"
                     value={formData.phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="+91 98765 43210"
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setFormData(prev => ({ ...prev, phone: digits }));
+                    }}
+                    placeholder="9876543210"
+                    inputMode="numeric"
+                    maxLength={10}
                     required
                   />
                 </div>
@@ -151,7 +187,10 @@ const Clients = () => {
                   <Input
                     id="panNumber"
                     value={formData.panNumber}
-                    onChange={(e) => setFormData(prev => ({ ...prev, panNumber: e.target.value.toUpperCase() }))}
+                    onChange={(e) => {
+                      const pan = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+                      setFormData(prev => ({ ...prev, panNumber: pan }));
+                    }}
                     placeholder="ABCDE1234F"
                     maxLength={10}
                   />
@@ -163,9 +202,10 @@ const Clients = () => {
                 <Input
                   id="aadharNumber"
                   value={formData.aadharNumber}
-                  onChange={(e) => setFormData(prev => ({ ...prev, aadharNumber: e.target.value.replace(/\D/g, '') }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, aadharNumber: e.target.value.replace(/\D/g, '').slice(0, 12) }))}
                   placeholder="1234 5678 9012"
                   maxLength={12}
+                  inputMode="numeric"
                 />
               </div>
 

@@ -17,10 +17,12 @@ console.log('1. Checking Environment Variables:');
 const hasServiceAccountPath = !!process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
 const hasServiceAccount = !!process.env.FIREBASE_SERVICE_ACCOUNT;
 const hasIndividualCreds = !!(process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL);
+const hasWebApiKey = !!((process.env.FIREBASE_WEB_API_KEY || process.env.FIREBASE_API_KEY));
 
 console.log(`   - FIREBASE_SERVICE_ACCOUNT_PATH: ${hasServiceAccountPath ? '✅ Set' : '❌ Not set'}`);
 console.log(`   - FIREBASE_SERVICE_ACCOUNT: ${hasServiceAccount ? '✅ Set' : '❌ Not set'}`);
 console.log(`   - Individual credentials: ${hasIndividualCreds ? '✅ Set' : '❌ Not set'}`);
+console.log(`   - FIREBASE_WEB_API_KEY / FIREBASE_API_KEY: ${hasWebApiKey ? '✅ Set' : '❌ Not set'}`);
 
 if (!hasServiceAccountPath && !hasServiceAccount && !hasIndividualCreds) {
   console.error('\n❌ ERROR: No Firebase configuration found!');
@@ -33,6 +35,17 @@ if (!hasServiceAccountPath && !hasServiceAccount && !hasIndividualCreds) {
 
 // Check service account file if path is provided
 if (hasServiceAccountPath) {
+
+if (!hasWebApiKey) {
+  const isProd = (process.env.NODE_ENV || '').toLowerCase() === 'production';
+  const message = 'FIREBASE_WEB_API_KEY (or FIREBASE_API_KEY) is required for password login via Firebase REST API.';
+  if (isProd) {
+    console.error(`\n❌ ERROR: ${message}`);
+    process.exit(1);
+  } else {
+    console.warn(`\n⚠️  Warning: ${message} Set one of these variables before deploying to production.`);
+  }
+}
   const fs = await import('fs');
   const path = await import('path');
   const { fileURLToPath } = await import('url');

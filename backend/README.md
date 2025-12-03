@@ -37,7 +37,7 @@ Edit `.env` and update the variables documented in `env.example`, including:
 
 - `PORT`, `CORS_ORIGIN`, `JWT_SECRET`
 - Firebase Admin credentials (one of `FIREBASE_SERVICE_ACCOUNT_*` or `FIREBASE_PROJECT_ID` / `FIREBASE_PRIVATE_KEY` / `FIREBASE_CLIENT_EMAIL`)
-- `FIREBASE_WEB_API_KEY`
+- `FIREBASE_WEB_API_KEY` (or `FIREBASE_API_KEY`)
 - Cloudinary credentials (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`)
 
 ## Running the Server

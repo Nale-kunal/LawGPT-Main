@@ -1,5 +1,6 @@
 import express from 'express';
 import crypto from 'crypto';
+import fetch from 'node-fetch';
 import { 
   createFirebaseUser, 
   verifyFirebaseToken,
@@ -18,12 +19,28 @@ import {
 } from '../services/firestore.js';
 import { requireAuth } from '../middleware/auth.js';
 
+import { getFirebaseWebApiKey, ensureFirebaseWebApiKey } from '../utils/env.js';
+
 const db = getFirestore();
 import { sendPasswordResetEmail } from '../utils/mailer.js';
 
 const router = express.Router();
 
-const FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY;
+const FIREBASE_WEB_API_KEY = getFirebaseWebApiKey();
+const resolvedFetch = globalThis.fetch || fetch;
+if (!globalThis.fetch) {
+  globalThis.fetch = resolvedFetch;
+}
+
+// Fail fast in production so deployments cannot miss the API key silently.
+try {
+  ensureFirebaseWebApiKey({ requireInProduction: true });
+} catch (error) {
+  console.error(error.message);
+  if ((process.env.NODE_ENV || '').toLowerCase() === 'production') {
+    throw error;
+  }
+}
 const PASSWORD_RESET_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 const ALLOWED_ROLES = ['lawyer', 'assistant'];
 
@@ -100,7 +117,7 @@ async function verifyPasswordWithFirebase(email, password) {
     throw err;
   }
 
-  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_WEB_API_KEY}`, {
+  const response = await resolvedFetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_WEB_API_KEY}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

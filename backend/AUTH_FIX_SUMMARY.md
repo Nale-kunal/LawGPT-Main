@@ -61,9 +61,11 @@
 ## ⚠️ Important Notes
 
 ### For Production:
-Add Firebase Web API Key to `.env`:
+Add Firebase Web API Key to `.env` (either variable name works):
 ```env
 FIREBASE_WEB_API_KEY=your-web-api-key
+# or, if already defined elsewhere:
+FIREBASE_API_KEY=your-web-api-key
 ```
 
 **How to get it:**

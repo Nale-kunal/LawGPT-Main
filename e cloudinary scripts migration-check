@@ -1,0 +1,346 @@
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'VERCEL_DEPLOYMENT.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/env.example', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/package.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/src/config/cloudinary.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/src/config/firebase.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/src/routes/auth-firebase.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/src/routes/cases.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/src/routes/documents.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/src/routes/hearings.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/src/services/firestore.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/contexts/AuthContext.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/contexts/LegalDataContext.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/Documents.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'vercel.json', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/DEPLOYMENT_CHECKLIST.md b/DEPLOYMENT_CHECKLIST.md[m
+[1mindex 375cdff..8747cd0 100644[m
+[1m--- a/DEPLOYMENT_CHECKLIST.md[m
+[1m+++ b/DEPLOYMENT_CHECKLIST.md[m
+[36m@@ -89,3 +89,5 @@[m [mBefore deploying to Vercel, verify all features are working:[m
+ - **Cookies not working**: Check cookie domain settings[m
+ - **File upload fails**: Check Cloudinary credentials[m
+ [m
+[41m+[m
+[41m+[m
+[1mdiff --git a/README_DEPLOYMENT.md b/README_DEPLOYMENT.md[m
+[1mindex 69e5351..db6e918 100644[m
+[1m--- a/README_DEPLOYMENT.md[m
+[1m+++ b/README_DEPLOYMENT.md[m
+[36m@@ -40,3 +40,5 @@[m [mSee `VERCEL_DEPLOYMENT.md` for complete instructions.[m
+ [m
+ Your application is now ready for Vercel deployment. All API calls are properly configured for production.[m
+ [m
+[41m+[m
+[41m+[m
+[1mdiff --git a/backend/.gitignore b/backend/.gitignore[m
+[1mindex 297cfaf..33ab277 100644[m
+[1m--- a/backend/.gitignore[m
+[1m+++ b/backend/.gitignore[m
+[36m@@ -28,3 +28,5 @@[m [muploads/[m
+ .DS_Store[m
+ Thumbs.db[m
+ [m
+[41m+[m
+[41m+[m
+[1mdiff --git a/backend/DEPLOYMENT_QUICK_START.md b/backend/DEPLOYMENT_QUICK_START.md[m
+[1mindex fc24998..69da3dc 100644[m
+[1m--- a/backend/DEPLOYMENT_QUICK_START.md[m
+[1m+++ b/backend/DEPLOYMENT_QUICK_START.md[m
+[36m@@ -105,3 +105,5 @@[m [mShould return: `{"ok":true,"service":"lawyer-zen-api"}`[m
+ [m
+ **See `BACKEND_DEPLOYMENT.md` for detailed instructions!**[m
+ [m
+[41m+[m
+[41m+[m
+[1mdiff --git a/backend/FIX_CLOUDINARY_SETUP.md b/backend/FIX_CLOUDINARY_SETUP.md[m
+[1mindex 2c52331..fac9f6c 100644[m
+[1m--- a/backend/FIX_CLOUDINARY_SETUP.md[m
+[1m+++ b/backend/FIX_CLOUDINARY_SETUP.md[m
+[36m@@ -108,3 +108,5 @@[m [mIf you're still getting errors:[m
+ [m
+ **Need help?** Visit: https://cloudinary.com/console[m
+ [m
+[41m+[m
+[41m+[m
+[1mdiff --git a/backend/README.md b/backend/README.md[m
+[1mindex 6f5500d..1da8740 100644[m
+[1m--- a/backend/README.md[m
+[1m+++ b/backend/README.md[m
+[36m@@ -5,15 +5,17 @@[m [mExpress.js backend API for the Lawyer Zen application.[m
+ ## Features[m
+ [m
+ - RESTful API with Express.js[m
+[31m-- MongoDB database with Mongoose[m
+[31m-- JWT authentication[m
+[31m-- File upload handling with Multer[m
+[32m+[m[32m- **Firebase Firestore** for structured data[m
+[32m+[m[32m- **Firebase Authentication** (via ID tokens) with optional JWT compatibility[m
+[32m+[m[32m- **Cloudinary** for file/media storage (images, videos, documents)[m
+[32m+[m[32m- File upload handling with Multer (memory storage → Cloudinary)[m
+ - CORS support for cross-origin requests[m
+ [m
+ ## Prerequisites[m
+ [m
+ - Node.js (v18 or higher)[m
+[31m-- MongoDB (local installation or MongoDB Atlas)[m
+[32m+[m[32m- Firebase project with Firestore + Auth enabled[m
+[32m+[m[32m- Cloudinary account for media storage[m
+ [m
+ ## Setup[m
+ [m
+[36m@@ -31,23 +33,12 @@[m [mCopy the `env.example` file to `.env`:[m
+ cp env.example .env[m
+ ```[m
+ [m
+[31m-Edit `.env` and update the following variables:[m
+[32m+[m[32mEdit `.env` and update the variables documented in `env.example`, including:[m
+ [m
+[31m-```env[m
+[31m-PORT=5000[m
+[31m-MONGODB_URI=mongodb://127.0.0.1:27017/lawyer_zen[m
+[31m-JWT_SECRET=your-super-secret-jwt-key-change-in-production[m
+[31m-CORS_ORIGIN=http://localhost:8080[m
+[31m-NODE_ENV=development[m
+[31m-```[m
+[31m-[m
+[31m-3. **Create uploads directory:**[m
+[31m-[m
+[31m-The uploads directory will be automatically created when you start the server, but you can create it manually:[m
+[31m-[m
+[31m-```bash[m
+[31m-mkdir uploads[m
+[31m-```[m
+[32m+[m[32m- `PORT`, `CORS_ORIGIN`, `JWT_SECRET`[m
+[32m+[m[32m- Firebase Admin credentials (one of `FIREBASE_SERVICE_ACCOUNT_*` or `FIREBASE_PROJECT_ID` / `FIREBASE_PRIVATE_KEY` / `FIREBASE_CLIENT_EMAIL`)[m
+[32m+[m[32m- `FIREBASE_WEB_API_KEY`[m
+[32m+[m[32m- Cloudinary credentials (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`)[m
+ [m
+ ## Running the Server[m
+ [m
+[36m@@ -57,7 +48,7 @@[m [mmkdir uploads[m
+ npm run dev[m
+ ```[m
+ [m
+[31m-This will start the server with auto-reload on file changes.[m
+[32m+[m[32mThis will start the server with auto-reload on file changes, using **Firestore** as the database and **Cloudinary** for media storage.[m
+ [m
+ ### Production Mode[m
+ [m
+[36m@@ -85,7 +76,7 @@[m [mAll API endpoints are prefixed with `/api`:[m
+ [m
+ ## Database[m
+ [m
+[31m-The application uses MongoDB. Make sure MongoDB is running before starting the server.[m
+[32m+[m[32mAll application data is stored in **Firebase Firestore**. Collection names are defined in `src/services/firestore.js` (`COLLECTIONS`).[m
+ [m
+ ### Seed Legal Sections (Optional)[m
+ [m
+[36m@@ -105,9 +96,9 @@[m [mnpm run seed:legal[m
+ [m
+ ## File Uploads[m
+ [m
+[31m-Uploaded files are stored in the `uploads/` directory in the backend root. The directory is automatically created on first upload.[m
+[32m+[m[32mNew uploads are sent to **Cloudinary** using in-memory uploads via Multer and the helper in `src/config/cloudinary.js`.[m
+ [m
+[31m-Files are served at the `/uploads` endpoint.[m
+[32m+[m[32mExisting legacy files in `uploads/` may still be served via `/uploads` for backwards compatibility, but new uploads are stored in Cloudinary and referenced from Firestore.[m
+ [m
+ ## CORS Configuration[m
+ [m
+[36m@@ -127,9 +118,34 @@[m [mThe API uses JWT tokens stored in HTTP-only cookies. All protected routes requir[m
+ 1. Set `NODE_ENV=production` in your `.env` file[m
+ 2. Update `CORS_ORIGIN` to your production frontend URL[m
+ 3. Use a strong `JWT_SECRET` (generate with: `openssl rand -base64 32`)[m
+[31m-4. Ensure MongoDB connection string is correct for your production database[m
+[32m+[m[32m4. Ensure Firebase + Cloudinary credentials are set correctly in your hosting environment[m
+ 5. Run `npm start` or use a process manager like PM2[m
+ [m
+[32m+[m[32m## Migration & Testing Helpers[m
+[32m+[m
+[32m+[m[32m- **Migrate legacy MongoDB data to Firestore** (one-time, optional):[m
+[32m+[m
+[32m+[m[32m  ```bash[m
+[32m+[m[32m  # from backend/[m
+[32m+[m[32m  npm run migrate-local-to-firestore[m
+[32m+[m[32m  ```[m
+[32m+[m
+[32m+[m[32m- **Upload legacy local files to Cloudinary** (one-time, optional):[m
+[32m+[m
+[32m+[m[32m  ```bash[m
+[32m+[m[32m  # from backend/[m
+[32m+[m[32m  npm run upload-media-to-cloudinary[m
+[32m+[m[32m  ```[m
+[32m+[m
+[32m+[m[32m- **Smoke-test key CRUD endpoints**:[m
+[32m+[m
+[32m+[m[32m  ```bash[m
+[32m+[m[32m  # from backend/[m
+[32m+[m[32m  npm run test:db[m
+[32m+[m[32m  ```[m
+[32m+[m
+[32m+[m[32mFor a full end-to-end checklist, see `../migration-checklist.md`.[m
+[32m+[m
+ ## Troubleshooting[m
+ [m
+ ### MongoDB Connection Failed[m
+[1mdiff --git a/backend/env.example b/backend/env.example[m
+[1mindex 290647f..26e7d34 100644[m
+[1m--- a/backend/env.example[m
+[1m+++ b/backend/env.example[m
+[36m@@ -20,17 +20,26 @@[m [mJWT_SECRET=replace_me_with_strong_secret_key_change_in_production[m
+ CORS_ORIGIN=http://localhost:8080[m
+ [m
+ # Firebase Configuration[m
+[31m-# Option 1: Service account JSON file path (recommended for local development)[m
+[32m+[m[32m# Option 1 (LOCAL ONLY): Path to service account JSON on disk.[m
+[32m+[m[32m# Remove this variable in Railway/Render deployments unless you also copy the file.[m
+ FIREBASE_SERVICE_ACCOUNT_PATH=./config/firebase-service-account.json[m
+ [m
+[31m-# Option 2: Service account JSON as string (for cloud deployments)[m
+[32m+[m[32m# Option 2: Service account JSON as a string. Works anywhere.[m
+ # FIREBASE_SERVICE_ACCOUNT={"type":"service_account","project_id":"...","private_key":"...","client_email":"..."}[m
+ [m
+[31m-# Option 3: Individual Firebase credentials (alternative to service account)[m
+[32m+[m[32m# Option 2b: Base64 encoded service account JSON (easier to paste in dashboards).[m
+[32m+[m[32m# FIREBASE_SERVICE_ACCOUNT_BASE64=eyJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsIC4uLn0=[m
+[32m+[m
+[32m+[m[32m# Option 3: Individual Firebase credentials (alternative to service account JSON)[m
+ # FIREBASE_PROJECT_ID=your-project-id[m
+ # FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"[m
+[32m+[m[32m# FIREBASE_PRIVATE_KEY_BASE64=LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCg0K...[m
+ # FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com[m
+ [m
+[32m+[m[32m# Required for email/password login verification via Firebase REST API[m
+[32m+[m[32m# Get this from Firebase Console → Project Settings → General → Web API Key[m
+[32m+[m[32mFIREBASE_WEB_API_KEY=your-firebase-web-api-key[m
+[32m+[m
+ # Cloudinary Configuration[m
+ # Get these from your Cloudinary dashboard: https://cloudinary.com/console[m
+ CLOUDINARY_CLOUD_NAME=your-cloud-name[m
+[1mdiff --git a/backend/package.json b/backend/package.json[m
+[1mindex d60431b..3ac516c 100644[m
+[1m--- a/backend/package.json[m
+[1m+++ b/backend/package.json[m
+[36m@@ -6,7 +6,10 @@[m
+   "scripts": {[m
+     "dev": "node --env-file=.env --watch index.js",[m
+     "start": "node index.js",[m
+[31m-    "seed:legal": "node src/scripts/seedLegalSections.js"[m
+[32m+[m[32m    "seed:legal": "node src/scripts/seedLegalSections.js",[m
+[32m+[m[32m    "migrate-local-to-firestore": "node ../scripts/migrate-to-firebase.js",[m
+[32m+[m[32m    "upload-media-to-cloudinary": "node ../scripts/upload-media-to-cloudinary.js",[m
+[32m+[m[32m    "test:db": "node test-api.js"[m
+   },[m
+   "dependencies": {[m
+     "bcryptjs": "^2.4.3",[m
+[1mdiff --git a/backend/railway.json b/backend/railway.json[m
+[1mindex 8f246d5..cce023c 100644[m
+[1m--- a/backend/railway.json[m
+[1m+++ b/backend/railway.json[m
+[36m@@ -11,3 +11,5 @@[m
+   }[m
+ }[m
+ [m
+[41m+[m
+[41m+[m
+[1mdiff --git a/backend/render.yaml b/backend/render.yaml[m
+[1mindex 9b1ef0c..538da45 100644[m
+[1m--- a/backend/render.yaml[m
+[1m+++ b/backend/render.yaml[m
+[36m@@ -12,3 +12,5 @@[m [mservices:[m
+         value: 5000[m
+     healthCheckPath: /api/health[m
+ [m
+[41m+[m
+[41m+[m
+[1mdiff --git a/backend/src/config/firebase.js b/backend/src/config/firebase.js[m
+[1mindex 6e6eaf0..38a9995 100644[m
+[1m--- a/backend/src/config/firebase.js[m
+[1m+++ b/backend/src/config/firebase.js[m
+[36m@@ -1,7 +1,7 @@[m
+ import admin from 'firebase-admin';[m
+[31m-import { readFileSync } from 'fs';[m
+[32m+[m[32mimport { readFileSync, existsSync } from 'fs';[m
+ import { fileURLToPath } from 'url';[m
+[31m-import { dirname, join } from 'path';[m
+[32m+[m[32mimport { dirname, resolve, isAbsolute } from 'path';[m
+ [m
+ const __filename = fileURLToPath(import.meta.url);[m
+ const __dirname = dirname(__filename);[m
+[36m@@ -9,46 +9,108 @@[m [mconst __dirname = dirname(__filename);[m
+ // Initialize Firebase Admin SDK[m
+ let firebaseApp = null;[m
+ [m
+[32m+[m[32mfunction parseServiceAccount(jsonString, source) {[m
+[32m+[m[32m  try {[m
+[32m+[m[32m    return JSON.parse(jsonString);[m
+[32m+[m[32m  } catch (error) {[m
+[32m+[m[32m    console.error(`Invalid Firebase service account JSON from ${source}:`, error.message);[m
+[32m+[m[32m    throw error;[m
+[32m+[m[32m  }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mfunction loadServiceAccountFromPath() {[m
+[32m+[m[32m  const rawPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;[m
+[32m+[m[32m  if (!rawPath) {[m
+[32m+[m[32m    return null;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  const normalizedRelativePath = rawPath.replace(/^\.\/+/, '');[m
+[32m+[m[32m  const candidatePaths = new Set();[m
+[32m+[m
+[32m+[m[32m  if (isAbsolute(rawPath)) {[m
+[32m+[m[32m    candidatePaths.add(rawPath);[m
+[32m+[m[32m  } else {[m
+[32m+[m[32m    candidatePaths.add(resolve(process.cwd(), rawPath));[m
+[32m+[m[32m    candidatePaths.add(resolve(process.cwd(), normalizedRelativePath));[m
+[32m+[m[32m    candidatePaths.add(resolve(__dirname, rawPath));[m
+[32m+[m[32m    candidatePaths.add(resolve(__dirname, normalizedRelativePath));[m
+[32m+[m[32m    candidatePaths.add(resolve(__dirname, '..', rawPath));[m
+[32m+[m[32m    candidatePaths.add(resolve(__dirname, '..', normalizedRelativePath));[m
+[32m+[m[32m    candidatePaths.add(resolve(__dirname, '..', '..', normalizedRelativePath));[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  for (const candidate of candidatePaths) {[m
+[32m+[m[32m    if (existsSync(candidate)) {[m
+[32m+[m[32m      const serviceAccount = parseServiceAccount(readFileSync(candidate, 'utf8'), `file (${candidate})`);[m
+[32m+[m[32m      console.log(`Firebase service account loaded from ${candidate}`);[m
+[32m+[m[32m      return serviceAccount;[m
+[32m+[m[32m    }[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  console.warn(`Firebase service account file not found at "${rawPath}". Checked paths: ${Array.from(candidatePaths).join(', ')}`);[m
+[32m+[m[32m  return null;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mfunction loadServiceAccountFromEnv() {[m
+[32m+[m[32m  if (process.env.FIREBASE_SERVICE_ACCOUNT) {[m
+[32m+[m[32m    return parseServiceAccount(process.env.FIREBASE_SERVICE_ACCOUNT, 'FIREBASE_SERVICE_ACCOUNT');[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {[m
+[32m+[m[32m    const decoded = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf8');[m
+[32m+[m[32m    return parseServiceAccount(decoded, 'FIREBASE_SERVICE_ACCOUNT_BASE64');[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  return null;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mfunction loadServiceAccountFromIndividualEnv() {[m
+[32m+[m[32m  const projectId = process.env.FIREBASE_PROJECT_ID;[m
+[32m+[m[32m  let privateKey = process.env.FIREBASE_PRIVATE_KEY;[m
+[32m+[m[32m  const privateKeyBase64 = process.env.FIREBASE_PRIVATE_KEY_BASE64;[m
+[32m+[m[32m  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;[m
+[32m+[m
+[32m+[m[32m  if (!(projectId && (privateKey || privateKeyBase64) && clientEmail)) {[m
+[32m+[m[32m    return null;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  if (!privateKey && privateKeyBase64) {[m
+[32m+[m[32m    privateKey = Buffer.from(privateKeyBase64, 'base64').toString('utf8');[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  return {[m
+[32m+[m[32m    projectId,[m
+[32m+[m[32m    privateKey: privateKey.rep

@@ -546,6 +546,32 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
   );
 };
 
+// Helper to safely convert Firestore timestamps / mixed values to JS Date
+function toSafeDate(value: any): Date | undefined {
+  if (!value) return undefined;
+
+  // Already a Date
+  if (value instanceof Date) return value;
+
+  // Firestore Timestamp object with toDate()
+  if (typeof value.toDate === 'function') {
+    const d = value.toDate();
+    return Number.isNaN(d.getTime()) ? undefined : d;
+  }
+
+  // Firestore Timestamp-like plain object { seconds, nanoseconds } or {_seconds, _nanoseconds}
+  if (typeof value === 'object' && (value.seconds || value._seconds)) {
+    const seconds = value.seconds ?? value._seconds;
+    const millis = seconds * 1000;
+    const d = new Date(millis);
+    return Number.isNaN(d.getTime()) ? undefined : d;
+  }
+
+  // ISO string or number
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
 // Mappers
 function mapCaseFromApi(raw: any): Case {
   return {
@@ -555,18 +581,18 @@ function mapCaseFromApi(raw: any): Case {
     opposingParty: raw.opposingParty,
     courtName: raw.courtName,
     judgeName: raw.judgeName,
-    hearingDate: raw.hearingDate ? new Date(raw.hearingDate) : undefined as any,
+    hearingDate: (toSafeDate(raw.hearingDate) || undefined) as any,
     hearingTime: raw.hearingTime,
     status: raw.status,
     priority: raw.priority,
     caseType: raw.caseType,
     description: raw.description,
-    nextHearing: raw.nextHearing ? new Date(raw.nextHearing) : undefined as any,
+    nextHearing: (toSafeDate(raw.nextHearing) || undefined) as any,
     documents: raw.documents || [],
     notes: raw.notes || '',
     alerts: [],
-    createdAt: raw.createdAt ? new Date(raw.createdAt) : new Date(),
-    updatedAt: raw.updatedAt ? new Date(raw.updatedAt) : new Date(),
+    createdAt: toSafeDate(raw.createdAt) || new Date(),
+    updatedAt: toSafeDate(raw.updatedAt) || new Date(),
     folderId: raw.folderId,
   } as Case;
 }
@@ -583,8 +609,8 @@ function mapClientFromApi(raw: any): Client {
     cases: raw.cases || [],
     documents: raw.documents || [],
     notes: raw.notes || '',
-    createdAt: raw.createdAt ? new Date(raw.createdAt) : new Date(),
-    updatedAt: raw.updatedAt ? new Date(raw.updatedAt) : new Date(),
+    createdAt: toSafeDate(raw.createdAt) || new Date(),
+    updatedAt: toSafeDate(raw.updatedAt) || new Date(),
   } as Client;
 }
 
@@ -594,9 +620,9 @@ function mapAlertFromApi(raw: any): Alert {
     caseId: raw.caseId,
     type: raw.type,
     message: raw.message,
-    alertTime: raw.alertTime ? new Date(raw.alertTime) : new Date(),
+    alertTime: toSafeDate(raw.alertTime) || new Date(),
     isRead: !!raw.isRead,
-    createdAt: raw.createdAt ? new Date(raw.createdAt) : new Date(),
+    createdAt: toSafeDate(raw.createdAt) || new Date(),
   } as Alert;
 }
 
@@ -607,7 +633,7 @@ function mapTimeEntryFromApi(raw: any): TimeEntry {
     description: raw.description,
     duration: raw.duration,
     hourlyRate: raw.hourlyRate,
-    date: raw.date ? new Date(raw.date) : new Date(),
+    date: toSafeDate(raw.date) || new Date(),
     billable: !!raw.billable,
   } as TimeEntry;
 }
@@ -616,7 +642,7 @@ function mapHearingFromApi(raw: any): Hearing {
   return {
     id: raw._id || raw.id,
     caseId: raw.caseId,
-    hearingDate: raw.hearingDate ? new Date(raw.hearingDate) : new Date(),
+    hearingDate: toSafeDate(raw.hearingDate) || new Date(),
     hearingTime: raw.hearingTime,
     courtName: raw.courtName,
     judgeName: raw.judgeName,
@@ -653,8 +679,8 @@ function mapInvoiceFromApi(raw: any): Invoice {
     clientId: raw.clientId,
     caseId: raw.caseId,
     invoiceNumber: raw.invoiceNumber,
-    issueDate: raw.issueDate ? new Date(raw.issueDate) : new Date(),
-    dueDate: raw.dueDate ? new Date(raw.dueDate) : new Date(),
+    issueDate: toSafeDate(raw.issueDate) || new Date(),
+    dueDate: toSafeDate(raw.dueDate) || new Date(),
     status: raw.status,
     currency: raw.currency || 'INR',
     items: (raw.items || []).map((i: any) => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice, amount: i.amount })),

@@ -186,7 +186,8 @@ function generateClientCode(name, date = new Date(), counter = 1) {
     return `${slug}-${dateStr}-${counterStr}`;
 }
 
-module.exports = {
+
+export {
     // Regex patterns
     CASE_NUMBER_REGEX,
     MOBILE_NUMBER_REGEX,
@@ -208,3 +209,4 @@ module.exports = {
     // Utility functions
     generateClientCode
 };
+

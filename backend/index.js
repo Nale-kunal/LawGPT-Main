@@ -14,6 +14,7 @@ import documentsRoutes from './src/routes/documents.js';
 import invoiceRoutes from './src/routes/invoices.js';
 import hearingRoutes from './src/routes/hearings.js';
 import dashboardRoutes from './src/routes/dashboard.js';
+import twoFactorRoutes from './src/routes/twoFactor.js';
 import path from 'path';
 
 dotenv.config();
@@ -25,17 +26,17 @@ const corsOptions = {
   origin: function (origin, callback) {
     const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:8080';
     const allowedOrigins = corsOrigin.split(',').map(o => o.trim()).filter(o => o.length > 0);
-    
+
     // Log for debugging
     console.log('CORS check - Origin:', origin);
     console.log('CORS check - Allowed origins:', allowedOrigins);
-    
+
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
       console.log('CORS: Allowing request with no origin');
       return callback(null, true);
     }
-    
+
     // Check if origin is in allowed list
     if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
       console.log('CORS: Allowing origin:', origin);
@@ -64,8 +65,8 @@ app.get('/favicon.ico', (req, res) => {
 
 // Root route
 app.get('/', (req, res) => {
-  res.json({ 
-    ok: true, 
+  res.json({
+    ok: true,
     service: 'lawyer-zen-api',
     message: 'API is running',
     version: '1.0.0',
@@ -80,7 +81,8 @@ app.get('/', (req, res) => {
       alerts: '/api/alerts',
       timeEntries: '/api/time-entries',
       dashboard: '/api/dashboard',
-      legalSections: '/api/legal-sections'
+      legalSections: '/api/legal-sections',
+      twoFactor: '/api/2fa'
     }
   });
 });
@@ -99,6 +101,7 @@ app.use('/api/documents', documentsRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/hearings', hearingRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/2fa', twoFactorRoutes);
 
 // Serve uploads (legacy support - files now stored in Cloudinary)
 // This route is kept for backward compatibility with old files
@@ -109,7 +112,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 404 handler for undefined routes
 app.use((req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     error: 'Not Found',
     message: `Route ${req.method} ${req.path} not found`,
     availableEndpoints: {
@@ -132,10 +135,10 @@ const PORT = process.env.PORT || 5000;
 
 // Initialize Firebase (required for Firestore)
 try {
-  if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH || 
-      process.env.FIREBASE_SERVICE_ACCOUNT || 
-      process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 ||
-      (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL)) {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
+    process.env.FIREBASE_SERVICE_ACCOUNT ||
+    process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 ||
+    (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL)) {
     initializeFirebase();
     console.log('Firebase initialized successfully');
   } else {

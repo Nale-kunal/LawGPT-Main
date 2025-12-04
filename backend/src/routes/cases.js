@@ -1,14 +1,16 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { logActivity } from '../middleware/activityLogger.js';
-import { 
-  createDocument, 
-  getDocumentById, 
-  updateDocument, 
+import {
+  createDocument,
+  getDocumentById,
+  updateDocument,
   deleteDocument,
   queryDocuments,
-  COLLECTIONS 
+  COLLECTIONS
 } from '../services/firestore.js';
+import { validateCaseNumber, validateHearingType } from '../schemas/validation-schemas.js';
+
 
 const router = express.Router();
 
@@ -29,7 +31,7 @@ router.get('/', async (req, res) => {
       message: error.message,
       stack: error.stack
     });
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to fetch cases',
       ...(process.env.NODE_ENV === 'development' && {
         details: error.message,
@@ -41,21 +43,33 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
+    // Validate case number format
+    const caseNumberValidation = validateCaseNumber(req.body.caseNumber);
+    if (!caseNumberValidation.valid) {
+      return res.status(400).json({ error: caseNumberValidation.error });
+    }
+
+    // Validate hearing type is provided and valid
+    const hearingTypeValidation = validateHearingType(req.body.hearingType);
+    if (!hearingTypeValidation.valid) {
+      return res.status(400).json({ error: hearingTypeValidation.error });
+    }
+
     const data = { ...req.body, owner: req.user.userId };
     const item = await createDocument(COLLECTIONS.CASES, data);
-    
+
     try {
       const safeCaseNumber = (item.caseNumber || `Case ${item.id}`).replace(/[\\/]+/g, '-');
       const folderNameRaw = `${safeCaseNumber} - ${item.clientName || 'Client Documents'}`;
       const folderName = folderNameRaw.trim().substring(0, 120);
-      
+
       const folder = await createDocument(COLLECTIONS.FOLDERS, {
         name: folderName || `Case ${item.id}`,
         ownerId: req.user.userId,
         parentId: null,
         caseId: item.id
       });
-      
+
       await updateDocument(COLLECTIONS.CASES, item.id, { folderId: folder.id });
       item.folderId = folder.id;
     } catch (folderError) {
@@ -67,7 +81,7 @@ router.post('/', async (req, res) => {
       }
       return res.status(500).json({ error: 'Failed to create folder for the new case. Please try again.' });
     }
-    
+
     // Log activity
     await logActivity(
       req.user.userId,
@@ -83,7 +97,7 @@ router.post('/', async (req, res) => {
         folderId: item.folderId
       }
     );
-    
+
     res.status(201).json(item);
   } catch (error) {
     console.error('Create case error:', error);
@@ -110,9 +124,25 @@ router.put('/:id', async (req, res) => {
     if (!existing || existing.owner !== req.user.userId) {
       return res.status(404).json({ error: 'Not found' });
     }
-    
+
+    // Validate case number if being updated
+    if (req.body.caseNumber) {
+      const caseNumberValidation = validateCaseNumber(req.body.caseNumber);
+      if (!caseNumberValidation.valid) {
+        return res.status(400).json({ error: caseNumberValidation.error });
+      }
+    }
+
+    // Validate hearing type if being updated
+    if (req.body.hearingType) {
+      const hearingTypeValidation = validateHearingType(req.body.hearingType);
+      if (!hearingTypeValidation.valid) {
+        return res.status(400).json({ error: hearingTypeValidation.error });
+      }
+    }
+
     const item = await updateDocument(COLLECTIONS.CASES, req.params.id, req.body);
-    
+
     // Log activity
     await logActivity(
       req.user.userId,
@@ -127,7 +157,7 @@ router.put('/:id', async (req, res) => {
         status: item.status
       }
     );
-    
+
     res.json(item);
   } catch (error) {
     console.error('Update case error:', error);
@@ -141,7 +171,7 @@ router.delete('/:id', async (req, res) => {
     if (!existing || existing.owner !== req.user.userId) {
       return res.status(404).json({ error: 'Not found' });
     }
-    
+
     await deleteDocument(COLLECTIONS.CASES, req.params.id);
     res.json({ ok: true });
   } catch (error) {

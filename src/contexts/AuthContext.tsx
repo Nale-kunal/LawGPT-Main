@@ -140,8 +140,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const register = async (userData: RegisterData): Promise<{ success: boolean; error?: string }> => {
+    console.log('='.repeat(60));
+    console.log('=== FRONTEND REGISTRATION REQUEST ===');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('User data:', { ...userData, password: '[REDACTED]' });
+    console.log('='.repeat(60));
+
     setIsLoading(true);
     try {
+      console.log('→ Step 1: Sending registration request...');
+      console.log('  API URL:', getApiUrl('/api/auth/register'));
+      console.log('  Method: POST');
+      console.log('  Credentials: include');
+
       const res = await fetch(getApiUrl('/api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -149,18 +160,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         body: JSON.stringify(userData),
       });
 
+      console.log('✓ Response received');
+      console.log('  Status:', res.status, res.statusText);
+      console.log('  Headers:', Object.fromEntries(res.headers.entries()));
+
+      console.log('→ Step 2: Parsing response JSON...');
       const data = await res.json();
+      console.log('✓ JSON parsed');
+      console.log('  Response data:', { ...data, token: data.token ? '[REDACTED]' : undefined });
 
       if (!res.ok) {
+        console.error('='.repeat(60));
+        console.error('=== REGISTRATION FAILED ===');
+        console.error('Status:', res.status);
+        console.error('Error:', data.error || 'Unknown error');
+        console.error('='.repeat(60));
+
         persistUser(null);
         setIsLoading(false);
         return { success: false, error: data.error || 'Registration failed' };
       }
 
+      console.log('→ Step 3: Persisting user data...');
       persistUser(data.user as User);
+      console.log('✓ User persisted to localStorage');
+
       setIsLoading(false);
+
+      console.log('='.repeat(60));
+      console.log('=== FRONTEND REGISTRATION SUCCESS ===');
+      console.log('User ID:', data.user?.id);
+      console.log('Email:', data.user?.email);
+      console.log('='.repeat(60));
+
       return { success: true };
     } catch (error) {
+      console.error('='.repeat(60));
+      console.error('=== FRONTEND REGISTRATION ERROR ===');
+      console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+      console.error('Error message:', error instanceof Error ? error.message : String(error));
+      console.error('Error stack:', error instanceof Error ? error.stack : 'N/A');
+      console.error('='.repeat(60));
+
       persistUser(null);
       setIsLoading(false);
       return { success: false, error: 'Network error occurred' };

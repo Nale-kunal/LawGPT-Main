@@ -81,27 +81,59 @@ const Signup = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) return;
+    console.log('='.repeat(60));
+    console.log('=== SIGNUP FORM SUBMISSION ===');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Form data:', { ...formData, password: '[REDACTED]', confirmPassword: '[REDACTED]' });
+    console.log('='.repeat(60));
+
+    console.log('→ Step 1: Validating form...');
+    if (!validateForm()) {
+      console.log('✗ Form validation failed');
+      return;
+    }
+    console.log('✓ Form validation passed');
 
     setIsSubmitting(true);
+    console.log('→ Step 2: Calling AuthContext.register()...');
 
     try {
-      const result = await register({
+      const registerData = {
         name: formData.name.trim(),
         email: formData.email.toLowerCase(),
         password: formData.password,
         role: formData.role,
         barNumber: formData.barNumber.trim() || undefined,
         firm: formData.firm.trim() || undefined,
-      });
+      };
+      console.log('  Register data:', { ...registerData, password: '[REDACTED]' });
+
+      const result = await register(registerData);
+
+      console.log('✓ Register function returned');
+      console.log('  Result:', result);
 
       if (result.success) {
+        console.log('='.repeat(60));
+        console.log('=== SIGNUP SUCCESS ===');
+        console.log('Showing success toast...');
+
         toast({
           title: "Registration Successful",
           description: "Please check your email to verify your account.",
         });
+
+        console.log('Navigating to verification-pending page...');
+        console.log('  Email:', formData.email);
         navigate('/verification-pending', { state: { email: formData.email } });
+
+        console.log('='.repeat(60));
       } else {
+        console.error('='.repeat(60));
+        console.error('=== SIGNUP FAILED ===');
+        console.error('Error:', result.error);
+        console.error('='.repeat(60));
+
         toast({
           title: "Registration Failed",
           description: result.error || "An error occurred during registration",
@@ -109,13 +141,22 @@ const Signup = () => {
         });
       }
     } catch (error) {
+      console.error('='.repeat(60));
+      console.error('=== SIGNUP EXCEPTION ===');
+      console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+      console.error('Error message:', error instanceof Error ? error.message : String(error));
+      console.error('Error stack:', error instanceof Error ? error.stack : 'N/A');
+      console.error('='.repeat(60));
+
       toast({
         title: "Error",
         description: "An error occurred during registration. Please try again.",
         variant: "destructive",
       });
     } finally {
+      console.log('→ Resetting isSubmitting to false');
       setIsSubmitting(false);
+      console.log('='.repeat(60));
     }
   };
 

@@ -18,6 +18,13 @@ import {
   COLLECTIONS
 } from '../services/firestore.js';
 import { requireAuth } from '../middleware/auth.js';
+import { 
+  generateVerificationToken, 
+  hashToken, 
+  sendVerificationEmail,
+  isTokenExpired,
+  canResendVerification
+} from '../utils/emailVerification.js';
 
 import { getFirebaseWebApiKey, ensureFirebaseWebApiKey } from '../utils/env.js';
 
@@ -68,7 +75,6 @@ const defaultSecuritySettings = {
   loginNotifications: true
 };
 
-const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
 function normalizeRole(role) {
   if (!role) return 'lawyer';
@@ -196,7 +202,6 @@ router.post('/register', async (req, res) => {
 
 
     // Generate email verification token
-    const { generateVerificationToken, hashToken, sendVerificationEmail } = require('../utils/emailVerification');
     const verificationToken = generateVerificationToken();
     const hashedToken = hashToken(verificationToken);
     // Create user profile in Firestore (use Firebase UID as document ID)
@@ -354,7 +359,6 @@ router.post('/verify-email', async (req, res) => {
       return res.status(400).json({ error: 'Verification token is required' });
     }
 
-    const { hashToken, isTokenExpired } = require('../utils/emailVerification');
     const hashedToken = hashToken(token);
 
     // Find user with this verification token
@@ -442,8 +446,6 @@ router.post('/resend-verification', async (req, res) => {
     }
 
     // Check rate limiting
-    const { canResendVerification, generateVerificationToken, hashToken, sendVerificationEmail } = require('../utils/emailVerification');
-
     if (!canResendVerification(userProfile.verificationSentAt)) {
       return res.status(429).json({
         error: 'Please wait before requesting another verification email',

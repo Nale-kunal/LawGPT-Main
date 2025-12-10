@@ -18,9 +18,9 @@ import {
   COLLECTIONS
 } from '../services/firestore.js';
 import { requireAuth } from '../middleware/auth.js';
-import { 
-  generateVerificationToken, 
-  hashToken, 
+import {
+  generateVerificationToken,
+  hashToken,
   sendVerificationEmail,
   isTokenExpired,
   canResendVerification
@@ -353,28 +353,66 @@ router.post('/register', async (req, res) => {
 // Verify email with token
 router.post('/verify-email', async (req, res) => {
   try {
+    console.log('\n' + '='.repeat(60));
+    console.log('=== EMAIL VERIFICATION REQUEST ===');
+    console.log('Timestamp:', new Date().toISOString());
+
     const { token } = req.body;
+    console.log('Token received:', token ? `${token.substring(0, 10)}...` : 'MISSING');
 
     if (!token) {
+      console.log('❌ No token provided');
       return res.status(400).json({ error: 'Verification token is required' });
     }
 
+    console.log('→ Step 1: Hashing token...');
     const hashedToken = hashToken(token);
+    console.log('Hashed token:', hashedToken.substring(0, 10) + '...');
+
+    console.log('→ Step 2: Querying Firestore for user with this token...');
+    console.log('Collection:', COLLECTIONS.USERS);
+    console.log('Query: verificationToken ==', hashedToken.substring(0, 10) + '...');
 
     // Find user with this verification token
     const users = await queryDocuments(COLLECTIONS.USERS, [
       { field: 'verificationToken', operator: '==', value: hashedToken }
     ]);
 
+    console.log('Query result: Found', users.length, 'user(s)');
+
     if (users.length === 0) {
+      console.log('❌ No user found with this verification token');
+      console.log('→ Debugging: Checking all users with verification tokens...');
+
+      // Debug: Get all users to see if any have verification tokens
+      const allUsers = await queryDocuments(COLLECTIONS.USERS, []);
+      const usersWithTokens = allUsers.filter(u => u.verificationToken);
+      console.log(`Found ${usersWithTokens.length} users with verification tokens out of ${allUsers.length} total users`);
+
+      if (usersWithTokens.length > 0) {
+        console.log('Sample user with token:', {
+          email: usersWithTokens[0].email,
+          hasToken: !!usersWithTokens[0].verificationToken,
+          tokenPreview: usersWithTokens[0].verificationToken?.substring(0, 10) + '...',
+          emailVerified: usersWithTokens[0].emailVerified,
+          verificationSentAt: usersWithTokens[0].verificationSentAt
+        });
+      }
+
+      console.log('='.repeat(60) + '\n');
       return res.status(400).json({ error: 'Invalid verification token' });
     }
 
     const userProfile = users[0];
     const userId = userProfile.id || userProfile._id;
+    console.log('✓ User found:', userProfile.email);
+    console.log('User ID:', userId);
+    console.log('Email verified status:', userProfile.emailVerified);
 
     // Check if already verified
     if (userProfile.emailVerified) {
+      console.log('ℹ️ Email already verified');
+      console.log('='.repeat(60) + '\n');
       return res.json({
         ok: true,
         message: 'Email already verified',
@@ -382,13 +420,21 @@ router.post('/verify-email', async (req, res) => {
       });
     }
 
+    console.log('→ Step 3: Checking token expiration...');
+    console.log('Verification sent at:', userProfile.verificationSentAt);
+
     // Check if token expired
     if (isTokenExpired(userProfile.verificationSentAt)) {
+      console.log('❌ Token has expired');
+      console.log('='.repeat(60) + '\n');
       return res.status(400).json({
         error: 'Verification token has expired. Please request a new one.',
         expired: true
       });
     }
+
+    console.log('✓ Token is still valid');
+    console.log('→ Step 4: Marking user as verified...');
 
     // Mark as verified
     await updateDocument(COLLECTIONS.USERS, userId, {
@@ -397,14 +443,17 @@ router.post('/verify-email', async (req, res) => {
       verificationToken: null // Clear the token
     });
 
-    console.log(`Email verified for user: ${userProfile.email}`);
+    console.log('✅ Email verified successfully for user:', userProfile.email);
+    console.log('='.repeat(60) + '\n');
 
     return res.json({
       ok: true,
       message: 'Email verified successfully! You can now log in.'
     });
   } catch (error) {
-    console.error('Email verification error:', error);
+    console.error('❌ Email verification error:', error);
+    console.error('Error stack:', error.stack);
+    console.log('='.repeat(60) + '\n');
     return res.status(500).json({ error: 'Failed to verify email' });
   }
 });

@@ -281,6 +281,57 @@ router.post('/', async (req, res) => {
 
     const hearing = await createDocument(COLLECTIONS.HEARINGS, data);
 
+    // Update the Case's nextHearing field to reflect the latest upcoming hearing
+    if (hearing.caseId) {
+      try {
+        // Get all hearings for this case
+        const caseHearings = await queryDocuments(
+          COLLECTIONS.HEARINGS,
+          [
+            { field: 'caseId', operator: '==', value: hearing.caseId },
+            { field: 'owner', operator: '==', value: req.user.userId }
+          ]
+        );
+
+        const now = new Date();
+        const futureDates = [];
+
+        // Collect all future dates from hearings
+        caseHearings.forEach(h => {
+          // If hearing has a nextHearingDate set, use that
+          if (h.nextHearingDate) {
+            const nextDate = h.nextHearingDate?.toDate ? h.nextHearingDate.toDate() : new Date(h.nextHearingDate);
+            if (nextDate >= now) {
+              futureDates.push(nextDate);
+            }
+          }
+
+          // Also include scheduled hearings based on their hearingDate
+          if (h.status === 'scheduled' && h.hearingDate) {
+            const hDate = h.hearingDate?.toDate ? h.hearingDate.toDate() : new Date(h.hearingDate);
+            if (hDate >= now) {
+              futureDates.push(hDate);
+            }
+          }
+        });
+
+        // Find the earliest future date
+        const nextHearingDate = futureDates.length > 0
+          ? futureDates.sort((a, b) => a - b)[0]
+          : null;
+
+        console.log('[Hearing Create] Calculated nextHearing for case:', hearing.caseId, 'Date:', nextHearingDate);
+
+        // Update the case's nextHearing field
+        await updateDocument(COLLECTIONS.CASES, hearing.caseId, {
+          nextHearing: nextHearingDate
+        });
+      } catch (caseUpdateError) {
+        console.error('Failed to update case nextHearing:', caseUpdateError);
+        // Don't fail the hearing creation if case update fails
+      }
+    }
+
     // Log activity
     const hearingDate = hearing.hearingDate?.toDate ? hearing.hearingDate.toDate() : new Date(hearing.hearingDate);
     await logActivity(
@@ -426,6 +477,57 @@ router.put('/:id', async (req, res) => {
 
     const hearing = await updateDocument(COLLECTIONS.HEARINGS, req.params.id, updates);
 
+    // Update the Case's nextHearing field to reflect the latest upcoming hearing
+    if (hearing.caseId) {
+      try {
+        // Get all hearings for this case
+        const caseHearings = await queryDocuments(
+          COLLECTIONS.HEARINGS,
+          [
+            { field: 'caseId', operator: '==', value: hearing.caseId },
+            { field: 'owner', operator: '==', value: req.user.userId }
+          ]
+        );
+
+        const now = new Date();
+        const futureDates = [];
+
+        // Collect all future dates from hearings
+        caseHearings.forEach(h => {
+          // If hearing has a nextHearingDate set, use that
+          if (h.nextHearingDate) {
+            const nextDate = h.nextHearingDate?.toDate ? h.nextHearingDate.toDate() : new Date(h.nextHearingDate);
+            if (nextDate >= now) {
+              futureDates.push(nextDate);
+            }
+          }
+
+          // Also include scheduled hearings based on their hearingDate
+          if (h.status === 'scheduled' && h.hearingDate) {
+            const hDate = h.hearingDate?.toDate ? h.hearingDate.toDate() : new Date(h.hearingDate);
+            if (hDate >= now) {
+              futureDates.push(hDate);
+            }
+          }
+        });
+
+        // Find the earliest future date
+        const nextHearingDate = futureDates.length > 0
+          ? futureDates.sort((a, b) => a - b)[0]
+          : null;
+
+        console.log('[Hearing Update] Calculated nextHearing for case:', hearing.caseId, 'Date:', nextHearingDate);
+
+        // Update the case's nextHearing field
+        await updateDocument(COLLECTIONS.CASES, hearing.caseId, {
+          nextHearing: nextHearingDate
+        });
+      } catch (caseUpdateError) {
+        console.error('Failed to update case nextHearing:', caseUpdateError);
+        // Don't fail the hearing update if case update fails
+      }
+    }
+
     // Populate case info
     if (hearing.caseId) {
       const case_ = await getDocumentById(COLLECTIONS.CASES, hearing.caseId);
@@ -473,6 +575,57 @@ router.delete('/:id', async (req, res) => {
     }
 
     await deleteDocument(COLLECTIONS.HEARINGS, req.params.id);
+
+    // Update the Case's nextHearing field after deletion
+    if (hearing.caseId) {
+      try {
+        // Get remaining hearings for this case
+        const caseHearings = await queryDocuments(
+          COLLECTIONS.HEARINGS,
+          [
+            { field: 'caseId', operator: '==', value: hearing.caseId },
+            { field: 'owner', operator: '==', value: req.user.userId }
+          ]
+        );
+
+        const now = new Date();
+        const futureDates = [];
+
+        // Collect all future dates from hearings
+        caseHearings.forEach(h => {
+          // If hearing has a nextHearingDate set, use that
+          if (h.nextHearingDate) {
+            const nextDate = h.nextHearingDate?.toDate ? h.nextHearingDate.toDate() : new Date(h.nextHearingDate);
+            if (nextDate >= now) {
+              futureDates.push(nextDate);
+            }
+          }
+
+          // Also include scheduled hearings based on their hearingDate
+          if (h.status === 'scheduled' && h.hearingDate) {
+            const hDate = h.hearingDate?.toDate ? h.hearingDate.toDate() : new Date(h.hearingDate);
+            if (hDate >= now) {
+              futureDates.push(hDate);
+            }
+          }
+        });
+
+        // Find the earliest future date
+        const nextHearingDate = futureDates.length > 0
+          ? futureDates.sort((a, b) => a - b)[0]
+          : null;
+
+        console.log('[Hearing Delete] Calculated nextHearing for case:', hearing.caseId, 'Date:', nextHearingDate);
+
+        // Update the case's nextHearing field
+        await updateDocument(COLLECTIONS.CASES, hearing.caseId, {
+          nextHearing: nextHearingDate
+        });
+      } catch (caseUpdateError) {
+        console.error('Failed to update case nextHearing after deletion:', caseUpdateError);
+        // Don't fail the hearing deletion if case update fails
+      }
+    }
 
     // Log activity
     const hearingDate = hearing.hearingDate?.toDate ? hearing.hearingDate.toDate() : new Date(hearing.hearingDate);

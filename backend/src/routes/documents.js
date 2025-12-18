@@ -61,6 +61,20 @@ router.post('/folders', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Folder name and user authentication required' });
     }
 
+    // Check for duplicate caseId if provided (each case should have only one root folder)
+    if (caseId) {
+      const existingFolders = await queryDocuments(COLLECTIONS.FOLDERS, [
+        { field: 'ownerId', operator: '==', value: ownerId },
+        { field: 'caseId', operator: '==', value: caseId }
+      ]);
+
+      if (existingFolders.length > 0) {
+        return res.status(409).json({ 
+          error: `A folder already exists for this case. Each case can only have one folder. Please use the existing folder or update it.` 
+        });
+      }
+    }
+
     const folder = await createDocument(COLLECTIONS.FOLDERS, {
       name: name.trim(),
       parentId: parentId || null,
@@ -84,7 +98,7 @@ router.post('/folders', requireAuth, async (req, res) => {
 
 router.put('/folders/:id', requireAuth, async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, caseId } = req.body;
     const ownerId = req.user.userId;
 
     if (!name || !ownerId) {
@@ -96,7 +110,28 @@ router.put('/folders/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Folder not found or access denied' });
     }
 
-    const folder = await updateDocument(COLLECTIONS.FOLDERS, req.params.id, { name: name.trim() });
+    // Check for duplicate caseId if being updated (excluding current folder)
+    if (caseId !== undefined && caseId !== null) {
+      const existingFolders = await queryDocuments(COLLECTIONS.FOLDERS, [
+        { field: 'ownerId', operator: '==', value: ownerId },
+        { field: 'caseId', operator: '==', value: caseId }
+      ]);
+
+      // Filter out the current folder being updated
+      const duplicateFolders = existingFolders.filter(f => f.id !== req.params.id);
+      if (duplicateFolders.length > 0) {
+        return res.status(409).json({ 
+          error: `A folder already exists for this case. Each case can only have one folder. Please use the existing folder.` 
+        });
+      }
+    }
+
+    const updateData = { name: name.trim() };
+    if (caseId !== undefined) {
+      updateData.caseId = caseId || null;
+    }
+
+    const folder = await updateDocument(COLLECTIONS.FOLDERS, req.params.id, updateData);
 
     // Transform folder to match frontend expectations (_id instead of id)
     const transformedFolder = {

@@ -76,6 +76,40 @@ router.post('/', async (req, res) => {
       req.body.aadharNumber = aadharValidation.normalized;
     }
 
+    const normalizedEmail = emailValidation.normalized;
+    const normalizedPhone = phoneValidation.normalized;
+    const normalizedName = req.body.name.trim();
+
+    // Check for duplicate email (same owner)
+    const existingByEmail = await queryDocuments(COLLECTIONS.CLIENTS, [
+      { field: 'owner', operator: '==', value: req.user.userId },
+      { field: 'email', operator: '==', value: normalizedEmail }
+    ]);
+
+    if (existingByEmail.length > 0) {
+      return res.status(409).json({ error: `Email "${normalizedEmail}" is already registered to another client. Please use a different email address.` });
+    }
+
+    // Check for duplicate phone number (same owner)
+    const existingByPhone = await queryDocuments(COLLECTIONS.CLIENTS, [
+      { field: 'owner', operator: '==', value: req.user.userId },
+      { field: 'phone', operator: '==', value: normalizedPhone }
+    ]);
+
+    if (existingByPhone.length > 0) {
+      return res.status(409).json({ error: `Phone number "${normalizedPhone}" is already registered to another client. Please use a different phone number.` });
+    }
+
+    // Check for duplicate client name (same owner, case-insensitive)
+    const existingByName = await queryDocuments(COLLECTIONS.CLIENTS, [
+      { field: 'owner', operator: '==', value: req.user.userId }
+    ]);
+
+    const duplicateName = existingByName.find(c => c.name && c.name.trim().toLowerCase() === normalizedName.toLowerCase());
+    if (duplicateName) {
+      return res.status(409).json({ error: `Client name "${normalizedName}" already exists. Please use a different name or add a distinguishing identifier.` });
+    }
+
     // Generate unique client code
     let clientCode = generateClientCode(req.body.name);
     let counter = 1;
@@ -92,9 +126,10 @@ router.post('/', async (req, res) => {
 
     const data = {
       ...req.body,
+      name: normalizedName,
       owner: req.user.userId,
-      email: emailValidation.normalized,
-      phone: phoneValidation.normalized,
+      email: normalizedEmail,
+      phone: normalizedPhone,
       clientCode
     };
     const client = await createDocument(COLLECTIONS.CLIENTS, data);
@@ -125,6 +160,89 @@ router.put('/:id', async (req, res) => {
     const existing = await getDocumentById(COLLECTIONS.CLIENTS, req.params.id);
     if (!existing || existing.owner !== req.user.userId) {
       return res.status(404).json({ error: 'Not found' });
+    }
+
+    // Check for duplicate email if being updated
+    if (req.body.email) {
+      const emailValidation = validateEmail(req.body.email);
+      if (!emailValidation.valid) {
+        return res.status(400).json({ error: emailValidation.error });
+      }
+
+      const normalizedEmail = emailValidation.normalized;
+      const existingByEmail = await queryDocuments(COLLECTIONS.CLIENTS, [
+        { field: 'owner', operator: '==', value: req.user.userId },
+        { field: 'email', operator: '==', value: normalizedEmail }
+      ]);
+
+      // Filter out the current client being updated
+      const duplicateEmail = existingByEmail.find(c => c.id !== req.params.id);
+      if (duplicateEmail) {
+        return res.status(409).json({ error: `Email "${normalizedEmail}" is already registered to another client. Please use a different email address.` });
+      }
+
+      req.body.email = normalizedEmail;
+    }
+
+    // Check for duplicate phone number if being updated
+    if (req.body.phone) {
+      const phoneValidation = validateMobileNumber(req.body.phone);
+      if (!phoneValidation.valid) {
+        return res.status(400).json({ error: phoneValidation.error });
+      }
+
+      const normalizedPhone = phoneValidation.normalized;
+      const existingByPhone = await queryDocuments(COLLECTIONS.CLIENTS, [
+        { field: 'owner', operator: '==', value: req.user.userId },
+        { field: 'phone', operator: '==', value: normalizedPhone }
+      ]);
+
+      // Filter out the current client being updated
+      const duplicatePhone = existingByPhone.find(c => c.id !== req.params.id);
+      if (duplicatePhone) {
+        return res.status(409).json({ error: `Phone number "${normalizedPhone}" is already registered to another client. Please use a different phone number.` });
+      }
+
+      req.body.phone = normalizedPhone;
+    }
+
+    // Check for duplicate client name if being updated
+    if (req.body.name) {
+      const normalizedName = req.body.name.trim();
+      const existingByName = await queryDocuments(COLLECTIONS.CLIENTS, [
+        { field: 'owner', operator: '==', value: req.user.userId }
+      ]);
+
+      // Filter out the current client being updated
+      const duplicateName = existingByName.find(c => 
+        c.id !== req.params.id && 
+        c.name && 
+        c.name.trim().toLowerCase() === normalizedName.toLowerCase()
+      );
+
+      if (duplicateName) {
+        return res.status(409).json({ error: `Client name "${normalizedName}" already exists. Please use a different name or add a distinguishing identifier.` });
+      }
+
+      req.body.name = normalizedName;
+    }
+
+    // Validate PAN if provided
+    if (req.body.panNumber) {
+      const panValidation = validatePAN(req.body.panNumber);
+      if (!panValidation.valid) {
+        return res.status(400).json({ error: panValidation.error });
+      }
+      req.body.panNumber = panValidation.normalized;
+    }
+
+    // Validate Aadhar if provided
+    if (req.body.aadharNumber) {
+      const aadharValidation = validateAadhar(req.body.aadharNumber);
+      if (!aadharValidation.valid) {
+        return res.status(400).json({ error: aadharValidation.error });
+      }
+      req.body.aadharNumber = aadharValidation.normalized;
     }
 
     const client = await updateDocument(COLLECTIONS.CLIENTS, req.params.id, req.body);

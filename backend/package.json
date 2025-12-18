@@ -9,14 +9,14 @@
     "check:firebase": "node check-firebase-config.js",
     "test:env": "node --test tests/env.test.js",
     "seed:legal": "node src/scripts/seedLegalSections.js",
-    "migrate-local-to-firestore": "node ../scripts/migrate-to-firebase.js",
-    "upload-media-to-cloudinary": "node ../scripts/upload-media-to-cloudinary.js",
+    "migrate-local-to-firestore": "node ./scripts/migrate-to-firebase.js",
+    "upload-media-to-cloudinary": "node ./scripts/upload-media-to-cloudinary.js",
     "test:db": "node test-api.js"
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
     "bcryptjs": "^2.4.3",
-    "cloudinary": "^1.41.0",
+    "cloudinary": "^2.8.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

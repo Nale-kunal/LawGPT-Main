@@ -10,29 +10,29 @@ const router = express.Router();
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password, role, barNumber, firm } = req.body;
-    
+
     // Validate required fields
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email, and password are required' });
     }
-    
+
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ error: 'Invalid email format' });
     }
-    
+
     // Validate password strength
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters long' });
     }
-    
+
     // Check if user already exists
     const existing = await User.findOne({ email: email.toLowerCase() });
     if (existing) {
       return res.status(409).json({ error: 'Email already registered' });
     }
-    
+
     // Create new user
     const user = await User.create({
       name: name.trim(),
@@ -42,21 +42,21 @@ router.post('/register', async (req, res) => {
       firm: firm?.trim(),
       passwordHash: User.hashPassword(password),
     });
-    
+
     // Generate token for immediate login
     const token = jwt.sign(
-      { userId: user._id, email: user.email, role: user.role }, 
-      process.env.JWT_SECRET || 'dev_secret', 
+      { userId: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || 'dev_secret',
       { expiresIn: '7d' }
     );
-    
-    res.cookie('token', token, { 
-      httpOnly: true, 
-      sameSite: 'lax', 
-      secure: process.env.NODE_ENV === 'production', 
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
-    
+
     return res.status(201).json({
       message: 'Registration successful',
       token,
@@ -78,27 +78,27 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     // Validate input
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
-    
+
     // Normalize email
     const normalizedEmail = email.toLowerCase().trim();
-    
+
     const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       console.log(`Login attempt failed: User not found for email: ${normalizedEmail}`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-    
+
     // Check if user has a password hash
     if (!user.passwordHash) {
       console.error(`Login attempt failed: User ${user._id} has no passwordHash`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-    
+
     // Verify password with better error handling
     let isValidPassword = false;
     try {
@@ -113,26 +113,26 @@ router.post('/login', async (req, res) => {
       }
       throw verifyError; // Re-throw if it's an unexpected error
     }
-    
+
     if (!isValidPassword) {
       console.log(`Login attempt failed: Invalid password for user: ${normalizedEmail}`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-    
+
     // Password is valid, generate token
     const token = jwt.sign(
-      { userId: user._id, email: user.email, role: user.role }, 
-      process.env.JWT_SECRET || 'dev_secret', 
+      { userId: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || 'dev_secret',
       { expiresIn: '7d' }
     );
-    
-    res.cookie('token', token, { 
-      httpOnly: true, 
-      sameSite: 'lax', 
-      secure: process.env.NODE_ENV === 'production', 
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
-    
+
     console.log(`Login successful for user: ${normalizedEmail}`);
     return res.json({
       token,
@@ -161,12 +161,12 @@ router.post('/logout', (req, res) => {
     { path: '/' },
     { path: '/', domain: undefined },
   ];
-  
+
   // Clear cookie with all configurations
   cookieOptions.forEach(options => {
     res.clearCookie('token', options);
   });
-  
+
   // Also set expired cookie to override any existing cookie
   res.cookie('token', '', {
     expires: new Date(0),
@@ -175,7 +175,7 @@ router.post('/logout', (req, res) => {
     secure: process.env.NODE_ENV === 'production',
     path: '/'
   });
-  
+
   return res.json({ ok: true, message: 'Logged out successfully' });
 });
 
@@ -245,6 +245,13 @@ router.post('/reset', async (req, res) => {
 
 router.get('/me', requireAuth, async (req, res) => {
   try {
+    // Add cache control headers to prevent browser caching
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
     const user = await User.findById(req.user.userId);
     if (!user) {
       // Clear any invalid cookies
@@ -256,7 +263,7 @@ router.get('/me', requireAuth, async (req, res) => {
       });
       return res.status(401).json({ error: 'User not found' });
     }
-    
+
     return res.json({
       user: {
         id: String(user._id),

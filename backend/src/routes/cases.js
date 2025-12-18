@@ -9,7 +9,7 @@ import {
   queryDocuments,
   COLLECTIONS
 } from '../services/firestore.js';
-import { validateCaseNumber, validateHearingType } from '../schemas/validation-schemas.js';
+import { validateHearingType } from '../schemas/validation-schemas.js';
 
 
 const router = express.Router();
@@ -43,19 +43,32 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    // Validate case number format
-    const caseNumberValidation = validateCaseNumber(req.body.caseNumber);
-    if (!caseNumberValidation.valid) {
-      return res.status(400).json({ error: caseNumberValidation.error });
+    // Validate case number is provided (any format allowed)
+    if (!req.body.caseNumber || typeof req.body.caseNumber !== 'string' || !req.body.caseNumber.trim()) {
+      return res.status(400).json({ error: 'Case number is required' });
     }
 
-    // Validate hearing type is provided and valid
-    const hearingTypeValidation = validateHearingType(req.body.hearingType);
-    if (!hearingTypeValidation.valid) {
-      return res.status(400).json({ error: hearingTypeValidation.error });
+    const trimmedCaseNumber = req.body.caseNumber.trim();
+
+    // Check for duplicate case number (case-insensitive, same owner)
+    const existingCases = await queryDocuments(COLLECTIONS.CASES, [
+      { field: 'owner', operator: '==', value: req.user.userId },
+      { field: 'caseNumber', operator: '==', value: trimmedCaseNumber }
+    ]);
+
+    if (existingCases.length > 0) {
+      return res.status(409).json({ error: `Case number "${trimmedCaseNumber}" already exists. Please use a different case number.` });
     }
 
-    const data = { ...req.body, owner: req.user.userId };
+    // Hearing type validation is optional - don't block if not provided
+    if (req.body.hearingType) {
+      const hearingTypeValidation = validateHearingType(req.body.hearingType);
+      if (!hearingTypeValidation.valid) {
+        return res.status(400).json({ error: hearingTypeValidation.error });
+      }
+    }
+
+    const data = { ...req.body, caseNumber: trimmedCaseNumber, owner: req.user.userId };
     const item = await createDocument(COLLECTIONS.CASES, data);
 
     try {
@@ -125,12 +138,27 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Not found' });
     }
 
-    // Validate case number if being updated
-    if (req.body.caseNumber) {
-      const caseNumberValidation = validateCaseNumber(req.body.caseNumber);
-      if (!caseNumberValidation.valid) {
-        return res.status(400).json({ error: caseNumberValidation.error });
+    // Validate case number if being updated (any format allowed, just ensure it's not empty)
+    if (req.body.caseNumber !== undefined) {
+      if (!req.body.caseNumber || typeof req.body.caseNumber !== 'string' || !req.body.caseNumber.trim()) {
+        return res.status(400).json({ error: 'Case number cannot be empty' });
       }
+
+      const trimmedCaseNumber = req.body.caseNumber.trim();
+
+      // Check for duplicate case number (excluding current case, same owner)
+      const existingCases = await queryDocuments(COLLECTIONS.CASES, [
+        { field: 'owner', operator: '==', value: req.user.userId },
+        { field: 'caseNumber', operator: '==', value: trimmedCaseNumber }
+      ]);
+
+      // Filter out the current case being updated
+      const duplicateCases = existingCases.filter(c => c.id !== req.params.id);
+      if (duplicateCases.length > 0) {
+        return res.status(409).json({ error: `Case number "${trimmedCaseNumber}" already exists. Please use a different case number.` });
+      }
+
+      req.body.caseNumber = trimmedCaseNumber;
     }
 
     // Validate hearing type if being updated

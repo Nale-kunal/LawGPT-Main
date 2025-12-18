@@ -604,6 +604,11 @@ router.post('/login', async (req, res) => {
       path: '/'
     });
 
+    // Set cache control headers to prevent caching of login response
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     return res.json({
       token: sessionToken,
       user: responseUser
@@ -616,10 +621,17 @@ router.post('/login', async (req, res) => {
 
 // Logout
 router.post('/logout', (req, res) => {
+  // Set cache control headers to prevent caching
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  
+  // Clear cookie with all possible configurations
   const cookieOptions = [
     { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/' },
     { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', path: '/' },
     { httpOnly: true, sameSite: 'none', secure: true, path: '/' },
+    { httpOnly: true, sameSite: 'lax', secure: false, path: '/' },
     { path: '/' },
   ];
 
@@ -627,12 +639,14 @@ router.post('/logout', (req, res) => {
     res.clearCookie('token', options);
   });
 
+  // Set expired cookie to override any existing cookie
   res.cookie('token', '', {
     expires: new Date(0),
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     secure: process.env.NODE_ENV === 'production',
-    path: '/'
+    path: '/',
+    maxAge: 0
   });
 
   return res.json({ ok: true, message: 'Logged out successfully' });
@@ -641,12 +655,17 @@ router.post('/logout', (req, res) => {
 // Get current user profile
 router.get('/me', requireAuth, async (req, res) => {
   try {
+    // Set cache control headers to prevent caching of auth state
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
     const userProfile = await getDocumentById(COLLECTIONS.USERS, req.user.userId);
 
     if (!userProfile) {
       res.clearCookie('token', {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         secure: process.env.NODE_ENV === 'production',
         path: '/'
       });
@@ -660,7 +679,7 @@ router.get('/me', requireAuth, async (req, res) => {
     console.error('Auth check error:', error);
     res.clearCookie('token', {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       secure: process.env.NODE_ENV === 'production',
       path: '/'
     });

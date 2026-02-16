@@ -229,7 +229,7 @@ router.delete('/folders/:id', requireAuth, async (req, res) => {
 // Documents CRUD - All routes require authentication
 router.get('/files', requireAuth, async (req, res) => {
   try {
-    const { folderId } = req.query;
+    const { folderId, all } = req.query;
     const ownerId = req.user.userId;
 
     if (!ownerId) {
@@ -238,6 +238,32 @@ router.get('/files', requireAuth, async (req, res) => {
 
     const filters = [{ field: 'ownerId', operator: '==', value: ownerId }];
 
+    // If 'all=true' is specified, return ALL files for this user (for statistics)
+    if (all === 'true') {
+      console.log('📊 Fetching ALL files for statistics');
+      const files = await queryDocuments(
+        COLLECTIONS.DOCUMENTS,
+        filters,
+        { field: 'createdAt', direction: 'desc' }
+      );
+
+      const transformedFiles = files.map(file => {
+        const transformed = {
+          ...file,
+          _id: file.id,
+          createdAt: file.createdAt?.toDate ? file.createdAt.toDate().toISOString() : file.createdAt
+        };
+        if (file.folderId !== undefined) {
+          transformed.folderId = file.folderId;
+        }
+        return transformed;
+      });
+
+      console.log(`📋 Returning ${transformedFiles.length} total files for statistics`);
+      return res.json({ files: transformedFiles });
+    }
+
+    // Otherwise, filter by folderId as before
     // If folderId is provided, filter by it. If folderId is 'null' or empty, get root files (folderId is null)
     if (folderId && folderId !== 'null' && folderId !== 'undefined' && folderId !== '') {
       filters.push({ field: 'folderId', operator: '==', value: folderId });

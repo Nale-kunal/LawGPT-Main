@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { LogOut, User, Bell, Moon, Sun, Menu, Settings } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
+import { LogOut, User, Bell, Settings } from 'lucide-react';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import {
   DropdownMenu,
@@ -20,7 +20,6 @@ import { NotificationDropdown } from './NotificationDropdown';
 export const Header = () => {
   const { user, logout } = useAuth();
   const { alerts } = useLegalData();
-  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const unreadAlerts = alerts.filter(alert => !alert.isRead).length;
 
@@ -46,18 +45,7 @@ export const Header = () => {
 
       <div className="flex items-center gap-1.5 md:gap-3">
         {/* Dark Mode Toggle */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="h-7 w-7 p-0 border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
-        >
-          {theme === 'dark' ? (
-            <Sun className="h-3.5 w-3.5" />
-          ) : (
-            <Moon className="h-3.5 w-3.5" />
-          )}
-        </Button>
+        <ThemeToggle />
 
         {/* Notifications Dropdown */}
         <NotificationDropdown unreadCount={unreadAlerts} />

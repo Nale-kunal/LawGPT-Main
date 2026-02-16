@@ -387,7 +387,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                     value={formData.hearingDate}
                     onChange={(e) => setFormData(prev => ({ ...prev, hearingDate: e.target.value }))}
                     required
-                    className="bg-background text-foreground border-input"
+                    className="bg-background text-foreground border-input border-transparent hover:border-accent hover:border-2 transition-all"
                   />
                 </div>
                 <div>
@@ -397,7 +397,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                     type="time"
                     value={formData.hearingTime}
                     onChange={(e) => setFormData(prev => ({ ...prev, hearingTime: e.target.value }))}
-                    className="bg-background text-foreground border-input"
+                    className="bg-background text-foreground border-input border-transparent hover:border-accent hover:border-2 transition-all"
                   />
                 </div>
               </div>
@@ -410,7 +410,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                     value={formData.courtName}
                     onChange={(e) => setFormData(prev => ({ ...prev, courtName: e.target.value }))}
                     required
-                    className="bg-background text-foreground border-input"
+                    className="bg-background text-foreground border-input border-transparent hover:border-accent hover:border-2 transition-all"
                   />
                 </div>
                 <div>
@@ -419,7 +419,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                     id="judgeName"
                     value={formData.judgeName}
                     onChange={(e) => setFormData(prev => ({ ...prev, judgeName: e.target.value }))}
-                    className="bg-background text-foreground border-input"
+                    className="bg-background text-foreground border-input border-transparent hover:border-accent hover:border-2 transition-all"
                   />
                 </div>
               </div>
@@ -428,7 +428,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                 <div>
                   <Label htmlFor="hearingType">Hearing Type</Label>
                   <Select value={formData.hearingType} onValueChange={(value) => setFormData(prev => ({ ...prev, hearingType: value as Hearing['hearingType'] }))}>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-transparent hover:border-accent hover:border-2 transition-all">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -445,7 +445,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                 <div>
                   <Label htmlFor="status">Status</Label>
                   <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as Hearing['status'] }))}>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-transparent hover:border-accent hover:border-2 transition-all">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -466,7 +466,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                   onChange={(e) => setFormData(prev => ({ ...prev, purpose: e.target.value }))}
                   placeholder="Describe the purpose of this hearing..."
                   rows={2}
-                  className="bg-background text-foreground border-input"
+                  className="bg-background text-foreground border-input border-transparent hover:border-accent hover:border-2 transition-all"
                 />
               </div>
             </CardContent>
@@ -486,7 +486,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                   onChange={(e) => setFormData(prev => ({ ...prev, courtInstructions: e.target.value }))}
                   placeholder="Any specific instructions from the court..."
                   rows={3}
-                  className="bg-background text-foreground border-input"
+                  className="bg-background text-foreground border-input border-transparent hover:border-accent hover:border-2 transition-all"
                 />
               </div>
 
@@ -504,6 +504,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                         size="sm"
                         variant="outline"
                         onClick={() => removeDocument(index)}
+                        className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -515,9 +516,9 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                       onChange={(e) => setNewDocument(e.target.value)}
                       placeholder="Add document name..."
                       onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addDocument())}
-                      className="bg-background text-foreground border-input"
+                      className="bg-background text-foreground border-input border-transparent hover:border-accent hover:border-2 transition-all"
                     />
-                    <Button type="button" onClick={addDocument}>
+                    <Button type="button" onClick={addDocument} className="border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
@@ -540,7 +541,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                   onChange={(e) => setFormData(prev => ({ ...prev, proceedings: e.target.value }))}
                   placeholder="Describe what happened during the hearing..."
                   rows={4}
-                  className="bg-background text-foreground border-input"
+                  className="bg-background text-foreground border-input border-transparent hover:border-accent hover:border-2 transition-all"
                 />
               </div>
 
@@ -556,6 +557,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                           size="sm"
                           variant="outline"
                           onClick={() => removeOrder(index)}
+                          className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -572,15 +574,15 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                         value={newOrder.orderType}
                         onChange={(e) => setNewOrder(prev => ({ ...prev, orderType: e.target.value }))}
                         placeholder="Order type (e.g., Interim Order)"
-                        className="bg-background text-foreground border-input"
+                        className="bg-background text-foreground border-input border-transparent hover:border-accent hover:border-2 transition-all"
                       />
                       <Input
                         value={newOrder.orderDetails}
                         onChange={(e) => setNewOrder(prev => ({ ...prev, orderDetails: e.target.value }))}
                         placeholder="Order details..."
-                        className="bg-background text-foreground border-input"
+                        className="bg-background text-foreground border-input border-transparent hover:border-accent hover:border-2 transition-all"
                       />
-                      <Button type="button" onClick={addOrder}>
+                      <Button type="button" onClick={addOrder} className="border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
@@ -634,6 +636,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                         size="sm"
                         variant="outline"
                         onClick={() => removeWitness(index)}
+                        className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -645,9 +648,9 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                       onChange={(e) => setNewWitness(e.target.value)}
                       placeholder="Add witness name..."
                       onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addWitness())}
-                      className="bg-background text-foreground border-input"
+                      className="bg-background text-foreground border-input border-transparent hover:border-accent hover:border-2 transition-all"
                     />
-                    <Button type="button" onClick={addWitness}>
+                    <Button type="button" onClick={addWitness} className="border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
@@ -670,7 +673,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                     type="date"
                     value={formData.nextHearingDate}
                     onChange={(e) => setFormData(prev => ({ ...prev, nextHearingDate: e.target.value }))}
-                    className="bg-background text-foreground border-input"
+                    className="bg-background text-foreground border-input border-transparent hover:border-accent hover:border-2 transition-all"
                   />
                 </div>
                 <div>
@@ -680,7 +683,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                     type="time"
                     value={formData.nextHearingTime}
                     onChange={(e) => setFormData(prev => ({ ...prev, nextHearingTime: e.target.value }))}
-                    className="bg-background text-foreground border-input"
+                    className="bg-background text-foreground border-input border-transparent hover:border-accent hover:border-2 transition-all"
                   />
                 </div>
               </div>
@@ -694,7 +697,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                     onChange={(e) => setFormData(prev => ({ ...prev, adjournmentReason: e.target.value }))}
                     placeholder="Reason for adjourning the hearing..."
                     rows={2}
-                    className="bg-background text-foreground border-input"
+                    className="bg-background text-foreground border-input border-transparent hover:border-accent hover:border-2 transition-all"
                   />
                 </div>
               )}
@@ -712,7 +715,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                 onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                 placeholder="Any additional notes or observations..."
                 rows={3}
-                className="bg-background text-foreground border-input"
+                className="bg-background text-foreground border-input border-transparent hover:border-accent hover:border-2 transition-all"
               />
             </CardContent>
           </Card>
@@ -725,16 +728,17 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                   variant="destructive"
                   onClick={handleDelete}
                   disabled={isDeleting}
+                  className="border border-transparent hover:border-accent hover:border-2 transition-all"
                 >
                   {isDeleting ? 'Deleting...' : 'Delete Hearing'}
                 </Button>
               )}
             </div>
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button type="button" variant="outline" onClick={onClose} className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting} className="border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                 {isSubmitting ? 'Saving...' : hearing ? 'Update Hearing' : 'Save Hearing'}
               </Button>
             </div>

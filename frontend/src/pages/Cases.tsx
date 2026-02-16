@@ -398,7 +398,7 @@ const Cases = () => {
 
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
-            <Button onClick={handleOpenDialog} size="sm" className="h-8 text-xs">
+            <Button onClick={handleOpenDialog} size="sm" className="h-8 text-xs border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
               <Plus className="mr-1.5 h-3.5 w-3.5" />
               Add New Case
             </Button>
@@ -605,10 +605,10 @@ const Cases = () => {
               </div>
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => { setShowAddDialog(false); setSelectedCase(null); resetForm(); }}>
+                <Button type="button" variant="outline" onClick={() => { setShowAddDialog(false); setSelectedCase(null); resetForm(); }} className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                   Cancel
                 </Button>
-                <Button type="submit">
+                <Button type="submit" className="border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                   {selectedCase ? 'Update Case' : 'Add Case'}
                 </Button>
               </DialogFooter>
@@ -619,24 +619,24 @@ const Cases = () => {
 
       {/* Filters */}
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-1">
           <CardTitle className="text-sm">Search & Filter Cases</CardTitle>
         </CardHeader>
-        <CardContent className="pt-2">
+        <CardContent className="pt-1">
           <div className="flex flex-wrap gap-2">
             <div className="flex-1 min-w-48">
               <div className="relative">
-                <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   placeholder="Search by case number, client name, or opposing party..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 h-8 text-xs"
+                  className="pl-8 h-8 text-xs border-transparent hover:border-accent hover:border-2 transition-all"
                 />
               </div>
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-32 h-8 text-xs">
+              <SelectTrigger className="w-32 h-8 text-xs border-transparent hover:border-accent hover:border-2 transition-all">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
@@ -649,7 +649,7 @@ const Cases = () => {
               </SelectContent>
             </Select>
             <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-              <SelectTrigger className="w-32 h-8 text-xs">
+              <SelectTrigger className="w-32 h-8 text-xs border-transparent hover:border-accent hover:border-2 transition-all">
                 <SelectValue placeholder="All Priority" />
               </SelectTrigger>
               <SelectContent>
@@ -730,7 +730,7 @@ const Cases = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-6 text-[10px] px-2"
+                  className="h-6 text-[10px] px-2 border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedCase(case_);
@@ -763,7 +763,7 @@ const Cases = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-6 text-[10px] px-2"
+                  className="h-6 text-[10px] px-2 border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (confirm('Are you sure you want to delete this case?')) {
@@ -780,7 +780,7 @@ const Cases = () => {
       </div>
 
       {filteredCases.length === 0 && (
-        <Card>
+        <Card className="border border-transparent hover:border-accent hover:border-2 transition-all">
           <CardContent className="text-center py-8">
             <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
             <h3 className="text-sm font-semibold mb-1.5">No cases found</h3>
@@ -790,7 +790,7 @@ const Cases = () => {
                 : 'Start by adding your first case.'
               }
             </p>
-            <Button onClick={() => setShowAddDialog(true)} size="sm" className="h-7 text-xs">
+            <Button onClick={() => setShowAddDialog(true)} size="sm" className="h-7 text-xs border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
               <Plus className="mr-1.5 h-3.5 w-3.5" />
               Add First Case
             </Button>

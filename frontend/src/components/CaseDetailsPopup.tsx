@@ -536,6 +536,7 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
                         size="sm"
                         variant="outline"
                         onClick={reloadHearings}
+                        className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                       >
                         Reload
                       </Button>
@@ -545,6 +546,7 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
                           setSelectedHearing(null);
                           setShowHearingRecord(true);
                         }}
+                        className="border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                       >
                         <Plus className="h-4 w-4 mr-2" />
                         Record Hearing
@@ -596,6 +598,7 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
                                   setSelectedHearing(normalizeHearing(hearing));
                                   setShowHearingView(true);
                                 }}
+                                className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                               >
                                 <Eye className="h-3 w-3" />
                               </Button>
@@ -606,6 +609,7 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
                                   setSelectedHearing(normalizeHearing(hearing));
                                   setShowHearingRecord(true);
                                 }}
+                                className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                               >
                                 <Edit className="h-3 w-3" />
                               </Button>

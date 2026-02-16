@@ -122,19 +122,19 @@ const Billing = () => {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2 md:space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Billing & Time Tracking</h1>
-          <p className="text-muted-foreground">Manage invoices and track billable hours</p>
+          <h1 className="text-xl md:text-2xl font-bold mb-1">Billing & Time Tracking</h1>
+          <p className="text-xs text-muted-foreground">Manage invoices and track billable hours</p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-1.5">
           <Dialog open={showTimeDialog} onOpenChange={setShowTimeDialog}>
             <DialogTrigger asChild>
-              <Button variant="outline" onClick={resetTimeForm}>
-                <Clock className="mr-2 h-4 w-4" />
+              <Button variant="outline" onClick={resetTimeForm} size="sm" className="h-8 text-xs border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
+                <Clock className="mr-1.5 h-3.5 w-3.5" />
                 Log Time
               </Button>
             </DialogTrigger>
@@ -208,99 +208,99 @@ const Billing = () => {
                 </div>
 
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setShowTimeDialog(false)}>
+                  <Button type="button" variant="outline" onClick={() => setShowTimeDialog(false)} className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                     Cancel
                   </Button>
-                  <Button type="submit">Log Time</Button>
+                  <Button type="submit" className="border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">Log Time</Button>
                 </DialogFooter>
               </form>
             </DialogContent>
           </Dialog>
 
-          <Button onClick={() => setShowInvoiceDialog(true)}>
-            <Plus className="mr-2 h-4 w-4" />
+          <Button onClick={() => setShowInvoiceDialog(true)} size="sm" className="h-8 text-xs border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
             Create Invoice
           </Button>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-3">
         <Card className="shadow-card-custom">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Billed</CardTitle>
-            <IndianRupee className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+            <CardTitle className="text-xs font-medium">Total Billed</CardTitle>
+            <IndianRupee className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">₹{totalBilled.toLocaleString('en-IN')}</div>
-            <p className="text-xs text-muted-foreground">All time invoices</p>
+          <CardContent className="pt-1">
+            <div className="text-xl font-bold">₹{totalBilled.toLocaleString('en-IN')}</div>
+            <p className="text-[10px] text-muted-foreground">All time invoices</p>
           </CardContent>
         </Card>
 
         <Card className="shadow-card-custom">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Paid Amount</CardTitle>
-            <IndianRupee className="h-4 w-4 text-success" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+            <CardTitle className="text-xs font-medium">Paid Amount</CardTitle>
+            <IndianRupee className="h-3.5 w-3.5 text-success" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-success">₹{paidAmount.toLocaleString('en-IN')}</div>
-            <p className="text-xs text-muted-foreground">Received payments</p>
+          <CardContent className="pt-1">
+            <div className="text-xl font-bold text-success">₹{paidAmount.toLocaleString('en-IN')}</div>
+            <p className="text-[10px] text-muted-foreground">Received payments</p>
           </CardContent>
         </Card>
 
         <Card className="shadow-card-custom">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Amount</CardTitle>
-            <IndianRupee className="h-4 w-4 text-warning" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+            <CardTitle className="text-xs font-medium">Pending Amount</CardTitle>
+            <IndianRupee className="h-3.5 w-3.5 text-warning" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-warning">₹{pendingAmount.toLocaleString('en-IN')}</div>
-            <p className="text-xs text-muted-foreground">Outstanding invoices</p>
+          <CardContent className="pt-1">
+            <div className="text-xl font-bold text-warning">₹{pendingAmount.toLocaleString('en-IN')}</div>
+            <p className="text-[10px] text-muted-foreground">Outstanding invoices</p>
           </CardContent>
         </Card>
 
         <Card className="shadow-card-custom">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Hours Logged</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+            <CardTitle className="text-xs font-medium">Hours Logged</CardTitle>
+            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{Math.round(totalHours / 60)}h</div>
-            <p className="text-xs text-muted-foreground">{totalHours} minutes total</p>
+          <CardContent className="pt-1">
+            <div className="text-xl font-bold">{Math.round(totalHours / 60)}h</div>
+            <p className="text-[10px] text-muted-foreground">{totalHours} minutes total</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 md:gap-3">
         {/* Invoices */}
         <Card className="lg:col-span-2 shadow-elevated">
-          <CardHeader>
+          <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
+              <CardTitle className="flex items-center gap-1.5 text-sm">
+                <FileText className="h-4 w-4 text-primary" />
                 Invoices
               </CardTitle>
-              <Button variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" />
+              <Button variant="outline" size="sm" className="h-7 text-[10px] px-2 border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
+                <Download className="mr-1.5 h-3 w-3" />
                 Export
               </Button>
             </div>
-            <CardDescription>Manage client invoices and payments</CardDescription>
+            <CardDescription className="text-[10px]">Manage client invoices and payments</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-2">
             {/* Search and Filter */}
-            <div className="flex gap-4 mb-4">
+            <div className="flex gap-2 mb-2">
               <div className="relative flex-1">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   placeholder="Search invoices..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8"
+                  className="pl-8 h-8 text-xs border-transparent hover:border-accent hover:border-2 transition-all"
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-32 h-8 text-xs border-transparent hover:border-accent hover:border-2 transition-all">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -313,24 +313,24 @@ const Billing = () => {
               </Select>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               {filteredInvoices.map((invoice) => (
-                <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div key={invoice.id} className="flex items-center justify-between p-2 border rounded-lg border-transparent hover:border-accent hover:border-2 transition-all">
                   <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium">{invoice.invoiceNumber}</span>
-                      <Badge variant={getStatusColor(invoice.status)}>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="font-medium text-xs">{invoice.invoiceNumber}</span>
+                      <Badge variant={getStatusColor(invoice.status)} className="text-[10px] h-4 px-1">
                         {invoice.status}
                       </Badge>
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-xs text-muted-foreground">
                       {clients.find(c => c.id === invoice.clientId)?.name || 'Client'} • Due: {invoice.dueDate.toLocaleDateString('en-IN')}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-lg">₹{(invoice.total || 0).toLocaleString('en-IN')}</div>
+                    <div className="font-bold text-sm">₹{(invoice.total || 0).toLocaleString('en-IN')}</div>
                     <div className="flex gap-1">
-                      <Button size="sm" variant="outline" onClick={() => setShowSendDialog(invoice)}>
+                      <Button size="sm" variant="outline" onClick={() => setShowSendDialog(invoice)} className="h-6 text-[10px] px-2 border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                         <Send className="mr-1 h-3 w-3" />
                         Send
                       </Button>
@@ -338,7 +338,7 @@ const Billing = () => {
                         // Get fresh invoice data from invoices array
                         const freshInvoice = invoices.find(inv => inv.id === invoice.id);
                         setSelectedInvoice(freshInvoice || invoice);
-                      }}>
+                      }} className="h-6 text-[10px] px-2 border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                         View
                       </Button>
                     </div>
@@ -347,9 +347,9 @@ const Billing = () => {
               ))}
 
               {filteredInvoices.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>No invoices found</p>
+                <div className="text-center py-4 text-muted-foreground">
+                  <FileText className="h-8 w-8 mx-auto mb-1.5 opacity-50" />
+                  <p className="text-xs">No invoices found</p>
                 </div>
               )}
             </div>
@@ -358,39 +358,39 @@ const Billing = () => {
 
         {/* Time Entries */}
         <Card className="shadow-elevated">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-primary" />
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-1.5 text-sm">
+              <Clock className="h-4 w-4 text-primary" />
               Recent Time Entries
             </CardTitle>
-            <CardDescription>Latest billable hours logged</CardDescription>
+            <CardDescription className="text-[10px]">Latest billable hours logged</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
+          <CardContent className="pt-2">
+            <div className="space-y-2">
               {timeEntries.slice(0, 5).map((entry) => {
                 const case_ = cases.find(c => c.id === entry.caseId);
                 const amount = (entry.duration / 60) * entry.hourlyRate;
 
                 return (
-                  <div key={entry.id} className="p-3 border rounded-lg space-y-2">
+                  <div key={entry.id} className="p-2 border rounded-lg space-y-1.5 border-transparent hover:border-accent hover:border-2 transition-all">
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm">
+                      <span className="font-medium text-xs">
                         {case_?.caseNumber || 'Unknown Case'}
                       </span>
-                      <Badge variant={entry.billable ? 'default' : 'outline'}>
+                      <Badge variant={entry.billable ? 'default' : 'outline'} className="text-[10px] h-4 px-1">
                         {entry.billable ? 'Billable' : 'Non-billable'}
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground line-clamp-2">
+                    <p className="text-[10px] text-muted-foreground line-clamp-2">
                       {entry.description}
                     </p>
-                    <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center justify-between text-[10px]">
                       <span className="text-muted-foreground">
                         {Math.round(entry.duration / 60 * 10) / 10}h @ ₹{entry.hourlyRate}/hr
                       </span>
                       <span className="font-medium">₹{amount.toLocaleString('en-IN')}</span>
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-[10px] text-muted-foreground">
                       {entry.date.toLocaleDateString('en-IN')}
                     </div>
                   </div>
@@ -398,23 +398,23 @@ const Billing = () => {
               })}
 
               {timeEntries.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No time entries yet</p>
+                <div className="text-center py-4 text-muted-foreground">
+                  <Clock className="h-8 w-8 mx-auto mb-1.5 opacity-50" />
+                  <p className="text-xs">No time entries yet</p>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="mt-2"
+                    className="mt-1.5 h-7 text-xs border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                     onClick={() => setShowTimeDialog(true)}
                   >
-                    <Plus className="mr-2 h-3 w-3" />
+                    <Plus className="mr-1.5 h-3 w-3" />
                     Log First Entry
                   </Button>
                 </div>
               )}
 
               {timeEntries.length > 5 && (
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full h-7 text-xs border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                   View All Entries
                 </Button>
               )}
@@ -425,29 +425,29 @@ const Billing = () => {
 
       {/* Payment Status */}
       <Card className="shadow-card-custom">
-        <CardHeader>
-          <CardTitle>Payment Overview</CardTitle>
-          <CardDescription>Monthly payment status and trends</CardDescription>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Payment Overview</CardTitle>
+          <CardDescription className="text-[10px]">Monthly payment status and trends</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <CardContent className="pt-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-3">
             <div className="text-center">
-              <div className="text-2xl font-bold text-success mb-1">
+              <div className="text-xl font-bold text-success mb-0.5">
                 {collectionRate}%
               </div>
-              <p className="text-sm text-muted-foreground">Collection Rate</p>
+              <p className="text-[10px] text-muted-foreground">Collection Rate</p>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold mb-1">
+              <div className="text-xl font-bold mb-0.5">
                 ₹{averageInvoice.toLocaleString('en-IN')}
               </div>
-              <p className="text-sm text-muted-foreground">Average Invoice</p>
+              <p className="text-[10px] text-muted-foreground">Average Invoice</p>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-primary mb-1">
+              <div className="text-xl font-bold text-primary mb-0.5">
                 {avgHoursPerInvoice}h
               </div>
-              <p className="text-sm text-muted-foreground">Avg. Hours per Invoice</p>
+              <p className="text-[10px] text-muted-foreground">Avg. Hours per Invoice</p>
             </div>
           </div>
         </CardContent>
@@ -455,7 +455,7 @@ const Billing = () => {
 
       {/* Create/Edit Invoice Dialog */}
       <Dialog open={showInvoiceDialog} onOpenChange={setShowInvoiceDialog}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Invoice</DialogTitle>
             <DialogDescription>Fill invoice details and items</DialogDescription>
@@ -464,7 +464,7 @@ const Billing = () => {
             <div>
               <Label>Client*</Label>
               <Select value={invoiceForm.clientId} onValueChange={(v) => setInvoiceForm(p => ({ ...p, clientId: v }))}>
-                <SelectTrigger>
+                <SelectTrigger className="border-transparent hover:border-accent hover:border-2 transition-all">
                   <SelectValue placeholder="Select client" />
                 </SelectTrigger>
                 <SelectContent>
@@ -477,7 +477,7 @@ const Billing = () => {
             <div>
               <Label>Case (optional)</Label>
               <Select value={invoiceForm.caseId} onValueChange={(v) => setInvoiceForm(p => ({ ...p, caseId: v }))}>
-                <SelectTrigger>
+                <SelectTrigger className="border-transparent hover:border-accent hover:border-2 transition-all">
                   <SelectValue placeholder="Select case" />
                 </SelectTrigger>
                 <SelectContent>
@@ -489,47 +489,47 @@ const Billing = () => {
             </div>
             <div>
               <Label>Issue Date</Label>
-              <Input type="date" value={invoiceForm.issueDate} onChange={(e) => setInvoiceForm(p => ({ ...p, issueDate: e.target.value }))} />
+              <Input type="date" value={invoiceForm.issueDate} onChange={(e) => setInvoiceForm(p => ({ ...p, issueDate: e.target.value }))} className="border-transparent hover:border-accent hover:border-2 transition-all" />
             </div>
             <div>
               <Label>Due Date</Label>
-              <Input type="date" value={invoiceForm.dueDate} onChange={(e) => setInvoiceForm(p => ({ ...p, dueDate: e.target.value }))} />
+              <Input type="date" value={invoiceForm.dueDate} onChange={(e) => setInvoiceForm(p => ({ ...p, dueDate: e.target.value }))} className="border-transparent hover:border-accent hover:border-2 transition-all" />
             </div>
             <div>
               <Label>Tax Rate (%)</Label>
-              <Input type="number" value={invoiceForm.taxRate} onChange={(e) => setInvoiceForm(p => ({ ...p, taxRate: e.target.value }))} />
+              <Input type="number" value={invoiceForm.taxRate} onChange={(e) => setInvoiceForm(p => ({ ...p, taxRate: e.target.value }))} className="border-transparent hover:border-accent hover:border-2 transition-all" />
             </div>
             <div>
               <Label>Discount (₹)</Label>
-              <Input type="number" value={invoiceForm.discountAmount} onChange={(e) => setInvoiceForm(p => ({ ...p, discountAmount: e.target.value }))} />
+              <Input type="number" value={invoiceForm.discountAmount} onChange={(e) => setInvoiceForm(p => ({ ...p, discountAmount: e.target.value }))} className="border-transparent hover:border-accent hover:border-2 transition-all" />
             </div>
           </div>
           <div className="mt-4">
             <Label>Items</Label>
             <div className="mt-2">
-              <div className="grid grid-cols-12 gap-2 px-2 py-2 rounded-md bg-muted text-xs font-medium">
-                <div className="col-span-6">Description</div>
-                <div className="col-span-2 text-right">Qty</div>
-                <div className="col-span-2 text-right">Unit Price (₹)</div>
-                <div className="col-span-1 text-right">Amount (₹)</div>
-                <div className="col-span-1 text-right">Action</div>
+              <div className="grid grid-cols-12 gap-3 px-3 py-3 rounded-md bg-muted text-xs font-medium">
+                <div className="col-span-6 text-left">Description</div>
+                <div className="col-span-2 text-center">Qty</div>
+                <div className="col-span-2 text-center">Unit Price (₹)</div>
+                <div className="col-span-1 text-center">Amount (₹)</div>
+                <div className="col-span-1 text-center">Action</div>
               </div>
-              <div className="space-y-2 mt-2">
+              <div className="space-y-3 mt-3">
                 {invoiceForm.items.map((it, idx) => (
-                  <div className="grid grid-cols-12 gap-2 items-center" key={idx}>
+                  <div className="grid grid-cols-12 gap-3 items-center" key={idx}>
                     <div className="col-span-6">
-                      <Input placeholder="Description" value={it.description} onChange={(e) => setInvoiceForm(p => { const items = [...p.items]; items[idx] = { ...items[idx], description: e.target.value }; return { ...p, items }; })} />
+                      <Input placeholder="Description" value={it.description} onChange={(e) => setInvoiceForm(p => { const items = [...p.items]; items[idx] = { ...items[idx], description: e.target.value }; return { ...p, items }; })} className="border-transparent hover:border-accent hover:border-2 transition-all" />
                     </div>
                     <div className="col-span-2">
-                      <Input className="text-right" min="0" step="1" type="number" placeholder="Qty" value={it.quantity} onChange={(e) => setInvoiceForm(p => { const items = [...p.items]; items[idx] = { ...items[idx], quantity: e.target.value }; return { ...p, items }; })} />
+                      <Input className="text-center border-transparent hover:border-accent hover:border-2 transition-all" min="0" step="1" type="number" placeholder="Qty" value={it.quantity} onChange={(e) => setInvoiceForm(p => { const items = [...p.items]; items[idx] = { ...items[idx], quantity: e.target.value }; return { ...p, items }; })} />
                     </div>
                     <div className="col-span-2">
-                      <Input className="text-right" min="0" step="0.01" type="number" placeholder="Unit Price" value={it.unitPrice} onChange={(e) => setInvoiceForm(p => { const items = [...p.items]; items[idx] = { ...items[idx], unitPrice: e.target.value }; return { ...p, items }; })} />
+                      <Input className="text-center border-transparent hover:border-accent hover:border-2 transition-all" min="0" step="0.01" type="number" placeholder="Unit Price" value={it.unitPrice} onChange={(e) => setInvoiceForm(p => { const items = [...p.items]; items[idx] = { ...items[idx], unitPrice: e.target.value }; return { ...p, items }; })} />
                     </div>
-                    <div className="col-span-1 text-right font-medium">
+                    <div className="col-span-1 text-center font-medium">
                       ₹{(Number(it.quantity || 0) * Number(it.unitPrice || 0)).toLocaleString('en-IN')}
                     </div>
-                    <div className="col-span-1 flex justify-end">
+                    <div className="col-span-1 flex justify-center">
                       <Button
                         type="button"
                         variant="outline"
@@ -539,6 +539,7 @@ const Billing = () => {
                           items.splice(idx, 1);
                           return { ...p, items: items.length ? items : [{ description: '', quantity: '1', unitPrice: '0' }] };
                         })}
+                        className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                       >
                         Remove
                       </Button>
@@ -547,18 +548,21 @@ const Billing = () => {
                 ))}
               </div>
               <div className="mt-3">
-                <Button variant="outline" onClick={() => setInvoiceForm(p => ({ ...p, items: [...p.items, { description: '', quantity: '1', unitPrice: '0' }] }))}>Add Item</Button>
+                <Button variant="outline" onClick={() => setInvoiceForm(p => ({ ...p, items: [...p.items, { description: '', quantity: '1', unitPrice: '0' }] }))} className="border-border hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Item
+                </Button>
               </div>
             </div>
           </div>
           <div className="grid gap-2">
             <Label>Notes</Label>
-            <Textarea value={invoiceForm.notes} onChange={(e) => setInvoiceForm(p => ({ ...p, notes: e.target.value }))} />
+            <Textarea value={invoiceForm.notes} onChange={(e) => setInvoiceForm(p => ({ ...p, notes: e.target.value }))} className="border-transparent hover:border-accent hover:border-2 transition-all" />
             <Label>Terms</Label>
-            <Textarea value={invoiceForm.terms} onChange={(e) => setInvoiceForm(p => ({ ...p, terms: e.target.value }))} />
+            <Textarea value={invoiceForm.terms} onChange={(e) => setInvoiceForm(p => ({ ...p, terms: e.target.value }))} className="border-transparent hover:border-accent hover:border-2 transition-all" />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowInvoiceDialog(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowInvoiceDialog(false)} className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">Cancel</Button>
             <Button onClick={async () => {
               const { items, subtotal, taxAmount, total } = computeTotals(invoiceForm.items, Number(invoiceForm.taxRate || 0), Number(invoiceForm.discountAmount || 0));
               const payload: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -584,7 +588,7 @@ const Billing = () => {
               setShowInvoiceDialog(false);
               setInvoiceForm({ clientId: '', caseId: '', issueDate: new Date().toISOString().split('T')[0], dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], taxRate: '0', discountAmount: '0', items: [{ description: '', quantity: '1', unitPrice: '0' }], notes: '', terms: '' });
               toast({ title: 'Invoice Created', description: 'Invoice has been created successfully.' });
-            }}>Save Invoice</Button>
+            }} className="border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">Save Invoice</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -642,7 +646,7 @@ const Billing = () => {
                 <div className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedInvoice.terms}</div>
               </div>}
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setSelectedInvoice(null)}>Close</Button>
+                <Button variant="outline" onClick={() => setSelectedInvoice(null)} className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">Close</Button>
 
                 {/* Only show Mark as Paid button if invoice is not already paid */}
                 {selectedInvoice.status !== 'paid' && (
@@ -662,7 +666,7 @@ const Billing = () => {
                     setSelectedInvoice(null);
                     toast({ title: 'Invoice Deleted', description: 'Invoice has been deleted successfully.' });
                   }
-                }}>
+                }} className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                   Delete
                 </Button>
               </div>

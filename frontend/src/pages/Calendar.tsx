@@ -61,24 +61,39 @@ const Calendar = () => {
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
 
-  // Get first day of the month and number of days
-  const firstDay = new Date(currentYear, currentMonth, 1);
-  const lastDay = new Date(currentYear, currentMonth + 1, 0);
-  const daysInMonth = lastDay.getDate();
-  const startingDayOfWeek = firstDay.getDay();
+  // Generate calendar days - memoized to ensure proper recalculation
+  const calendarDays = useMemo(() => {
+    // Get first day of the month and number of days
+    const firstDay = new Date(currentYear, currentMonth, 1);
+    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay(); // 0 = Sunday, 6 = Saturday
 
-  // Generate calendar days
-  const calendarDays = [];
+    const days: (number | null)[] = [];
 
-  // Add empty cells for days before the first day of the month
-  for (let i = 0; i < startingDayOfWeek; i++) {
-    calendarDays.push(null);
-  }
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null);
+    }
 
-  // Add days of the month
-  for (let day = 1; day <= daysInMonth; day++) {
-    calendarDays.push(day);
-  }
+    // Add all days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(day);
+    }
+
+    // Debug logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📅 Calendar: ${currentMonth + 1}/${currentYear}`);
+      console.log(`   First day: ${firstDay.toDateString()} (weekday ${startingDayOfWeek})`);
+      console.log(`   Days in month: ${daysInMonth}`);
+      console.log(`   Grid starts with ${startingDayOfWeek} empty cells`);
+      console.log(`   First 7 cells:`, days.slice(0, 7));
+      console.log(`   Cells 7-14:`, days.slice(7, 14));
+      console.log(`   Cells 14-21:`, days.slice(14, 21));
+    }
+
+    return days;
+  }, [currentYear, currentMonth]);
 
   // Get cases and hearings for a specific date
   const getCasesForDate = (date: Date) => {
@@ -462,7 +477,7 @@ const Calendar = () => {
           <h1 className="text-xl md:text-2xl font-bold">Legal Calendar</h1>
           <p className="text-xs md:text-sm text-muted-foreground">Court hearings and important dates</p>
         </div>
-        <Button onClick={openCreateModal} size="sm" className="h-8 text-xs">
+        <Button onClick={openCreateModal} size="sm" className="h-8 text-xs border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
           <Plus className="mr-1.5 h-3.5 w-3.5" />
           Schedule Hearing
         </Button>
@@ -478,10 +493,10 @@ const Calendar = () => {
                 {monthNames[currentMonth]} {currentYear}
               </CardTitle>
               <div className="flex gap-1">
-                <Button variant="outline" size="sm" onClick={previousMonth}>
+                <Button variant="outline" size="sm" onClick={previousMonth} className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="outline" size="sm" onClick={nextMonth}>
+                <Button variant="outline" size="sm" onClick={nextMonth} className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                   <ChevronRight className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -499,10 +514,10 @@ const Calendar = () => {
             </div>
 
             {/* Calendar grid */}
-            <div className="grid grid-cols-7 gap-1">
+            <div key={`calendar-grid-${currentYear}-${currentMonth}`} className="grid grid-cols-7 gap-1">
               {calendarDays.map((day, index) => {
                 if (day === null) {
-                  return <div key={index} className="p-1.5 h-12"></div>;
+                  return <div key={`empty-${index}`} className="p-1.5 h-12"></div>;
                 }
 
                 const date = new Date(currentYear, currentMonth, day);
@@ -512,18 +527,25 @@ const Calendar = () => {
 
                 return (
                   <div
-                    key={day}
+                    key={`day-${currentYear}-${currentMonth}-${day}`}
                     onClick={() => setSelectedDate(date)}
                     className={cn(
-                      "p-1.5 h-12 border rounded-lg cursor-pointer transition-colors hover:bg-muted",
-                      isToday(day) && "border-orange-500 border-2",
+                      "p-1.5 h-12 border rounded-lg cursor-pointer transition-colors hover:bg-muted relative",
+                      isToday(day) && "bg-blue-500/10 border-blue-600 border-2",
                       isSelected && !isToday(day) && "border-accent border-2",
-                      isSelected && isToday(day) && "border-orange-500 border-2",
-                      casesForDay.length > 0 && !isToday(day) && !isSelected && "border-primary",
-                      conflictsForDay.length > 0 && "bg-destructive/5"
+                      isSelected && isToday(day) && "bg-blue-500/10 border-blue-600 border-2",
+                      !isToday(day) && casesForDay.length > 0 && !isSelected && "border-primary",
+                      conflictsForDay.length > 0 && !isToday(day) && "bg-destructive/5"
                     )}
                   >
-                    <div className="text-[11px] font-medium">{day}</div>
+                    <div className="flex items-start justify-between">
+                      <div className="text-[11px] font-medium">{day}</div>
+                      {isToday(day) && (
+                        <span className="text-[8px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-1 py-0.5 rounded">
+                          Today
+                        </span>
+                      )}
+                    </div>
                     {casesForDay.length > 0 && (
                       <div className="text-[9px]">
                         <div className="flex flex-wrap gap-0.5 mt-0.5">
@@ -660,7 +682,7 @@ const Calendar = () => {
               <div className="text-center py-6 text-muted-foreground">
                 <CalendarIcon className="h-8 w-8 mx-auto mb-1.5 opacity-50" />
                 <p className="text-xs">No hearings scheduled for this date</p>
-                <Button variant="outline" size="sm" className="mt-1.5 h-6 text-[10px]" onClick={openCreateModal}>
+                <Button variant="outline" size="sm" className="mt-1.5 h-6 text-[10px] border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all" onClick={openCreateModal}>
                   <Plus className="mr-1 h-2.5 w-2.5" />
                   Schedule Hearing
                 </Button>
@@ -748,32 +770,32 @@ const Calendar = () => {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="caseNumber">Case Number</Label>
-                <Input id="caseNumber" value={formCaseNumber} onChange={(e) => setFormCaseNumber(e.target.value)} placeholder="e.g., C/123/2025" />
+                <Input id="caseNumber" value={formCaseNumber} onChange={(e) => setFormCaseNumber(e.target.value)} placeholder="e.g., C/123/2025" className="border-transparent hover:border-accent hover:border-2 transition-all" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="clientName">Client Name</Label>
-                <Input id="clientName" value={formClientName} onChange={(e) => setFormClientName(e.target.value)} placeholder="Client" />
+                <Input id="clientName" value={formClientName} onChange={(e) => setFormClientName(e.target.value)} placeholder="Client" className="border-transparent hover:border-accent hover:border-2 transition-all" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="courtName">Court</Label>
-                <Input id="courtName" value={formCourtName} onChange={(e) => setFormCourtName(e.target.value)} placeholder="Court name" />
+                <Input id="courtName" value={formCourtName} onChange={(e) => setFormCourtName(e.target.value)} placeholder="Court name" className="border-transparent hover:border-accent hover:border-2 transition-all" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="judgeName">Judge</Label>
-                <Input id="judgeName" value={formJudgeName} onChange={(e) => setFormJudgeName(e.target.value)} placeholder="Judge name" />
+                <Input id="judgeName" value={formJudgeName} onChange={(e) => setFormJudgeName(e.target.value)} placeholder="Judge name" className="border-transparent hover:border-accent hover:border-2 transition-all" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="hearingTime">Time</Label>
-                <Input id="hearingTime" type="time" value={formHearingTime} onChange={(e) => setFormHearingTime(e.target.value)} />
+                <Input id="hearingTime" type="time" value={formHearingTime} onChange={(e) => setFormHearingTime(e.target.value)} className="border-transparent hover:border-accent hover:border-2 transition-all" />
               </div>
               <div className="space-y-2">
                 <Label>Priority</Label>
                 <Select value={formPriority} onValueChange={(v) => setFormPriority(v as Case['priority'])}>
-                  <SelectTrigger>
+                  <SelectTrigger className="border-transparent hover:border-accent hover:border-2 transition-all">
                     <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
                   <SelectContent>
@@ -789,7 +811,7 @@ const Calendar = () => {
               <div className="space-y-2">
                 <Label htmlFor="timezone">Timezone</Label>
                 <Select value={formTimezone} onValueChange={setFormTimezone}>
-                  <SelectTrigger id="timezone">
+                  <SelectTrigger id="timezone" className="border-transparent hover:border-accent hover:border-2 transition-all">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -811,17 +833,18 @@ const Calendar = () => {
                   value={formDuration}
                   onChange={(e) => setFormDuration(parseInt(e.target.value) || 60)}
                   placeholder="60"
+                  className="border-transparent hover:border-accent hover:border-2 transition-all"
                 />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
-              <Input id="description" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="Optional details" />
+              <Input id="description" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="Optional details" className="border-transparent hover:border-accent hover:border-2 transition-all" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={resetModal}>Cancel</Button>
-            <Button onClick={handleSave} disabled={!formCaseNumber.trim() || !formClientName.trim()}>Save</Button>
+            <Button variant="outline" onClick={resetModal} className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">Cancel</Button>
+            <Button onClick={handleSave} disabled={!formCaseNumber.trim() || !formClientName.trim()} className="border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

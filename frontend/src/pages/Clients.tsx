@@ -144,18 +144,18 @@ const Clients = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2 md:space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Client Management</h1>
-          <p className="text-muted-foreground">Manage your client information and relationships</p>
+          <h1 className="text-xl md:text-2xl font-bold">Client Management</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">Manage your client information and relationships</p>
         </div>
 
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
-            <Button onClick={handleOpenDialog}>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button onClick={handleOpenDialog} size="sm" className="h-8 text-xs border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
               Add New Client
             </Button>
           </DialogTrigger>
@@ -167,7 +167,7 @@ const Clients = () => {
               </DialogDescription>
             </DialogHeader>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="name">Full Name*</Label>
@@ -177,6 +177,7 @@ const Clients = () => {
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="Client's full name"
                     required
+                    className="border-transparent hover:border-accent hover:border-2 transition-all"
                   />
                 </div>
                 <div>
@@ -188,6 +189,7 @@ const Clients = () => {
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="client@email.com"
                     required
+                    className="border-transparent hover:border-accent hover:border-2 transition-all"
                   />
                 </div>
               </div>
@@ -206,6 +208,7 @@ const Clients = () => {
                     inputMode="numeric"
                     maxLength={10}
                     required
+                    className="border-transparent hover:border-accent hover:border-2 transition-all"
                   />
                 </div>
                 <div>
@@ -219,6 +222,7 @@ const Clients = () => {
                     }}
                     placeholder="ABCDE1234F"
                     maxLength={10}
+                    className="border-transparent hover:border-accent hover:border-2 transition-all"
                   />
                 </div>
               </div>
@@ -232,6 +236,7 @@ const Clients = () => {
                   placeholder="1234 5678 9012"
                   maxLength={12}
                   inputMode="numeric"
+                  className="border-transparent hover:border-accent hover:border-2 transition-all"
                 />
               </div>
 
@@ -243,6 +248,7 @@ const Clients = () => {
                   onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                   placeholder="Complete address..."
                   rows={3}
+                  className="border-transparent hover:border-accent hover:border-2 transition-all"
                 />
               </div>
 
@@ -254,14 +260,15 @@ const Clients = () => {
                   onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                   placeholder="Additional notes about the client..."
                   rows={2}
+                  className="border-transparent hover:border-accent hover:border-2 transition-all"
                 />
               </div>
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => { setShowAddDialog(false); setSelectedClient(null); resetForm(); }}>
+                <Button type="button" variant="outline" onClick={() => { setShowAddDialog(false); setSelectedClient(null); resetForm(); }} className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                   Cancel
                 </Button>
-                <Button type="submit">
+                <Button type="submit" className="border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                   {selectedClient ? 'Update Client' : 'Add Client'}
                 </Button>
               </DialogFooter>
@@ -272,40 +279,40 @@ const Clients = () => {
 
       {/* Search */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Search Clients</CardTitle>
+        <CardHeader className="pb-1">
+          <CardTitle className="text-sm">Search Clients</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-1">
           <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" />
             <Input
               placeholder="Search by name, email, or phone number..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8"
+              className="pl-8 h-8 text-xs border-transparent hover:border-accent hover:border-2 transition-all"
             />
           </div>
         </CardContent>
       </Card>
 
       {/* Clients Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 md:gap-3">
         {filteredClients.map((client) => {
           const clientCases = getClientCases(client.id);
           const activeCases = clientCases.filter(c => c.status === 'active');
 
           return (
             <Card key={client.id} className="shadow-card-custom hover:shadow-elevated transition-shadow">
-              <CardHeader>
+              <CardHeader className="pb-1.5">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-lg">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-sm">
                       {client.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <CardTitle className="text-lg">{client.name}</CardTitle>
-                      <CardDescription className="flex items-center gap-1">
-                        <FileText className="h-3 w-3" />
+                      <CardTitle className="text-sm">{client.name}</CardTitle>
+                      <CardDescription className="flex items-center gap-1 text-[10px]">
+                        <FileText className="h-2.5 w-2.5" />
                         {clientCases.length} case{clientCases.length !== 1 ? 's' : ''}
                       </CardDescription>
                     </div>
@@ -313,7 +320,7 @@ const Clients = () => {
                   <div className="flex gap-1">
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant="outline"
                       onClick={() => {
                         setSelectedClient(client);
                         setFormData({
@@ -327,53 +334,55 @@ const Clients = () => {
                         });
                         setShowAddDialog(true);
                       }}
+                      className="h-6 w-6 p-0 border border-transparent hover:border-accent hover:border-2 transition-all"
                     >
-                      <Edit className="h-4 w-4" />
+                      <Edit className="h-3 w-3" />
                     </Button>
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant="outline"
                       onClick={() => {
                         if (confirm('Are you sure you want to delete this client?')) {
                           deleteClient(client.id);
                         }
                       }}
+                      className="h-6 w-6 p-0 border border-transparent hover:border-accent hover:border-2 transition-all"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
+              <CardContent className="pt-1.5">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <Mail className="h-3 w-3 text-muted-foreground" />
                     <span className="break-all">{client.email}</span>
                   </div>
 
-                  <div className="flex items-center gap-2 text-sm">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <Phone className="h-3 w-3 text-muted-foreground" />
                     <span>{client.phone}</span>
                   </div>
 
                   {client.address && (
-                    <div className="flex items-start gap-2 text-sm">
-                      <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div className="flex items-start gap-1.5 text-xs">
+                      <MapPin className="h-3 w-3 text-muted-foreground mt-0.5" />
                       <span className="text-muted-foreground line-clamp-2">{client.address}</span>
                     </div>
                   )}
 
                   {(client.panNumber || client.aadharNumber) && (
-                    <div className="flex flex-wrap gap-2 pt-2">
+                    <div className="flex flex-wrap gap-1.5 pt-1.5">
                       {client.panNumber && (
-                        <Badge variant="outline" className="text-xs">
-                          <CreditCard className="h-3 w-3 mr-1" />
+                        <Badge variant="outline" className="text-[9px] h-4 px-1">
+                          <CreditCard className="h-2.5 w-2.5 mr-0.5" />
                           PAN: {client.panNumber}
                         </Badge>
                       )}
                       {client.aadharNumber && (
-                        <Badge variant="outline" className="text-xs">
-                          <CreditCard className="h-3 w-3 mr-1" />
+                        <Badge variant="outline" className="text-[9px] h-4 px-1">
+                          <CreditCard className="h-2.5 w-2.5 mr-0.5" />
                           Aadhar: ****{client.aadharNumber.slice(-4)}
                         </Badge>
                       )}
@@ -381,22 +390,22 @@ const Clients = () => {
                   )}
 
                   {/* Case Status */}
-                  <div className="pt-3 border-t">
-                    <div className="flex items-center justify-between text-sm">
+                  <div className="pt-1.5 border-t">
+                    <div className="flex items-center justify-between text-xs">
                       <span className="text-muted-foreground">Active Cases</span>
-                      <Badge variant={activeCases.length > 0 ? 'default' : 'secondary'}>
+                      <Badge variant={activeCases.length > 0 ? 'default' : 'secondary'} className="text-[9px] h-4 px-1">
                         {activeCases.length}
                       </Badge>
                     </div>
-                    <div className="flex items-center justify-between text-sm mt-1">
+                    <div className="flex items-center justify-between text-xs mt-0.5">
                       <span className="text-muted-foreground">Total Cases</span>
                       <span className="font-medium">{clientCases.length}</span>
                     </div>
                   </div>
 
                   {client.notes && (
-                    <div className="pt-2">
-                      <p className="text-xs text-muted-foreground line-clamp-2">
+                    <div className="pt-1.5">
+                      <p className="text-[10px] text-muted-foreground line-clamp-2">
                         <strong>Notes:</strong> {client.notes}
                       </p>
                     </div>
@@ -410,12 +419,12 @@ const Clients = () => {
 
                     if (nextHearing) {
                       return (
-                        <div className="pt-2 border-t">
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
+                        <div className="pt-1.5 border-t">
+                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                            <Calendar className="h-2.5 w-2.5" />
                             <span>Next hearing: {new Date(nextHearing.nextHearing!).toLocaleDateString('en-IN')}</span>
                           </div>
-                          <p className="text-xs text-primary ml-5">{nextHearing.caseNumber}</p>
+                          <p className="text-[10px] text-primary ml-4">{nextHearing.caseNumber}</p>
                         </div>
                       );
                     }
@@ -423,23 +432,23 @@ const Clients = () => {
                   })()}
                 </div>
 
-                <div className="flex gap-2 mt-4 pt-3 border-t">
+                <div className="flex gap-1.5 mt-2 pt-1.5 border-t">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 h-6 text-[10px] border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                     onClick={() => window.open(`tel:${client.phone}`, '_self')}
                   >
-                    <Phone className="mr-2 h-3 w-3" />
+                    <Phone className="mr-1 h-2.5 w-2.5" />
                     Call
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 h-6 text-[10px] border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                     onClick={() => window.open(`mailto:${client.email}`, '_self')}
                   >
-                    <Mail className="mr-2 h-3 w-3" />
+                    <Mail className="mr-1 h-2.5 w-2.5" />
                     Email
                   </Button>
                 </div>
@@ -451,17 +460,17 @@ const Clients = () => {
 
       {filteredClients.length === 0 && (
         <Card>
-          <CardContent className="text-center py-12">
-            <User className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No clients found</h3>
-            <p className="text-muted-foreground mb-4">
+          <CardContent className="text-center py-8">
+            <User className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+            <h3 className="text-sm font-semibold mb-1">No clients found</h3>
+            <p className="text-xs text-muted-foreground mb-3">
               {searchTerm
                 ? 'No clients match your search criteria.'
                 : 'Start by adding your first client.'
               }
             </p>
-            <Button onClick={() => setShowAddDialog(true)}>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button onClick={() => setShowAddDialog(true)} size="sm" className="h-8 text-xs border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
               Add First Client
             </Button>
           </CardContent>

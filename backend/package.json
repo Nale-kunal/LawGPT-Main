@@ -4,7 +4,7 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "node start-dev.js",
+    "dev": "nodemon -r dotenv/config index.js",
     "start": "node -r dotenv/config index.js",
     "kill-port": "node -e \"require('child_process').exec('FOR /F \\\"tokens=5\\\" %P IN (\\'netstat -ano ^| findstr :5000 ^| findstr LISTENING\\') DO taskkill /F /PID %P', (err) => { if (err) console.log('Port is free'); else console.log('Port 5000 freed'); })\"",
     "seed:legal": "node src/scripts/seedLegalSections.js",

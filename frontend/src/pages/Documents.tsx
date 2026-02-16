@@ -69,7 +69,8 @@ const Documents = () => {
   const [folders, setFolders] = useState<ApiFolder[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string | undefined>(undefined);
   const [folderPath, setFolderPath] = useState<ApiFolder[]>([]); // Breadcrumb trail
-  const [files, setFiles] = useState<ApiFile[]>([]);
+  const [files, setFiles] = useState<ApiFile[]>([]); // Files in current folder
+  const [allFiles, setAllFiles] = useState<ApiFile[]>([]); // All files for statistics
   const [isLoading, setIsLoading] = useState(false);
   const [showCreateFolderDialog, setShowCreateFolderDialog] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -352,6 +353,17 @@ const Documents = () => {
 
   const loadFiles = async () => {
     try {
+      // Load ALL files for statistics (no folder filter at all)
+      const allFilesRes = await fetch(getApiUrl('/api/documents/files?all=true'), { credentials: 'include' });
+      if (allFilesRes.ok) {
+        const allFilesData = await allFilesRes.json();
+        setAllFiles(allFilesData.files || []);
+        console.log('📊 Loaded all files for statistics:', allFilesData.files?.length || 0);
+      } else {
+        console.error('Failed to load all files for statistics');
+        setAllFiles([]);
+      }
+
       // Load files for current folder (or root if no folder selected)
       const q = currentFolderId ? `?folderId=${currentFolderId}` : '?folderId=null';
       const res = await fetch(getApiUrl(`/api/documents/files${q}`), { credentials: 'include' });
@@ -359,6 +371,7 @@ const Documents = () => {
       if (res.ok) {
         const data = await res.json();
         setFiles(data.files || []);
+        console.log('📁 Loaded folder files:', data.files?.length || 0, 'for folder:', currentFolderId || 'root');
       } else {
         console.error('Failed to load files');
         setFiles([]);
@@ -366,6 +379,7 @@ const Documents = () => {
     } catch (error) {
       console.error('Load files error:', error);
       setFiles([]);
+      setAllFiles([]);
     }
   };
 
@@ -508,20 +522,20 @@ const Documents = () => {
     setCurrentFolderId(folderId);
   };
 
-  // Calculate statistics
-  const totalFiles = files.length;
-  const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-  const imageFiles = files.filter(f => detectType(f.mimetype) === 'image').length;
-  const documentFiles = files.filter(f => ['pdf', 'doc', 'docx'].includes(detectType(f.mimetype))).length;
-  const videoFiles = files.filter(f => detectType(f.mimetype) === 'video').length;
+  // Calculate statistics from ALL files
+  const totalFiles = allFiles.length;
+  const totalSize = allFiles.reduce((sum, file) => sum + file.size, 0);
+  const imageFiles = allFiles.filter(f => detectType(f.mimetype) === 'image').length;
+  const documentFiles = allFiles.filter(f => ['pdf', 'doc', 'docx'].includes(detectType(f.mimetype))).length;
+  const videoFiles = allFiles.filter(f => detectType(f.mimetype) === 'video').length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2 md:space-y-3">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-1">
         <div>
-          <h1 className="text-3xl font-bold">Document Management</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl md:text-2xl font-bold">Document Management</h1>
+          <p className="text-xs text-muted-foreground">
             Secure storage and organization for all your legal documents
           </p>
         </div>
@@ -529,8 +543,8 @@ const Documents = () => {
         <div className="flex gap-2">
           <Dialog open={showCreateFolderDialog} onOpenChange={setShowCreateFolderDialog}>
             <DialogTrigger asChild>
-              <Button variant="outline" disabled={isLoading}>
-                <FolderOpen className="mr-2 h-4 w-4" />
+              <Button variant="outline" disabled={isLoading} className="h-8 text-xs border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
+                <FolderOpen className="mr-2 h-3.5 w-3.5" />
                 New Folder
               </Button>
             </DialogTrigger>
@@ -554,81 +568,82 @@ const Documents = () => {
                     onChange={(e) => setNewFolderName(e.target.value)}
                     placeholder="Enter folder name..."
                     onKeyDown={(e) => e.key === 'Enter' && createFolder()}
+                    className="border-transparent hover:border-accent hover:border-2 transition-all"
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setShowCreateFolderDialog(false)}>
+                <Button variant="outline" onClick={() => setShowCreateFolderDialog(false)} className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                   Cancel
                 </Button>
-                <Button onClick={createFolder} disabled={!newFolderName.trim()}>
+                <Button onClick={createFolder} disabled={!newFolderName.trim()} className="border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                   Create Folder
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
-          <Button onClick={handleFileUpload} disabled={isLoading}>
-            <Upload className="mr-2 h-4 w-4" />
+          <Button onClick={handleFileUpload} disabled={isLoading} className="h-8 text-xs border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
+            <Upload className="mr-2 h-3.5 w-3.5" />
             Upload Documents
           </Button>
         </div>
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-3">
         <Card className="shadow-card-custom">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Documents</CardTitle>
-            <File className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+            <CardTitle className="text-xs font-medium">All Files</CardTitle>
+            <File className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalFiles}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="pt-1">
+            <div className="text-xl font-bold">{totalFiles}</div>
+            <p className="text-[10px] text-muted-foreground">
               {formatFileSize(totalSize)} total size
             </p>
           </CardContent>
         </Card>
 
         <Card className="shadow-card-custom">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Images</CardTitle>
-            <Image className="h-4 w-4 text-green-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+            <CardTitle className="text-xs font-medium">Images</CardTitle>
+            <Image className="h-3.5 w-3.5 text-green-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{imageFiles}</div>
-            <p className="text-xs text-muted-foreground">Image files</p>
+          <CardContent className="pt-1">
+            <div className="text-xl font-bold">{imageFiles}</div>
+            <p className="text-[10px] text-muted-foreground">Image files</p>
           </CardContent>
         </Card>
 
         <Card className="shadow-card-custom">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Documents</CardTitle>
-            <FileText className="h-4 w-4 text-blue-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+            <CardTitle className="text-xs font-medium">PDF & DOC Files</CardTitle>
+            <FileText className="h-3.5 w-3.5 text-blue-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{documentFiles}</div>
-            <p className="text-xs text-muted-foreground">PDF/DOC files</p>
+          <CardContent className="pt-1">
+            <div className="text-xl font-bold">{documentFiles}</div>
+            <p className="text-[10px] text-muted-foreground">PDF/DOC files</p>
           </CardContent>
         </Card>
 
         <Card className="shadow-card-custom">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Videos</CardTitle>
-            <Video className="h-4 w-4 text-purple-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+            <CardTitle className="text-xs font-medium">Videos</CardTitle>
+            <Video className="h-3.5 w-3.5 text-purple-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{videoFiles}</div>
-            <p className="text-xs text-muted-foreground">Video files</p>
+          <CardContent className="pt-1">
+            <div className="text-xl font-bold">{videoFiles}</div>
+            <p className="text-[10px] text-muted-foreground">Video files</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Search and Filters */}
       <Card className="shadow-card-custom">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5 text-primary" />
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Search className="h-4 w-4 text-primary" />
             Search & Filter Documents
           </CardTitle>
         </CardHeader>
@@ -641,13 +656,13 @@ const Documents = () => {
                   placeholder="Search documents by name..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8"
+                  className="pl-8 h-8 text-xs border-transparent hover:border-accent hover:border-2 transition-all"
                 />
               </div>
             </div>
 
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-32 h-8 text-xs border-transparent hover:border-accent hover:border-2 transition-all">
                 <SelectValue placeholder="File Type" />
               </SelectTrigger>
               <SelectContent>
@@ -662,7 +677,7 @@ const Documents = () => {
             </Select>
 
             <Select value={caseFilter} onValueChange={setCaseFilter}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-32 h-8 text-xs border-transparent hover:border-accent hover:border-2 transition-all">
                 <SelectValue placeholder="Case" />
               </SelectTrigger>
               <SelectContent>
@@ -692,10 +707,10 @@ const Documents = () => {
                     navigateToFolder(parentFolder?.parentId);
                   }}
                   variant="outline"
-                  size="lg"
-                  className="gap-2 font-semibold"
+                  size="sm"
+                  className="gap-2 font-semibold h-8 text-xs border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                 >
-                  <ArrowLeft className="h-5 w-5" />
+                  <ArrowLeft className="h-4 w-4" />
                   Back
                 </Button>
               )}
@@ -705,10 +720,10 @@ const Documents = () => {
                 <Button
                   onClick={() => navigateToFolder(undefined)}
                   variant={!currentFolderId ? "default" : "ghost"}
-                  size="lg"
-                  className="gap-2"
+                  size="sm"
+                  className="gap-2 h-8 text-xs border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                 >
-                  <Home className="h-5 w-5" />
+                  <Home className="h-4 w-4" />
                   Home
                 </Button>
               )}
@@ -718,10 +733,10 @@ const Documents = () => {
                 <Button
                   onClick={() => setShowCreateFolderDialog(true)}
                   variant="default"
-                  size="lg"
-                  className="gap-2 bg-primary hover:bg-primary/90"
+                  size="sm"
+                  className="gap-2 h-8 text-xs bg-primary hover:bg-primary/90 border border-transparent hover:border-accent hover:border-2 transition-all"
                 >
-                  <Plus className="h-5 w-5" />
+                  <Plus className="h-4 w-4" />
                   New Subfolder
                 </Button>
               )}
@@ -764,10 +779,10 @@ const Documents = () => {
       {folders.filter(f => (f.parentId || null) === (currentFolderId || null)).length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">
+            <h2 className="text-sm md:text-base font-semibold">
               {currentFolderId ? 'Subfolders' : 'Folders'}
             </h2>
-            <Badge variant="outline">
+            <Badge variant="outline" className="text-[10px] h-4 px-1">
               {folders.filter(f => (f.parentId || null) === (currentFolderId || null)).length} {currentFolderId ? 'subfolders' : 'folders'}
             </Badge>
           </div>
@@ -780,20 +795,20 @@ const Documents = () => {
                 return (
                   <Card
                     key={folder._id}
-                    className="shadow-card-custom hover:shadow-elevated hover:border-primary/50 transition-all cursor-pointer group"
+                    className="shadow-card-custom border border-transparent hover:border-accent hover:border-2 hover:bg-transparent transition-all cursor-pointer group"
                     onClick={() => openFolder(folder._id)}
                   >
-                    <CardHeader className="pb-3">
+                    <CardHeader className="pb-2">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3 flex-1">
-                          <div className="w-14 h-14 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                            <FolderOpen className="h-7 w-7" />
+                          <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                            <FolderOpen className="h-5 w-5" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <CardTitle className="text-base line-clamp-1 group-hover:text-primary transition-colors">
+                            <CardTitle className="text-xs line-clamp-1 group-hover:text-primary transition-colors">
                               {folder.name}
                             </CardTitle>
-                            <CardDescription className="text-xs mt-1">
+                            <CardDescription className="text-[10px] mt-0.5">
                               {hasSubfolders && <span className="text-blue-600 font-medium">📁 Contains subfolders</span>}
                               {hasSubfolders && <span className="text-muted-foreground"> · </span>}
                               <span className="text-muted-foreground">{formatDate(folder.createdAt)}</span>
@@ -834,22 +849,22 @@ const Documents = () => {
       )}
 
       {/* Documents Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 md:gap-3">
         {filteredFiles.map((doc) => {
           const type = detectType(doc.mimetype);
           return (
-            <Card key={doc._id} className="shadow-card-custom hover:shadow-elevated transition-shadow">
-              <CardHeader>
+            <Card key={doc._id} className="shadow-card-custom border border-transparent hover:border-accent hover:border-2 hover:bg-transparent transition-all">
+              <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3 flex-1">
-                    <div className="w-12 h-12 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0">
                       {getFileIcon(type)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <CardTitle className="text-sm filename-truncate cursor-help">
+                            <CardTitle className="text-xs filename-truncate cursor-help">
                               {doc.name}
                             </CardTitle>
                           </TooltipTrigger>
@@ -858,7 +873,7 @@ const Documents = () => {
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                      <CardDescription className="flex items-center gap-2 mt-1">
+                      <CardDescription className="flex items-center gap-2 mt-0.5 text-[10px]">
                         <HardDrive className="h-3 w-3" />
                         {formatFileSize(doc.size)}
                       </CardDescription>
@@ -898,10 +913,10 @@ const Documents = () => {
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Badge variant="outline" className={`text-xs ${getTypeColor(type)}`}>
+                    <Badge variant="outline" className={`text-[10px] h-4 px-1 ${getTypeColor(type)}`}>
                       {type.toUpperCase()}
                     </Badge>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                       <Calendar className="h-3 w-3" />
                       {formatDate(doc.createdAt)}
                     </div>
@@ -918,11 +933,11 @@ const Documents = () => {
                   )}
                 </div>
 
-                <div className="flex gap-2 mt-4 pt-3 border-t">
+                <div className="flex gap-2 mt-3 pt-2 border-t">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 h-7 text-xs border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                     onClick={() => window.open(getApiUrl(`/api/documents/files/${doc._id}/view`), '_blank')}
                   >
                     <Eye className="mr-2 h-3 w-3" />
@@ -931,7 +946,7 @@ const Documents = () => {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 h-7 text-xs border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                     onClick={() => handleDownload(doc)}
                   >
                     <Download className="mr-2 h-3 w-3" />
@@ -947,12 +962,12 @@ const Documents = () => {
       {/* Empty State */}
       {filteredFiles.length === 0 && (
         <Card className="shadow-card-custom">
-          <CardContent className="text-center py-12">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-              <File className="h-8 w-8 text-gray-400" />
+          <CardContent className="text-center py-6">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
+              <File className="h-6 w-6 text-gray-400" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">No documents found</h3>
-            <p className="text-muted-foreground mb-4">
+            <h3 className="text-sm font-semibold mb-1">No documents found</h3>
+            <p className="text-xs text-muted-foreground mb-3">
               {searchTerm || typeFilter !== 'all'
                 ? 'No documents match your current filters.'
                 : currentFolderId
@@ -961,8 +976,8 @@ const Documents = () => {
               }
             </p>
             {currentFolderId && (
-              <Button onClick={handleFileUpload}>
-                <Upload className="mr-2 h-4 w-4" />
+              <Button onClick={handleFileUpload} className="h-8 text-xs border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
+                <Upload className="mr-2 h-3.5 w-3.5" />
                 Upload Documents
               </Button>
             )}
@@ -972,18 +987,18 @@ const Documents = () => {
 
       {/* Upload Drop Zone */}
       <Card className="shadow-card-custom border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-colors">
-        <CardContent className="text-center py-8">
-          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-            <Upload className="h-6 w-6 text-primary" />
+        <CardContent className="text-center py-4">
+          <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-primary/10 flex items-center justify-center">
+            <Upload className="h-5 w-5 text-primary" />
           </div>
-          <h3 className="text-lg font-semibold mb-2">Drop files here to upload</h3>
-          <p className="text-muted-foreground mb-4">
+          <h3 className="text-sm font-semibold mb-1">Drop files here to upload</h3>
+          <p className="text-xs text-muted-foreground mb-3">
             Supports PDF, DOC, DOCX, images, videos, and audio files
           </p>
-          <Button onClick={handleFileUpload} disabled={isLoading}>
+          <Button onClick={handleFileUpload} disabled={isLoading} className="h-8 text-xs border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
             {isLoading ? 'Uploading...' : 'Choose Files to Upload'}
           </Button>
-          <p className="text-xs text-muted-foreground mt-2">Maximum file size: 50MB per file</p>
+          <p className="text-[10px] text-muted-foreground mt-1.5">Maximum file size: 50MB per file</p>
         </CardContent>
       </Card>
 

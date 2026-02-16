@@ -9,44 +9,50 @@
     /* Core Legal Colors */
     --background: 0 0% 100%;
     --foreground: 220 15% 8%;
-    
+
     /* Legal Professional Palette */
-    --primary: 220 70% 15%;        /* Deep Navy - Authority & Trust */
+    --primary: 220 70% 15%;
+    /* Deep Navy - Authority & Trust */
     --primary-foreground: 0 0% 98%;
     --primary-hover: 220 70% 20%;
-    
-    --secondary: 35 100% 45%;      /* Indian Saffron Accent */
+
+    --secondary: 35 100% 45%;
+    /* Indian Saffron Accent */
     --secondary-foreground: 0 0% 100%;
     --secondary-hover: 35 100% 40%;
-    
-    --accent: 142 71% 45%;         /* Success Green */
+
+    --accent: 142 71% 45%;
+    /* Success Green */
     --accent-foreground: 0 0% 100%;
-    
+
     --muted: 220 13% 95%;
     --muted-foreground: 220 9% 46%;
-    
+
     /* Status Colors */
-    --success: 142 71% 45%;        /* Case Won */
+    --success: 142 71% 45%;
+    /* Case Won */
     --success-foreground: 0 0% 100%;
-    
-    --warning: 43 96% 56%;         /* Pending/Alert */
+
+    --warning: 43 96% 56%;
+    /* Pending/Alert */
     --warning-foreground: 220 15% 8%;
-    
-    --destructive: 0 84% 60%;      /* Critical/Urgent */
+
+    --destructive: 0 84% 60%;
+    /* Critical/Urgent */
     --destructive-foreground: 0 0% 100%;
-    
+
     /* UI Elements */
     --card: 0 0% 100%;
     --card-foreground: 220 15% 8%;
     --card-border: 220 13% 91%;
-    
+
     --popover: 0 0% 100%;
     --popover-foreground: 220 15% 8%;
-    
+
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 220 70% 15%;
-    
+
     /* Sidebar Variables */
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -56,22 +62,22 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
-    
+
     /* Professional Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(220 70% 15%), hsl(220 70% 25%));
     --gradient-secondary: linear-gradient(135deg, hsl(35 100% 45%), hsl(35 100% 55%));
     --gradient-hero: linear-gradient(135deg, hsl(220 70% 15%) 0%, hsl(35 100% 45%) 100%);
     --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(220 13% 98%) 100%);
-    
+
     /* Professional Shadows */
     --shadow-card: 0 4px 6px -1px hsl(220 70% 15% / 0.1), 0 2px 4px -1px hsl(220 70% 15% / 0.06);
     --shadow-elevated: 0 10px 15px -3px hsl(220 70% 15% / 0.1), 0 4px 6px -2px hsl(220 70% 15% / 0.05);
     --shadow-professional: 0 20px 25px -5px hsl(220 70% 15% / 0.1), 0 10px 10px -5px hsl(220 70% 15% / 0.04);
-    
+
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-spring: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    
+
     --radius: 0.75rem;
   }
 
@@ -79,44 +85,47 @@
     /* Dark Mode Legal Colors */
     --background: 220 15% 8%;
     --foreground: 0 0% 98%;
-    
+
     /* Legal Professional Palette - Dark */
-    --primary: 35 100% 55%;        /* Brighter Saffron for Dark */
+    --primary: 35 100% 55%;
+    /* Brighter Saffron for Dark */
     --primary-foreground: 220 15% 8%;
     --primary-hover: 35 100% 60%;
-    
-    --secondary: 220 70% 25%;      /* Lighter Navy */
+
+    --secondary: 220 70% 25%;
+    /* Lighter Navy */
     --secondary-foreground: 0 0% 98%;
     --secondary-hover: 220 70% 30%;
-    
-    --accent: 142 71% 50%;         /* Brighter Success Green */
+
+    --accent: 142 71% 50%;
+    /* Brighter Success Green */
     --accent-foreground: 220 15% 8%;
-    
+
     --muted: 220 13% 15%;
     --muted-foreground: 220 9% 65%;
-    
+
     /* Status Colors - Dark */
     --success: 142 71% 50%;
     --success-foreground: 220 15% 8%;
-    
+
     --warning: 43 96% 65%;
     --warning-foreground: 220 15% 8%;
-    
+
     --destructive: 0 84% 65%;
     --destructive-foreground: 220 15% 8%;
-    
+
     /* UI Elements - Dark */
     --card: 220 13% 12%;
     --card-foreground: 0 0% 98%;
     --card-border: 220 13% 20%;
-    
+
     --popover: 220 13% 12%;
     --popover-foreground: 0 0% 98%;
-    
+
     --border: 220 13% 20%;
     --input: 220 13% 15%;
     --ring: 35 100% 55%;
-    
+
     /* Sidebar - Dark */
     --sidebar-background: 220 13% 10%;
     --sidebar-foreground: 0 0% 90%;
@@ -126,7 +135,7 @@
     --sidebar-accent-foreground: 0 0% 90%;
     --sidebar-border: 220 13% 18%;
     --sidebar-ring: 35 100% 55%;
-    
+
     /* Professional Gradients - Dark */
     --gradient-primary: linear-gradient(135deg, hsl(35 100% 55%), hsl(35 100% 65%));
     --gradient-secondary: linear-gradient(135deg, hsl(220 70% 25%), hsl(220 70% 35%));
@@ -144,32 +153,32 @@
     @apply bg-background text-foreground;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   }
-  
+
   /* Professional Legal Styling */
   .legal-gradient {
     background: var(--gradient-hero);
   }
-  
+
   .card-gradient {
     background: var(--gradient-card);
   }
-  
+
   .shadow-professional {
     box-shadow: var(--shadow-professional);
   }
-  
+
   .shadow-elevated {
     box-shadow: var(--shadow-elevated);
   }
-  
+
   .transition-smooth {
     transition: var(--transition-smooth);
   }
-  
+
   .transition-spring {
     transition: var(--transition-spring);
   }
-  
+
   /* File name truncation utility */
   .filename-truncate {
     display: -webkit-box;
@@ -180,6 +189,61 @@
     word-break: break-word;
     hyphens: auto;
     line-height: 1.4;
-    max-height: calc(1.4em * 2); /* Fallback for browsers without line-clamp support */
+  }
+
+  /* Circular Theme Transition Animations */
+  /* Expanding animation - for switching TO dark mode */
+  @keyframes theme-circle-expand {
+    from {
+      clip-path: circle(0% at var(--theme-toggle-x) var(--theme-toggle-y));
+    }
+
+    to {
+      clip-path: circle(150% at var(--theme-toggle-x) var(--theme-toggle-y));
+    }
+  }
+
+  /* Contracting animation - for switching TO light mode */
+  @keyframes theme-circle-contract {
+    from {
+      clip-path: circle(150% at var(--theme-toggle-x) var(--theme-toggle-y));
+    }
+
+    to {
+      clip-path: circle(0% at var(--theme-toggle-x) var(--theme-toggle-y));
+    }
+  }
+
+  /* Theme Transition Overlay */
+  .theme-transition-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 9999;
+    will-change: clip-path;
+  }
+
+  .theme-transition-overlay.expanding {
+    animation: theme-circle-expand 175ms cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+  }
+
+  .theme-transition-overlay.contracting {
+    animation: theme-circle-contract 175ms cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+  }
+
+  /* Accessibility: Respect reduced motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    .theme-transition-overlay.expanding {
+      animation: none;
+      clip-path: circle(150% at var(--theme-toggle-x) var(--theme-toggle-y));
+    }
+
+    .theme-transition-overlay.contracting {
+      animation: none;
+      clip-path: circle(0% at var(--theme-toggle-x) var(--theme-toggle-y));
+    }
   }
 }

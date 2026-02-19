@@ -81,17 +81,34 @@ function setAuthCookie(res, token) {
 }
 
 function buildUserResponse(userId, profile) {
+  // Auto-migrate existing users: if they have old fields populated, consider onboarding complete
+  const hasLegacyData = profile.barNumber || profile.firm || profile.phone;
+  const onboardingCompleted = profile.onboardingCompleted !== undefined
+    ? profile.onboardingCompleted
+    : (hasLegacyData ? true : false);
+
   return {
     id: userId,
     name: profile.name,
     email: profile.email,
     role: profile.role || 'lawyer',
-    barNumber: profile.barNumber,
-    firm: profile.firm,
-    phone: profile.phone,
-    address: profile.address,
-    bio: profile.bio,
     emailVerified: profile.emailVerified || false,
+    onboardingCompleted,
+    immutableFieldsLocked: profile.immutableFieldsLocked || false,
+    profile: {
+      fullName: profile.profile?.fullName || null,
+      barCouncilNumber: profile.profile?.barCouncilNumber || profile.barNumber || null,
+      currency: profile.profile?.currency || profile.preferences?.currency || null,
+      phoneNumber: profile.profile?.phoneNumber || profile.phone || null,
+      lawFirmName: profile.profile?.lawFirmName || profile.firm || null,
+      practiceAreas: profile.profile?.practiceAreas || [],
+      courtLevels: profile.profile?.courtLevels || [],
+      address: profile.profile?.address || profile.address || null,
+      city: profile.profile?.city || null,
+      state: profile.profile?.state || null,
+      country: profile.profile?.country || null,
+      timezone: profile.profile?.timezone || profile.preferences?.timezone || null
+    },
     notifications: profile.notifications || defaultNotificationSettings,
     preferences: profile.preferences || defaultPreferenceSettings,
     security: profile.security || defaultSecuritySettings,
@@ -130,12 +147,21 @@ router.post('/register', async (req, res) => {
       console.log('📝 Registration attempt for:', normalizedEmail);
     }
 
-    // Check if user already exists
-    const existingUsers = await queryDocuments(MODELS.USERS, [
-      { field: 'email', operator: '==', value: normalizedEmail }
-    ]);
+    // Check if user already exists (including deleted users)
+    // Use findOne to get all fields including 'deleted'
+    const existingUser = await User.findOne({ email: normalizedEmail });
 
-    if (existingUsers.length > 0) {
+    if (existingUser) {
+      // Check if user was deleted - show dialog to confirm reactivation
+      if (existingUser.status === 'deleted' || existingUser.deleted === true || existingUser.deletedAt) {
+        console.log(`🗑️ Deleted account signup attempt: ${normalizedEmail}`);
+        return res.status(409).json({
+          errorCode: 'ACCOUNT_DELETED',
+          error: 'This email belongs to a previously deleted account.'
+        });
+      }
+
+      // User exists and is not deleted
       return res.status(409).json({ error: 'User with this email already exists' });
     }
 
@@ -151,6 +177,9 @@ router.post('/register', async (req, res) => {
       barNumber: barNumber?.trim() || undefined,
       firm: firm?.trim() || undefined,
       emailVerified: false,
+      onboardingCompleted: false, // New users must complete onboarding
+      immutableFieldsLocked: false, // Immutable fields not yet set
+      deleted: false, // Explicitly set to false
       notifications: defaultNotificationSettings,
       preferences: defaultPreferenceSettings,
       security: defaultSecuritySettings
@@ -182,6 +211,70 @@ router.post('/register', async (req, res) => {
       error: 'Registration failed. Please try again.',
       ...(process.env.NODE_ENV === 'development' && { details: error.message })
     });
+  }
+});
+
+/**
+ * POST /api/auth/reactivate
+ * Reactivate a previously deleted account (called after user confirms dialog)
+ */
+router.post('/reactivate', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!email || !password || !name) {
+      return res.status(400).json({ error: 'Name, email, and password are required' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const existingUser = await User.findOne({ email: normalizedEmail });
+
+    if (!existingUser) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    if (existingUser.status !== 'deleted' && !existingUser.deleted && !existingUser.deletedAt) {
+      return res.status(400).json({ error: 'This account is not deleted' });
+    }
+
+    // Hash new password
+    const passwordHash = User.schema.statics.hashPassword(password);
+
+    // Reactivate the account with fresh data
+    const reactivatedUser = await User.findByIdAndUpdate(
+      existingUser._id,
+      {
+        $set: {
+          name: name.trim(),
+          passwordHash,
+          emailVerified: false,
+          onboardingCompleted: false,
+          immutableFieldsLocked: false,
+          status: 'active',
+          deleted: false,
+          deletedAt: null,
+          profile: {},
+          notifications: defaultNotificationSettings,
+          preferences: defaultPreferenceSettings,
+          security: defaultSecuritySettings,
+        }
+      },
+      { new: true }
+    );
+
+    console.log(`♻️ Account reactivated: ${reactivatedUser.email}`);
+
+    const token = generateJWT(reactivatedUser._id.toString(), reactivatedUser.email, reactivatedUser.role);
+    setAuthCookie(res, token);
+
+    res.status(200).json({
+      user: buildUserResponse(reactivatedUser._id.toString(), reactivatedUser),
+      token,
+      message: 'Account reactivated successfully'
+    });
+  } catch (error) {
+    console.error('Reactivation error:', error);
+    res.status(500).json({ error: 'Failed to reactivate account' });
   }
 });
 
@@ -233,10 +326,25 @@ router.post('/login', async (req, res) => {
       if (process.env.NODE_ENV === 'development') {
         console.log('❌ No user found with email:', normalizedEmail);
       }
+      // For non-existent users, show generic error
+      // Note: Hard-deleted users (deleted before soft-delete implementation) cannot be detected
+      // Only soft-deleted users (deleted after implementation) will show the deleted account dialog
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     const user = users[0];
+
+    // Check if user account has been soft-deleted (support both old and new fields)
+    if (user.status === 'deleted' || user.deleted === true || user.deletedAt) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('❌ User account has been deleted:', normalizedEmail);
+      }
+      return res.status(403).json({
+        success: false,
+        errorCode: 'ACCOUNT_DELETED',
+        message: 'This account was deleted previously.'
+      });
+    }
 
     // Get full user document to access passwordHash
     let userDoc;
@@ -259,6 +367,19 @@ router.post('/login', async (req, res) => {
     if (!userDoc) {
       console.error('❌ User document not found for ID:', user.id);
       return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // ⚠️ CRITICAL: Check if user account has been soft-deleted BEFORE password verification
+    // Deleted users may have passwordHash set to null in old implementation, so password check would fail
+    if (userDoc.status === 'deleted' || userDoc.deleted === true || userDoc.deletedAt) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('❌ User account has been deleted:', normalizedEmail);
+      }
+      return res.status(403).json({
+        success: false,
+        errorCode: 'ACCOUNT_DELETED',
+        message: 'This account was deleted previously.'
+      });
     }
 
     // Verify password
@@ -337,13 +458,15 @@ router.post('/logout', (req, res) => {
  */
 router.get('/me', requireAuth, async (req, res) => {
   try {
-    const user = await getDocumentById(MODELS.USERS, req.user.userId);
+    const user = await User.findById(req.user.userId);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user: buildUserResponse(user.id, user) });
+    const response = buildUserResponse(user._id.toString(), user);
+    console.log('GET /me - profile data:', JSON.stringify(response.profile, null, 2));
+    res.json({ user: response });
   } catch (error) {
     console.error('Get profile error:', error);
     res.status(500).json({ error: 'Failed to fetch profile' });
@@ -532,6 +655,111 @@ router.post('/reset-password', async (req, res) => {
 });
 
 /**
+ * PUT /api/auth/me
+ * Update user profile and settings (unified endpoint)
+ */
+router.put('/me', requireAuth, async (req, res) => {
+  console.log('🔥🔥🔥 PUT /me ENDPOINT HIT 🔥🔥🔥');
+  try {
+    const { name, profile, notifications, preferences, security } = req.body;
+
+    console.log('📝 PUT /api/auth/me - Received:', JSON.stringify({ name, profile }, null, 2));
+
+    // Get current user
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Build update object - only allow updating editable fields
+    const updateFields = {};
+
+    // Update display name if provided
+    if (name !== undefined) {
+      updateFields.name = name.trim();
+    }
+
+    // Update editable profile fields (NOT immutable: fullName, barCouncilNumber, currency)
+    if (profile) {
+      if (profile.lawFirmName !== undefined) updateFields['profile.lawFirmName'] = profile.lawFirmName?.trim() || null;
+      if (profile.practiceAreas !== undefined) updateFields['profile.practiceAreas'] = profile.practiceAreas || [];
+      if (profile.courtLevels !== undefined) updateFields['profile.courtLevels'] = profile.courtLevels || [];
+      if (profile.phoneNumber !== undefined) updateFields['profile.phoneNumber'] = profile.phoneNumber?.trim() || null;
+      if (profile.address !== undefined) updateFields['profile.address'] = profile.address?.trim() || null;
+      if (profile.city !== undefined) updateFields['profile.city'] = profile.city?.trim() || null;
+      if (profile.state !== undefined) updateFields['profile.state'] = profile.state?.trim() || null;
+      if (profile.country !== undefined) updateFields['profile.country'] = profile.country?.trim() || null;
+      if (profile.timezone !== undefined) updateFields['profile.timezone'] = profile.timezone || 'Asia/Kolkata';
+    }
+
+    // Update notification settings
+    if (notifications) {
+      updateFields.notifications = { ...(user.notifications?.toObject?.() || user.notifications || {}), ...notifications };
+    }
+
+    // Update preferences
+    if (preferences) {
+      updateFields.preferences = { ...(user.preferences?.toObject?.() || user.preferences || {}), ...preferences };
+    }
+
+    // Update security settings
+    if (security) {
+      updateFields.security = { ...(user.security?.toObject?.() || user.security || {}), ...security };
+    }
+
+    console.log('💾 Saving update fields:', JSON.stringify(updateFields, null, 2));
+
+    // Perform update
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.userId,
+      { $set: updateFields },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const response = buildUserResponse(updatedUser._id.toString(), updatedUser);
+    console.log('✅ Profile updated. New profile:', JSON.stringify(response.profile, null, 2));
+
+    res.json({
+      user: response,
+      message: 'Profile updated successfully'
+    });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ error: 'Failed to update user data' });
+  }
+});
+
+/**
+ * PATCH /api/auth/settings/security
+ * Update security settings
+ */
+router.patch('/settings/security', requireAuth, async (req, res) => {
+  try {
+    const user = await getDocumentById(MODELS.USERS, req.user.userId);
+
+    const updatedSecurity = {
+      ...defaultSecuritySettings,
+      ...(user.security || {}),
+      ...req.body
+    };
+
+    const updatedUser = await updateDocument(MODELS.USERS, req.user.userId, {
+      security: updatedSecurity
+    });
+
+    res.json({ user: buildUserResponse(updatedUser.id, updatedUser) });
+  } catch (error) {
+    console.error('Update security settings error:', error);
+    res.status(500).json({ error: 'Failed to update security settings' });
+  }
+});
+
+/**
  * POST /api/auth/change-password
  * Change password (requires authentication)
  */
@@ -541,6 +769,11 @@ router.post('/change-password', requireAuth, async (req, res) => {
 
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ error: 'Current and new password are required' });
+    }
+
+    // Validate new password strength
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters long' });
     }
 
     // Get user with password
@@ -568,4 +801,302 @@ router.post('/change-password', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/auth/export-data
+ * Export all user data
+ */
+router.get('/export-data', requireAuth, async (req, res) => {
+  try {
+    const user = await getDocumentById(MODELS.USERS, req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Fetch all user-related data
+    const cases = await queryDocuments(MODELS.CASES, [
+      { field: 'userId', operator: '==', value: req.user.userId }
+    ]);
+
+    const clients = await queryDocuments(MODELS.CLIENTS, [
+      { field: 'userId', operator: '==', value: req.user.userId }
+    ]);
+
+    const documents = await queryDocuments(MODELS.DOCUMENTS, [
+      { field: 'userId', operator: '==', value: req.user.userId }
+    ]);
+
+    const hearings = await queryDocuments(MODELS.HEARINGS, [
+      { field: 'userId', operator: '==', value: req.user.userId }
+    ]);
+
+    const invoices = await queryDocuments(MODELS.INVOICES, [
+      { field: 'userId', operator: '==', value: req.user.userId }
+    ]);
+
+    // Compile export data
+    const exportData = {
+      exportDate: new Date().toISOString(),
+      user: buildUserResponse(user.id, user),
+      data: {
+        cases,
+        clients,
+        documents,
+        hearings,
+        invoices
+      },
+      statistics: {
+        totalCases: cases.length,
+        totalClients: clients.length,
+        totalDocuments: documents.length,
+        totalHearings: hearings.length,
+        totalInvoices: invoices.length
+      }
+    };
+
+    // Set headers for file download
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="lawgpt-data-export-${Date.now()}.json"`);
+
+    res.json(exportData);
+  } catch (error) {
+    console.error('Export data error:', error);
+    res.status(500).json({ error: 'Failed to export data' });
+  }
+});
+
+/**
+ * DELETE /api/auth/delete-account
+ * Delete user account and all associated data
+ */
+router.delete('/delete-account', requireAuth, async (req, res) => {
+  try {
+    const { password, confirmation } = req.body;
+
+    // Require password confirmation
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required to delete account' });
+    }
+
+    // Require explicit confirmation
+    if (confirmation !== 'DELETE') {
+      return res.status(400).json({ error: 'Please type DELETE to confirm account deletion' });
+    }
+
+    // Get user with password
+    const userDoc = await User.findById(req.user.userId);
+
+    if (!userDoc) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify password
+    const isPasswordValid = await userDoc.verifyPassword(password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Incorrect password' });
+    }
+
+    // Soft delete: Mark user as deleted instead of removing from database
+    // This allows for account recovery and prevents email reuse issues
+    await User.findByIdAndUpdate(req.user.userId, {
+      status: 'deleted',
+      deleted: true,      // Keep for backward compatibility
+      deletedAt: new Date()
+      // DO NOT clear passwordHash - preserve it for security and potential verification
+    });
+
+    console.log(`✅ User account marked as deleted: ${req.user.userId}`);
+
+    // Clear auth cookie
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/'
+    });
+
+    res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ error: 'Failed to delete account' });
+  }
+});
+
+/**
+ * POST /api/auth/complete-onboarding
+ * Complete user onboarding with immutable profile fields
+ */
+router.post('/complete-onboarding', requireAuth, async (req, res) => {
+  try {
+    const {
+      fullName,
+      fullNameConfirm,
+      barCouncilNumber,
+      barCouncilNumberConfirm,
+      currency,
+      currencyConfirm,
+      lawFirmName,
+      practiceAreas,
+      courtLevels,
+      phoneNumber,
+      address,
+      city,
+      state,
+      country,
+      timezone
+    } = req.body;
+
+    // Get current user
+    const user = await getDocumentById(MODELS.USERS, req.user.userId);
+
+    // Check if already completed
+    if (user.onboardingCompleted) {
+      return res.status(400).json({
+        errorCode: 'ONBOARDING_ALREADY_COMPLETED',
+        error: 'Onboarding already completed'
+      });
+    }
+
+    // Validate immutable fields - Full Name
+    if (!fullName?.trim() || !fullNameConfirm?.trim()) {
+      return res.status(400).json({ error: 'Full name is required' });
+    }
+    if (fullName !== fullNameConfirm) {
+      return res.status(400).json({ error: 'Full names do not match' });
+    }
+
+    // Validate immutable fields - Bar Council Number
+    if (!barCouncilNumber?.trim() || !barCouncilNumberConfirm?.trim()) {
+      return res.status(400).json({ error: 'Bar Council Number is required' });
+    }
+    if (barCouncilNumber !== barCouncilNumberConfirm) {
+      return res.status(400).json({ error: 'Bar Council Numbers do not match' });
+    }
+
+    // CRITICAL: Check Bar Council Number uniqueness across ACTIVE users only
+    const existingBar = await User.findOne({
+      'profile.barCouncilNumber': barCouncilNumber.trim(),
+      status: 'active'
+    });
+
+    if (existingBar && existingBar._id.toString() !== req.user.userId) {
+      return res.status(409).json({
+        errorCode: 'BAR_COUNCIL_EXISTS',
+        message: 'This Bar Council Number is already registered.',
+        error: 'This Bar Council Number is already registered.'
+      });
+    }
+
+    // Validate immutable fields - Currency
+    if (!currency || !currencyConfirm) {
+      return res.status(400).json({ error: 'Currency is required' });
+    }
+    if (currency !== currencyConfirm) {
+      return res.status(400).json({ error: 'Currency selections do not match' });
+    }
+
+    const validCurrencies = ['INR', 'USD', 'EUR', 'GBP', 'AED'];
+    if (!validCurrencies.includes(currency)) {
+      return res.status(400).json({ error: 'Invalid currency selection' });
+    }
+
+    // Build audit trail entries for all fields
+    const auditEntries = [];
+    const now = new Date();
+
+    // Audit immutable fields
+    auditEntries.push(
+      { fieldName: 'fullName', value: fullName.trim(), enteredAt: now },
+      { fieldName: 'barCouncilNumber', value: barCouncilNumber.trim(), enteredAt: now },
+      { fieldName: 'currency', value: currency, enteredAt: now }
+    );
+
+    // Audit optional fields (only if provided)
+    if (phoneNumber?.trim()) {
+      auditEntries.push({ fieldName: 'phoneNumber', value: phoneNumber.trim(), enteredAt: now });
+    }
+    if (lawFirmName?.trim()) {
+      auditEntries.push({ fieldName: 'lawFirmName', value: lawFirmName.trim(), enteredAt: now });
+    }
+    if (practiceAreas && practiceAreas.length > 0) {
+      auditEntries.push({ fieldName: 'practiceAreas', value: practiceAreas.join(', '), enteredAt: now });
+    }
+    if (courtLevels && courtLevels.length > 0) {
+      auditEntries.push({ fieldName: 'courtLevels', value: courtLevels.join(', '), enteredAt: now });
+    }
+    if (address?.trim()) {
+      auditEntries.push({ fieldName: 'address', value: address.trim(), enteredAt: now });
+    }
+    if (city?.trim()) {
+      auditEntries.push({ fieldName: 'city', value: city.trim(), enteredAt: now });
+    }
+    if (state?.trim()) {
+      auditEntries.push({ fieldName: 'state', value: state.trim(), enteredAt: now });
+    }
+    if (country?.trim()) {
+      auditEntries.push({ fieldName: 'country', value: country.trim(), enteredAt: now });
+    }
+    if (timezone) {
+      auditEntries.push({ fieldName: 'timezone', value: timezone, enteredAt: now });
+    }
+
+    // Perform atomic update using Mongoose directly for better control
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.userId,
+      {
+        $set: {
+          onboardingCompleted: true,
+          immutableFieldsLocked: true,
+          'profile.fullName': fullName.trim(),
+          'profile.barCouncilNumber': barCouncilNumber.trim(),
+          'profile.currency': currency,
+          'profile.phoneNumber': phoneNumber?.trim() || null,
+          'profile.lawFirmName': lawFirmName?.trim() || null,
+          'profile.practiceAreas': practiceAreas || [],
+          'profile.courtLevels': courtLevels || [],
+          'profile.address': address?.trim() || null,
+          'profile.city': city?.trim() || null,
+          'profile.state': state?.trim() || null,
+          'profile.country': country?.trim() || null,
+          'profile.timezone': timezone || 'Asia/Kolkata',
+          // Also save to preferences so Settings page and app-wide context reflect it
+          'preferences.timezone': timezone || 'Asia/Kolkata',
+          'preferences.currency': currency,
+        },
+        $push: {
+          onboardingDataAudit: { $each: auditEntries }
+        }
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log(`✅ User ${updatedUser.email} completed onboarding with currency: ${currency}`);
+    console.log(`📝 Audit trail: ${auditEntries.length} fields recorded`);
+
+    res.json({
+      user: buildUserResponse(updatedUser.id, updatedUser),
+      message: 'Onboarding completed successfully'
+    });
+  } catch (error) {
+    console.error('Complete onboarding error:', error);
+
+    // Handle duplicate key errors specifically
+    if (error.code === 11000 && error.keyPattern?.['profile.barCouncilNumber']) {
+      return res.status(409).json({
+        errorCode: 'BAR_COUNCIL_EXISTS',
+        message: 'This Bar Council Number is already registered.',
+        error: 'This Bar Council Number is already registered.'
+      });
+    }
+
+    res.status(500).json({ error: 'Failed to complete onboarding' });
+  }
+});
+
 export default router;
+

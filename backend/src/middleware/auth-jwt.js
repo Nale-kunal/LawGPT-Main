@@ -94,6 +94,21 @@ export async function requireAuth(req, res, next) {
             });
         }
 
+        // Block deleted users from accessing protected routes
+        if (userProfile.status === 'deleted' || userProfile.deleted === true || userProfile.deletedAt) {
+            console.error('Deleted user attempted to access protected route:', decodedToken.userId);
+            res.clearCookie('token', {
+                httpOnly: true,
+                sameSite: 'lax',
+                secure: process.env.NODE_ENV === 'production',
+                path: '/'
+            });
+            return res.status(403).json({
+                error: 'Account has been deleted',
+                errorCode: 'ACCOUNT_DELETED'
+            });
+        }
+
         // Attach user info to request
         req.user = {
             userId: decodedToken.userId,

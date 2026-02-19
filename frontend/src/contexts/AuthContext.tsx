@@ -30,12 +30,23 @@ interface User {
   name: string;
   email: string;
   role: 'lawyer' | 'assistant' | 'admin';
-  barNumber?: string;
-  firm?: string;
-  phone?: string;
-  address?: string;
-  bio?: string;
   emailVerified?: boolean;
+  onboardingCompleted?: boolean;
+  immutableFieldsLocked?: boolean;
+  profile?: {
+    fullName?: string | null;
+    barCouncilNumber?: string | null;
+    currency?: string | null;
+    phoneNumber?: string | null;
+    lawFirmName?: string | null;
+    practiceAreas?: string[];
+    courtLevels?: string[];
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    country?: string | null;
+    timezone?: string | null;
+  };
   notifications?: NotificationSettings;
   preferences?: PreferenceSettings;
   security?: SecuritySettings;
@@ -43,8 +54,8 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (userData: RegisterData) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; errorCode?: string }>;
+  register: (userData: RegisterData) => Promise<{ success: boolean; error?: string; errorCode?: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   verifyEmail: (token: string) => Promise<{ success: boolean; message?: string; error?: string }>;
@@ -107,7 +118,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
       // Always validate session on refresh - don't trust cached state
-      const res = await fetch(getApiUrl('/api/auth/me'), { 
+      const res = await fetch(getApiUrl('/api/auth/me'), {
         credentials: 'include',
         cache: 'no-store',
         signal: controller.signal,
@@ -117,7 +128,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           'Expires': '0'
         }
       });
-      
+
       clearTimeout(timeoutId);
 
       if (!res.ok) {
@@ -143,7 +154,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     let mounted = true;
     let visibilityTimeout: NodeJS.Timeout | null = null;
     let focusTimeout: NodeJS.Timeout | null = null;
-    
+
     const init = async () => {
       try {
         // Always validate session on mount - don't trust localStorage
@@ -158,14 +169,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
     };
-    
+
     // Set a timeout to ensure loading doesn't hang forever
     const timeout = setTimeout(() => {
       if (mounted) {
         setIsLoading(false);
       }
     }, 5000); // Max 5 seconds for initial load
-    
+
     init();
 
     // Handle browser back/forward cache (bfcache) - always revalidate
@@ -203,7 +214,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     window.addEventListener('pageshow', handlePageShow);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
-    
+
     return () => {
       mounted = false;
       clearTimeout(timeout);
@@ -215,12 +226,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, [refreshUser, persistUser]);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; errorCode?: string }> => {
     setIsLoading(true);
     try {
       // Clear any existing auth state before login
       persistUser(null);
-      
+
       const res = await fetch(getApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -228,29 +239,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         cache: 'no-store',
         body: JSON.stringify({ email, password }),
       });
+
+      const data = await res.json();
+
       if (!res.ok) {
         persistUser(null);
         setIsLoading(false);
-        return false;
+        // Return specific error message and errorCode from backend
+        return {
+          success: false,
+          error: data.error || data.message || 'Login failed',
+          errorCode: data.errorCode // Pass through errorCode for deleted account detection
+        };
       }
-      const data = await res.json();
+
       if (data.user) {
         persistUser(data.user as User);
         setIsLoading(false);
-        return true;
+        return { success: true };
       } else {
         persistUser(null);
         setIsLoading(false);
-        return false;
+        return { success: false, error: 'Invalid response from server' };
       }
     } catch (error) {
       persistUser(null);
       setIsLoading(false);
-      return false;
+      return { success: false, error: 'Network error occurred' };
     }
   };
 
-  const register = async (userData: RegisterData): Promise<{ success: boolean; error?: string }> => {
+  const register = async (userData: RegisterData): Promise<{ success: boolean; error?: string; errorCode?: string }> => {
     setIsLoading(true);
     try {
       const res = await fetch(getApiUrl('/api/auth/register'), {
@@ -266,7 +285,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (!res.ok) {
         persistUser(null);
         setIsLoading(false);
-        return { success: false, error: data.error || 'Registration failed' };
+        return { success: false, error: data.error || 'Registration failed', errorCode: data.errorCode };
       }
 
       persistUser(data.user as User);
@@ -283,10 +302,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       // Clear local state first
       persistUser(null);
-      
+
       // Attempt server logout
-      await fetch(getApiUrl('/api/auth/logout'), { 
-        method: 'POST', 
+      await fetch(getApiUrl('/api/auth/logout'), {
+        method: 'POST',
         credentials: 'include',
         cache: 'no-store'
       });
@@ -295,29 +314,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       // Always clear local state regardless of server response
       persistUser(null);
-      
+
       // Clear all cookies manually with all possible configurations
       const hostname = window.location.hostname;
       const cookiesToClear = [
         'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;',
         `token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${hostname};`,
       ];
-      
+
       // Try clearing with parent domain if applicable
       const parts = hostname.split('.');
       if (parts.length > 1) {
         const domain = '.' + parts.slice(-2).join('.');
         cookiesToClear.push(`token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${domain};`);
       }
-      
+
       cookiesToClear.forEach(cookie => {
         document.cookie = cookie;
       });
-      
+
       // Clear sessionStorage and localStorage completely
       sessionStorage.clear();
       localStorage.removeItem('legal_pro_user');
-      
+
       // Use replace instead of href to prevent back button from showing protected pages
       // This removes the current page from browser history
       window.location.replace('/login');

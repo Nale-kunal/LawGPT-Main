@@ -4,9 +4,10 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { useState, useEffect } from 'react';
+import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay';
 
 const DashboardLayout = () => {
-  const { isAuthenticated, isLoading, refreshUser } = useAuth();
+  const { user, isAuthenticated, isLoading, refreshUser } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Prevent browser from caching protected pages
@@ -66,12 +67,17 @@ const DashboardLayout = () => {
     <SidebarProvider open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
       <div className="flex min-h-screen w-full bg-background">
         <Sidebar />
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 flex-col min-h-0">
           <Header />
-          <main className="flex-1 overflow-auto p-3 md:p-6">
+          <main id="dashboard-main" className="flex-1 overflow-y-auto p-3 md:p-6">
             <Outlet />
           </main>
         </div>
+
+        {/* Onboarding Overlay - appears when onboarding not completed */}
+        {user && user.onboardingCompleted === false && (
+          <OnboardingOverlay />
+        )}
       </div>
     </SidebarProvider>
   );

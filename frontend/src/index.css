@@ -227,11 +227,11 @@
   }
 
   .theme-transition-overlay.expanding {
-    animation: theme-circle-expand 175ms cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+    animation: theme-circle-expand 300ms cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
   }
 
   .theme-transition-overlay.contracting {
-    animation: theme-circle-contract 175ms cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+    animation: theme-circle-contract 300ms cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
   }
 
   /* Accessibility: Respect reduced motion preference */
@@ -245,5 +245,68 @@
       animation: none;
       clip-path: circle(0% at var(--theme-toggle-x) var(--theme-toggle-y));
     }
+  }
+}
+
+/* ============================================================
+   View Transitions API — Real-content theme circle animation
+   Works in Chrome 111+. The new theme content is revealed
+   inside an expanding/contracting circle from the toggle button.
+   ============================================================ */
+
+/* Disable default cross-fade */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* TO DARK: new dark content expands as a circle from button */
+:root[data-theme-transition="to-dark"]::view-transition-new(root) {
+  animation: vt-circle-expand 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  clip-path: circle(0% at var(--theme-toggle-x) var(--theme-toggle-y));
+}
+
+:root[data-theme-transition="to-dark"]::view-transition-old(root) {
+  animation: none;
+  z-index: -1;
+}
+
+/* TO LIGHT: old dark content contracts as a circle, revealing light beneath */
+:root[data-theme-transition="to-light"]::view-transition-old(root) {
+  animation: vt-circle-contract 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  clip-path: circle(150% at var(--theme-toggle-x) var(--theme-toggle-y));
+}
+
+:root[data-theme-transition="to-light"]::view-transition-new(root) {
+  animation: none;
+  z-index: -1;
+}
+
+@keyframes vt-circle-expand {
+  from {
+    clip-path: circle(0% at var(--theme-toggle-x) var(--theme-toggle-y));
+  }
+
+  to {
+    clip-path: circle(150% at var(--theme-toggle-x) var(--theme-toggle-y));
+  }
+}
+
+@keyframes vt-circle-contract {
+  from {
+    clip-path: circle(150% at var(--theme-toggle-x) var(--theme-toggle-y));
+  }
+
+  to {
+    clip-path: circle(0% at var(--theme-toggle-x) var(--theme-toggle-y));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
   }
 }

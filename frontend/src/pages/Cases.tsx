@@ -26,6 +26,7 @@ import { CaseSummaryGenerator } from '@/components/CaseSummaryGenerator';
 import { CaseDetailsPopup } from '@/components/CaseDetailsPopup';
 import { useToast } from '@/hooks/use-toast';
 import { useFormAutoSave } from '@/hooks/useFormAutoSave';
+import { useFormatting } from '@/contexts/FormattingContext';
 
 const COURT_OPTIONS = [
   'Supreme Court of India',
@@ -43,6 +44,7 @@ const COURT_OPTIONS = [
 
 const Cases = () => {
   const { cases, clients, addCase, updateCase, deleteCase, addClient } = useLegalData();
+  const { formatDateShort } = useFormatting();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
@@ -392,7 +394,7 @@ const Cases = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold mb-1">Case Management</h1>
+          <h1 className="text-xl md:text-2xl font-bold">Case Management</h1>
           <p className="text-xs text-muted-foreground">Manage all your legal cases efficiently</p>
         </div>
 
@@ -714,7 +716,7 @@ const Cases = () => {
                   <div className="flex items-center gap-1.5 text-xs">
                     <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                     <span>
-                      {new Date(case_.nextHearing).toLocaleDateString('en-IN')}
+                      {formatDateShort(case_.nextHearing)}
                       {case_.hearingTime && ` at ${case_.hearingTime}`}
                     </span>
                   </div>

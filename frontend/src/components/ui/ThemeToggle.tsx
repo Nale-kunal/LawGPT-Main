@@ -3,7 +3,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useRef, useState } from 'react';
 
 export const ThemeToggle = () => {
-    const { theme, actualTheme, triggerThemeChange } = useTheme();
+    const { actualTheme, setThemeAndSave } = useTheme();
     const buttonRef = useRef<HTMLButtonElement>(null);
     const [isAnimating, setIsAnimating] = useState(false);
 
@@ -13,69 +13,71 @@ export const ThemeToggle = () => {
         const button = buttonRef.current;
         if (!button) return;
 
-        const rect = button.getBoundingClientRect();
-        const x = rect.left + rect.width / 2;
-        const y = rect.top + rect.height / 2;
+        const newTheme = actualTheme === 'dark' ? 'light' : 'dark';
 
         const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
         if (prefersReducedMotion) {
-            triggerThemeChange();
+            await setThemeAndSave(newTheme);
             return;
         }
 
+        const rect = button.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+
+        // Use View Transitions API if available (Chrome 111+)
+        // This captures a real screenshot and clips between old/new state
+        if ('startViewTransition' in document) {
+            setIsAnimating(true);
+
+            // Set CSS custom properties for clip-path origin
+            document.documentElement.style.setProperty('--theme-toggle-x', `${x}px`);
+            document.documentElement.style.setProperty('--theme-toggle-y', `${y}px`);
+
+            // Add direction class so CSS knows which way to animate
+            document.documentElement.dataset.themeTransition = newTheme === 'dark' ? 'to-dark' : 'to-light';
+
+            // @ts-ignore — TS may not have this type yet
+            const transition = document.startViewTransition(async () => {
+                await setThemeAndSave(newTheme);
+            });
+
+            transition.finished.finally(() => {
+                delete document.documentElement.dataset.themeTransition;
+                setIsAnimating(false);
+            });
+
+            return;
+        }
+
+        // Fallback: solid overlay animation for older browsers
         setIsAnimating(true);
 
-        // Determine current and new theme
-        const currentTheme = actualTheme;
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
-        // Create snapshot overlay
-        const snapshot = document.createElement('div');
+        // Use a typed reference to avoid TS narrowing `document` to `never`
+        const doc = document as Document & { body: HTMLElement };
+        const snapshot = doc.createElement('div');
         snapshot.className = 'theme-transition-overlay';
+        snapshot.style.background = newTheme === 'dark' ? 'hsl(220 15% 8%)' : 'hsl(0 0% 100%)';
 
-        // Set overlay color based on animation type:
-        // - EXPANDING (to dark): Show NEW dark theme expanding
-        // - CONTRACTING (to light): Show OLD dark theme contracting
-        if (newTheme === 'dark') {
-            // Going to dark: overlay shows NEW dark theme
-            snapshot.style.background = 'hsl(220 15% 8%)';
-        } else {
-            // Going to light: overlay shows OLD dark theme
-            snapshot.style.background = 'hsl(220 15% 8%)';
-        }
+        doc.documentElement.style.setProperty('--theme-toggle-x', `${x}px`);
+        doc.documentElement.style.setProperty('--theme-toggle-y', `${y}px`);
 
-        // Set animation origin
-        document.documentElement.style.setProperty('--theme-toggle-x', `${x}px`);
-        document.documentElement.style.setProperty('--theme-toggle-y', `${y}px`);
+        doc.body.appendChild(snapshot);
 
-        // Add snapshot to DOM
-        document.body.appendChild(snapshot);
-
-        // Timing strategy:
-        // - CONTRACTING (to light): Change theme immediately, overlay hides it
-        // - EXPANDING (to dark): DON'T change yet, overlay reveals it
         if (newTheme === 'light') {
-            triggerThemeChange();
+            await setThemeAndSave(newTheme);
         }
 
-        // Choose animation
-        if (newTheme === 'dark') {
-            snapshot.classList.add('expanding');
-        } else {
-            snapshot.classList.add('contracting');
-        }
+        snapshot.classList.add(newTheme === 'dark' ? 'expanding' : 'contracting');
 
-        // Remove snapshot after animation completes
-        setTimeout(() => {
-            // For EXPANDING: change theme at the end
+        setTimeout(async () => {
             if (newTheme === 'dark') {
-                triggerThemeChange();
+                await setThemeAndSave(newTheme);
             }
-
             snapshot.remove();
             setIsAnimating(false);
-        }, 175); // Doubled speed (was 350ms)
+        }, 300);
     };
 
     return (

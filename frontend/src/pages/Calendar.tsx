@@ -25,10 +25,12 @@ import { ConflictDialog } from '@/components/ConflictDialog';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { getApiUrl } from '@/lib/api';
+import { useFormatting } from '@/contexts/FormattingContext';
 
 const Calendar = () => {
   const { cases, clients, addCase, updateCase, deleteCase, addClient, hearings } = useLegalData();
   const { toast } = useToast();
+  const { formatDate } = useFormatting();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date()); // Auto-select today
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -475,7 +477,7 @@ const Calendar = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl md:text-2xl font-bold">Legal Calendar</h1>
-          <p className="text-xs md:text-sm text-muted-foreground">Court hearings and important dates</p>
+          <p className="text-xs text-muted-foreground">Court hearings and important dates</p>
         </div>
         <Button onClick={openCreateModal} size="sm" className="h-8 text-xs border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
           <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -585,12 +587,7 @@ const Calendar = () => {
           <CardHeader className="pb-1.5">
             <CardTitle className="flex items-center gap-1.5 text-sm">
               <Clock className="h-4 w-4 text-primary" />
-              {selectedDate ? selectedDate.toLocaleDateString('en-IN', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              }) : 'Select a Date'}
+              {selectedDate ? formatDate(selectedDate, { includeTime: false }) : 'Select a Date'}
             </CardTitle>
             <CardDescription className="text-[10px]">
               {selectedDate ? (
@@ -730,10 +727,7 @@ const Calendar = () => {
                   </div>
                   <div className="text-right text-xs">
                     <div className="font-medium">
-                      {new Date(case_.nextHearing!).toLocaleDateString('en-IN', {
-                        month: 'short',
-                        day: 'numeric'
-                      })}
+                      {formatDate(case_.nextHearing!, { includeTime: false })}
                     </div>
                     <div className="text-[10px] text-muted-foreground">
                       {case_.hearingTime || 'Time TBD'}
@@ -763,7 +757,7 @@ const Calendar = () => {
           <DialogHeader>
             <DialogTitle>{editingCase ? 'Edit Hearing' : 'Schedule Hearing'}</DialogTitle>
             <DialogDescription>
-              {selectedDate ? selectedDate.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
+              {selectedDate ? formatDate(selectedDate, { includeTime: false }) : ''}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">

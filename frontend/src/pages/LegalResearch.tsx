@@ -3,12 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Search, 
-  BookOpen, 
-  Scale, 
-  Gavel, 
-  FileText, 
+import {
+  Search,
+  BookOpen,
+  Scale,
+  Gavel,
+  FileText,
   Star,
   Copy,
   ExternalLink,
@@ -29,10 +29,10 @@ const LegalResearch = () => {
 
   // Get search results
   const searchResults = searchLegalSections(searchQuery);
-  
+
   // Filter by act
-  const filteredResults = actFilter === 'all' 
-    ? searchResults 
+  const filteredResults = actFilter === 'all'
+    ? searchResults
     : searchResults.filter(section => section.actName.toLowerCase().includes(actFilter.toLowerCase()));
 
   // Sort results
@@ -53,8 +53,8 @@ const LegalResearch = () => {
   const uniqueActs = Array.from(new Set(legalSections.map(section => section.actName)));
 
   const toggleFavorite = (sectionId: string) => {
-    setFavorites(prev => 
-      prev.includes(sectionId) 
+    setFavorites(prev =>
+      prev.includes(sectionId)
         ? prev.filter(id => id !== sectionId)
         : [...prev, sectionId]
     );
@@ -83,45 +83,45 @@ const LegalResearch = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2 md:space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Legal Research</h1>
-          <p className="text-muted-foreground">Indian Law Dictionary & Legal References</p>
+          <h1 className="text-xl md:text-2xl font-bold">Legal Research</h1>
+          <p className="text-xs text-muted-foreground">Indian Law Dictionary & Legal References</p>
         </div>
       </div>
 
       {/* Search and Filters */}
       <Card className="shadow-card-custom">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5 text-primary" />
+        <CardHeader className="pb-1">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Search className="h-3.5 w-3.5 text-primary" />
             Legal Research Tool
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-[10px]">
             Search through Indian legal sections, acts, and regulations
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        <CardContent className="pt-1">
+          <div className="space-y-2">
             {/* Main Search */}
             <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 placeholder="Search by section number, keywords, or description (e.g., 'IPC 302', 'murder', 'contract')"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
+                className="pl-8 h-8 text-xs border-transparent hover:border-accent hover:border-2 transition-all"
               />
             </div>
 
             {/* Filters */}
-            <div className="flex flex-wrap gap-4">
-              <div className="flex-1 min-w-48">
+            <div className="flex flex-wrap gap-2">
+              <div className="flex-1 min-w-36">
                 <Select value={actFilter} onValueChange={setActFilter}>
-                  <SelectTrigger>
-                    <Filter className="mr-2 h-4 w-4" />
+                  <SelectTrigger className="h-8 text-xs border-transparent hover:border-accent hover:border-2 transition-all">
+                    <Filter className="mr-2 h-3.5 w-3.5" />
                     <SelectValue placeholder="Filter by Act" />
                   </SelectTrigger>
                   <SelectContent>
@@ -132,11 +132,11 @@ const LegalResearch = () => {
                   </SelectContent>
                 </Select>
               </div>
-              
-              <div className="flex-1 min-w-48">
+
+              <div className="flex-1 min-w-36">
                 <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger>
-                    <SortAsc className="mr-2 h-4 w-4" />
+                  <SelectTrigger className="h-8 text-xs border-transparent hover:border-accent hover:border-2 transition-all">
+                    <SortAsc className="mr-2 h-3.5 w-3.5" />
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
                   <SelectContent>
@@ -150,7 +150,7 @@ const LegalResearch = () => {
             </div>
 
             {/* Search Stats */}
-            <div className="text-sm text-muted-foreground">
+            <div className="text-[10px] text-muted-foreground">
               {searchQuery ? (
                 `Found ${sortedResults.length} result${sortedResults.length !== 1 ? 's' : ''} for "${searchQuery}"`
               ) : (
@@ -164,25 +164,25 @@ const LegalResearch = () => {
       {/* Quick Access */}
       {!searchQuery && (
         <Card className="shadow-card-custom">
-          <CardHeader>
-            <CardTitle>Popular Sections</CardTitle>
-            <CardDescription>Frequently referenced legal provisions</CardDescription>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-sm">Popular Sections</CardTitle>
+            <CardDescription className="text-[10px]">Frequently referenced legal provisions</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <CardContent className="pt-1">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {[
                 { query: 'IPC 302', label: 'Murder (IPC 302)' },
                 { query: 'IPC 420', label: 'Cheating (IPC 420)' },
                 { query: 'CrPC 154', label: 'FIR (CrPC 154)' },
                 { query: 'Contract 10', label: 'Valid Contract' },
               ].map(item => (
-                <Button 
+                <Button
                   key={item.query}
-                  variant="outline" 
-                  className="h-auto p-3 flex flex-col gap-1"
+                  variant="outline"
+                  className="h-7 text-xs px-2 border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                   onClick={() => setSearchQuery(item.query)}
                 >
-                  <span className="text-xs font-medium">{item.label}</span>
+                  {item.label}
                 </Button>
               ))}
             </div>
@@ -191,75 +191,76 @@ const LegalResearch = () => {
       )}
 
       {/* Search Results */}
-      <div className="space-y-4">
+      <div className="space-y-2 md:space-y-3">
         {sortedResults.map((section) => (
           <Card key={section.id} className="shadow-card-custom hover:shadow-elevated transition-shadow">
-            <CardHeader>
+            <CardHeader className="pb-1.5">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-1">
                     {getSectionIcon(section.actName)}
-                    <CardTitle className="text-lg">
+                    <CardTitle className="text-sm">
                       Section {section.sectionNumber}: {section.title}
                     </CardTitle>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => toggleFavorite(section.id)}
-                      className={favorites.includes(section.id) ? 'text-warning' : ''}
+                      className={`h-6 w-6 p-0 ${favorites.includes(section.id) ? 'text-warning' : ''}`}
                     >
-                      <Star className={`h-4 w-4 ${favorites.includes(section.id) ? 'fill-current' : ''}`} />
+                      <Star className={`h-3.5 w-3.5 ${favorites.includes(section.id) ? 'fill-current' : ''}`} />
                     </Button>
                   </div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge variant={getActBadgeColor(section.actName)}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant={getActBadgeColor(section.actName)} className="text-[10px] h-4 px-1">
                       {section.actName}
                     </Badge>
                     {section.punishment !== 'N/A - Civil Law' && section.punishment !== 'N/A - Procedural' && (
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-[10px] h-4 px-1">
                         {section.punishment}
                       </Badge>
                     )}
                   </div>
                 </div>
-                
+
                 <div className="flex gap-1">
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="h-6 w-6 p-0"
                     onClick={() => copyToClipboard(`Section ${section.sectionNumber} - ${section.title}\n\n${section.description}\n\nPunishment: ${section.punishment}\n\nAct: ${section.actName}`)}
                   >
-                    <Copy className="h-4 w-4" />
+                    <Copy className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="sm">
-                    <ExternalLink className="h-4 w-4" />
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                    <ExternalLink className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="pt-1.5">
+              <div className="space-y-2">
                 <div>
-                  <h4 className="font-medium text-sm mb-2">Description:</h4>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
+                  <h4 className="font-medium text-xs mb-1">Description:</h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
                     {section.description}
                   </p>
                 </div>
 
                 {section.punishment && section.punishment !== 'N/A - Civil Law' && section.punishment !== 'N/A - Procedural' && (
                   <div>
-                    <h4 className="font-medium text-sm mb-2">Punishment:</h4>
-                    <p className="text-sm text-destructive">
+                    <h4 className="font-medium text-xs mb-1">Punishment:</h4>
+                    <p className="text-xs text-destructive">
                       {section.punishment}
                     </p>
                   </div>
                 )}
 
                 <div>
-                  <h4 className="font-medium text-sm mb-2">Keywords:</h4>
+                  <h4 className="font-medium text-xs mb-1">Keywords:</h4>
                   <div className="flex flex-wrap gap-1">
                     {section.keywords.map((keyword, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
+                      <Badge key={index} variant="outline" className="text-[10px] h-4 px-1">
                         {keyword}
                       </Badge>
                     ))}
@@ -267,19 +268,21 @@ const LegalResearch = () => {
                 </div>
 
                 {/* Related Sections */}
-                <div className="pt-3 border-t">
-                  <h4 className="font-medium text-sm mb-2">Quick Actions:</h4>
+                <div className="pt-2 border-t">
+                  <h4 className="font-medium text-xs mb-1">Quick Actions:</h4>
                   <div className="flex gap-2">
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       variant="outline"
+                      className="h-7 text-xs border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                       onClick={() => setSearchQuery(section.keywords[0] || '')}
                     >
                       Find Related
                     </Button>
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       variant="outline"
+                      className="h-7 text-xs border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                       onClick={() => copyToClipboard(section.sectionNumber)}
                     >
                       Copy Section
@@ -294,20 +297,20 @@ const LegalResearch = () => {
         {/* No Results */}
         {searchQuery && sortedResults.length === 0 && (
           <Card>
-            <CardContent className="text-center py-12">
-              <BookOpen className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No matching sections found</h3>
-              <p className="text-muted-foreground mb-4">
+            <CardContent className="text-center py-6">
+              <BookOpen className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+              <h3 className="text-sm font-semibold mb-1">No matching sections found</h3>
+              <p className="text-xs text-muted-foreground mb-2">
                 Try searching with different keywords or section numbers.
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
-                <Button variant="outline" onClick={() => setSearchQuery('murder')}>
+                <Button variant="outline" className="h-7 text-xs border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all" onClick={() => setSearchQuery('murder')}>
                   Try "murder"
                 </Button>
-                <Button variant="outline" onClick={() => setSearchQuery('contract')}>
+                <Button variant="outline" className="h-7 text-xs border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all" onClick={() => setSearchQuery('contract')}>
                   Try "contract"
                 </Button>
-                <Button variant="outline" onClick={() => setSearchQuery('IPC')}>
+                <Button variant="outline" className="h-7 text-xs border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all" onClick={() => setSearchQuery('IPC')}>
                   Try "IPC"
                 </Button>
               </div>
@@ -318,13 +321,13 @@ const LegalResearch = () => {
         {/* Default View */}
         {!searchQuery && (
           <Card>
-            <CardContent className="text-center py-12">
-              <Scale className="h-16 w-16 mx-auto text-primary mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Legal Research Tool</h3>
-              <p className="text-muted-foreground mb-4">
+            <CardContent className="text-center py-6">
+              <Scale className="h-8 w-8 mx-auto text-primary mb-2" />
+              <h3 className="text-sm font-semibold mb-1">Legal Research Tool</h3>
+              <p className="text-xs text-muted-foreground mb-2">
                 Start searching for legal sections, acts, and regulations.
               </p>
-              <div className="max-w-md mx-auto space-y-2 text-sm text-muted-foreground">
+              <div className="max-w-md mx-auto space-y-1 text-xs text-muted-foreground">
                 <p>• Search by section number: "IPC 302", "CrPC 154"</p>
                 <p>• Search by keywords: "murder", "theft", "contract"</p>
                 <p>• Search by act name: "Indian Penal Code"</p>
@@ -337,28 +340,29 @@ const LegalResearch = () => {
       {/* Favorites */}
       {favorites.length > 0 && (
         <Card className="shadow-card-custom">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-warning fill-current" />
+          <CardHeader className="pb-1">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Star className="h-3.5 w-3.5 text-warning fill-current" />
               Favorite Sections ({favorites.length})
             </CardTitle>
-            <CardDescription>Your bookmarked legal provisions</CardDescription>
+            <CardDescription className="text-[10px]">Your bookmarked legal provisions</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <CardContent className="pt-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {favorites.map(fav => {
                 const section = legalSections.find(s => s.id === fav);
                 if (!section) return null;
-                
+
                 return (
-                  <div key={fav} className="p-3 border rounded-lg flex items-center justify-between">
+                  <div key={fav} className="p-2 border rounded-lg flex items-center justify-between">
                     <div>
-                      <p className="font-medium text-sm">Section {section.sectionNumber}</p>
-                      <p className="text-xs text-muted-foreground">{section.title}</p>
+                      <p className="font-medium text-xs">Section {section.sectionNumber}</p>
+                      <p className="text-[10px] text-muted-foreground">{section.title}</p>
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
+                      className="h-6 text-xs"
                       onClick={() => setSearchQuery(section.sectionNumber)}
                     >
                       View

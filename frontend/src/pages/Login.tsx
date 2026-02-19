@@ -5,14 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Scale, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Scale, Loader2, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDeletedDialog, setShowDeletedDialog] = useState(false);
+  const [deletedEmail, setDeletedEmail] = useState('');
   const { login, isAuthenticated, user, isLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -20,10 +23,12 @@ const Login = () => {
   // Handle redirect in useEffect to prevent flicker
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
+      // Check for two-factor authentication requirement
       const requiresTwoStep = user?.security?.twoFactorEnabled && user?.emailVerified === false;
       if (requiresTwoStep) {
         navigate('/verification-pending', { replace: true, state: { email: user?.email } });
       } else {
+        // Always redirect to dashboard - onboarding overlay will appear if needed
         navigate('/dashboard', { replace: true });
       }
     }
@@ -39,18 +44,24 @@ const Login = () => {
     setIsSubmitting(true);
 
     try {
-      const success = await login(email, password);
-      if (success) {
+      const result = await login(email, password);
+      if (result.success) {
         toast({
           title: "Login Successful",
           description: "Welcome to LegalPro!",
         });
       } else {
-        toast({
-          title: "Login Failed",
-          description: "Please check your credentials and try again.",
-          variant: "destructive",
-        });
+        // Check for ACCOUNT_DELETED error code
+        if (result.errorCode === 'ACCOUNT_DELETED') {
+          setDeletedEmail(email);
+          setShowDeletedDialog(true);
+        } else {
+          toast({
+            title: "Login Failed",
+            description: result.error || "Please check your credentials and try again.",
+            variant: "destructive",
+          });
+        }
       }
     } catch (error) {
       toast({
@@ -61,6 +72,12 @@ const Login = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCreateNewAccount = () => {
+    setShowDeletedDialog(false);
+    // Navigate to signup with email as query parameter
+    navigate(`/signup?email=${encodeURIComponent(deletedEmail)}`);
   };
 
   return (
@@ -139,6 +156,50 @@ const Login = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Deleted User Dialog */}
+      <Dialog open={showDeletedDialog} onOpenChange={setShowDeletedDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <DialogTitle>Account Deleted</DialogTitle>
+            </div>
+            <DialogDescription className="pt-2">
+              This account was deleted previously.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-muted p-4 rounded-md text-sm">
+            <p className="text-muted-foreground">
+              You can create a new account using the same email address if you'd like to continue using LawGPT.
+            </p>
+          </div>
+          <div className="bg-destructive/10 border border-destructive rounded-md p-4 text-sm flex gap-3">
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-destructive">⚠️ All previous data has been permanently deleted</p>
+              <p className="text-destructive/80 mt-1">
+                All cases, clients, documents, invoices, and profile data from this account have been wiped and cannot be recovered.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeletedDialog(false)}
+              className="w-full sm:w-auto"
+            >
+              OK
+            </Button>
+            <Button
+              onClick={handleCreateNewAccount}
+              className="w-full sm:w-auto"
+            >
+              Create New Account Using Same Email
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useLegalData } from '@/contexts/LegalDataContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFormatting } from '@/contexts/FormattingContext';
 import { useNavigate } from 'react-router-dom';
 import { getApiUrl } from '@/lib/api';
 
@@ -49,6 +50,7 @@ interface Activity {
 const Dashboard = () => {
   const { cases, clients, alerts } = useLegalData();
   const { user } = useAuth();
+  const { formatCurrency, formatRelativeDate } = useFormatting();
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,13 +95,7 @@ const Dashboard = () => {
   const activeCases = cases.filter(c => c.status === 'active');
   const unreadAlerts = alerts.filter(a => !a.isRead);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
+  // formatCurrency is now provided by useFormatting hook
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -138,21 +134,7 @@ const Dashboard = () => {
     }
   };
 
-  const formatTimeAgo = (timestamp: string) => {
-    const now = new Date();
-    const time = new Date(timestamp);
-    const diffInHours = Math.floor((now.getTime() - time.getTime()) / (1000 * 60 * 60));
-
-    if (diffInHours < 1) {
-      const diffInMinutes = Math.floor((now.getTime() - time.getTime()) / (1000 * 60));
-      return `${diffInMinutes} minute${diffInMinutes !== 1 ? 's' : ''} ago`;
-    } else if (diffInHours < 24) {
-      return `${diffInHours} hour${diffInHours !== 1 ? 's' : ''} ago`;
-    } else {
-      const diffInDays = Math.floor(diffInHours / 24);
-      return `${diffInDays} day${diffInDays !== 1 ? 's' : ''} ago`;
-    }
-  };
+  // formatRelativeDate is now provided by useFormatting hook
 
   const stats = [
     {
@@ -223,12 +205,12 @@ const Dashboard = () => {
   return (
     <div className="space-y-2 md:space-y-3">
       {/* Welcome Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-foreground">
+          <h1 className="text-xl md:text-2xl font-bold">
             Welcome back, {user?.name?.split(' ')[0]}!
           </h1>
-          <p className="text-xs md:text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Here's what's happening with your practice today
           </p>
         </div>
@@ -404,7 +386,7 @@ const Dashboard = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium break-words">{activity.message}</p>
-                        <p className="text-[10px] text-muted-foreground">{formatTimeAgo(activity.timestamp)}</p>
+                        <p className="text-[10px] text-muted-foreground">{formatRelativeDate(activity.timestamp)}</p>
                         {activity.metadata && (
                           <div className="text-[10px] text-muted-foreground mt-0.5">
                             {activity.type === 'payment_received' && (

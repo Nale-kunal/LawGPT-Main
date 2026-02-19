@@ -24,11 +24,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
+import { useFormatting } from '@/contexts/FormattingContext';
 
 // Use Invoice from context
 
 const Billing = () => {
   const { cases, clients, timeEntries, addTimeEntry, invoices, createInvoice, updateInvoice, deleteInvoice, sendInvoice } = useLegalData();
+  const { formatCurrency, formatDateShort } = useFormatting();
   const [showTimeDialog, setShowTimeDialog] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
@@ -126,7 +128,7 @@ const Billing = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold mb-1">Billing & Time Tracking</h1>
+          <h1 className="text-xl md:text-2xl font-bold">Billing & Time Tracking</h1>
           <p className="text-xs text-muted-foreground">Manage invoices and track billable hours</p>
         </div>
 
@@ -232,7 +234,7 @@ const Billing = () => {
             <IndianRupee className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
           <CardContent className="pt-1">
-            <div className="text-xl font-bold">₹{totalBilled.toLocaleString('en-IN')}</div>
+            <div className="text-xl font-bold">{formatCurrency(totalBilled)}</div>
             <p className="text-[10px] text-muted-foreground">All time invoices</p>
           </CardContent>
         </Card>
@@ -243,7 +245,7 @@ const Billing = () => {
             <IndianRupee className="h-3.5 w-3.5 text-success" />
           </CardHeader>
           <CardContent className="pt-1">
-            <div className="text-xl font-bold text-success">₹{paidAmount.toLocaleString('en-IN')}</div>
+            <div className="text-xl font-bold text-success">{formatCurrency(paidAmount)}</div>
             <p className="text-[10px] text-muted-foreground">Received payments</p>
           </CardContent>
         </Card>
@@ -254,7 +256,7 @@ const Billing = () => {
             <IndianRupee className="h-3.5 w-3.5 text-warning" />
           </CardHeader>
           <CardContent className="pt-1">
-            <div className="text-xl font-bold text-warning">₹{pendingAmount.toLocaleString('en-IN')}</div>
+            <div className="text-xl font-bold text-warning">{formatCurrency(pendingAmount)}</div>
             <p className="text-[10px] text-muted-foreground">Outstanding invoices</p>
           </CardContent>
         </Card>
@@ -324,11 +326,11 @@ const Billing = () => {
                       </Badge>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {clients.find(c => c.id === invoice.clientId)?.name || 'Client'} • Due: {invoice.dueDate.toLocaleDateString('en-IN')}
+                      {clients.find(c => c.id === invoice.clientId)?.name || 'Client'} • Due: {formatDateShort(invoice.dueDate)}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-sm">₹{(invoice.total || 0).toLocaleString('en-IN')}</div>
+                    <div className="font-bold text-sm">{formatCurrency(invoice.total || 0)}</div>
                     <div className="flex gap-1">
                       <Button size="sm" variant="outline" onClick={() => setShowSendDialog(invoice)} className="h-6 text-[10px] px-2 border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
                         <Send className="mr-1 h-3 w-3" />
@@ -388,10 +390,10 @@ const Billing = () => {
                       <span className="text-muted-foreground">
                         {Math.round(entry.duration / 60 * 10) / 10}h @ ₹{entry.hourlyRate}/hr
                       </span>
-                      <span className="font-medium">₹{amount.toLocaleString('en-IN')}</span>
+                      <span className="font-medium">{formatCurrency(amount)}</span>
                     </div>
                     <div className="text-[10px] text-muted-foreground">
-                      {entry.date.toLocaleDateString('en-IN')}
+                      {formatDateShort(entry.date)}
                     </div>
                   </div>
                 );
@@ -439,7 +441,7 @@ const Billing = () => {
             </div>
             <div className="text-center">
               <div className="text-xl font-bold mb-0.5">
-                ₹{averageInvoice.toLocaleString('en-IN')}
+                {formatCurrency(averageInvoice)}
               </div>
               <p className="text-[10px] text-muted-foreground">Average Invoice</p>
             </div>
@@ -527,7 +529,7 @@ const Billing = () => {
                       <Input className="text-center border-transparent hover:border-accent hover:border-2 transition-all" min="0" step="0.01" type="number" placeholder="Unit Price" value={it.unitPrice} onChange={(e) => setInvoiceForm(p => { const items = [...p.items]; items[idx] = { ...items[idx], unitPrice: e.target.value }; return { ...p, items }; })} />
                     </div>
                     <div className="col-span-1 text-center font-medium">
-                      ₹{(Number(it.quantity || 0) * Number(it.unitPrice || 0)).toLocaleString('en-IN')}
+                      {formatCurrency(Number(it.quantity || 0) * Number(it.unitPrice || 0))}
                     </div>
                     <div className="col-span-1 flex justify-center">
                       <Button
@@ -608,8 +610,8 @@ const Billing = () => {
                   <div className="text-muted-foreground text-sm">Invoice #{selectedInvoice.invoiceNumber}</div>
                 </div>
                 <div className="text-right text-sm">
-                  <div>Issue: {selectedInvoice.issueDate.toLocaleDateString('en-IN')}</div>
-                  <div>Due: {selectedInvoice.dueDate.toLocaleDateString('en-IN')}</div>
+                  <div>Issue: {formatDateShort(selectedInvoice.issueDate)}</div>
+                  <div>Due: {formatDateShort(selectedInvoice.dueDate)}</div>
                   <div>Status: <Badge variant={getStatusColor(selectedInvoice.status)}>{selectedInvoice.status}</Badge></div>
                 </div>
               </div>
@@ -624,17 +626,17 @@ const Billing = () => {
                   <div key={idx} className="grid grid-cols-12 p-2 border-t">
                     <div className="col-span-6">{i.description}</div>
                     <div className="col-span-2 text-right">{i.quantity}</div>
-                    <div className="col-span-2 text-right">₹{i.unitPrice.toLocaleString('en-IN')}</div>
-                    <div className="col-span-2 text-right">₹{i.amount.toLocaleString('en-IN')}</div>
+                    <div className="col-span-2 text-right">{formatCurrency(i.unitPrice)}</div>
+                    <div className="col-span-2 text-right">{formatCurrency(i.amount)}</div>
                   </div>
                 ))}
               </div>
               <div className="flex justify-end">
                 <div className="w-64 space-y-1 text-sm">
-                  <div className="flex justify-between"><span>Subtotal</span><span>₹{selectedInvoice.subtotal.toLocaleString('en-IN')}</span></div>
-                  <div className="flex justify-between"><span>Tax ({selectedInvoice.taxRate}%)</span><span>₹{selectedInvoice.taxAmount.toLocaleString('en-IN')}</span></div>
-                  <div className="flex justify-between"><span>Discount</span><span>₹{selectedInvoice.discountAmount.toLocaleString('en-IN')}</span></div>
-                  <div className="flex justify-between font-bold"><span>Total</span><span>₹{selectedInvoice.total.toLocaleString('en-IN')}</span></div>
+                  <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(selectedInvoice.subtotal)}</span></div>
+                  <div className="flex justify-between"><span>Tax ({selectedInvoice.taxRate}%)</span><span>{formatCurrency(selectedInvoice.taxAmount)}</span></div>
+                  <div className="flex justify-between"><span>Discount</span><span>{formatCurrency(selectedInvoice.discountAmount)}</span></div>
+                  <div className="flex justify-between font-bold"><span>Total</span><span>{formatCurrency(selectedInvoice.total)}</span></div>
                 </div>
               </div>
               {selectedInvoice.notes && <div>
@@ -687,7 +689,7 @@ const Billing = () => {
                   <div className="bg-muted p-3 rounded-md text-sm space-y-1">
                     <div><span className="font-medium">Invoice:</span> {selectedInvoice.invoiceNumber}</div>
                     <div><span className="font-medium">Client:</span> {clients.find(c => c.id === selectedInvoice.clientId)?.name}</div>
-                    <div><span className="font-medium">Amount:</span> <span className="text-lg font-bold">₹{selectedInvoice.total.toLocaleString('en-IN')}</span></div>
+                    <div><span className="font-medium">Amount:</span> <span className="text-lg font-bold">{formatCurrency(selectedInvoice.total)}</span></div>
                   </div>
                   <div className="text-xs text-muted-foreground mt-2">This action cannot be undone.</div>
                 </div>
@@ -706,7 +708,7 @@ const Billing = () => {
 
                   toast({
                     title: '✓ Invoice Marked as Paid',
-                    description: `Invoice ${selectedInvoice.invoiceNumber} (₹${selectedInvoice.total.toLocaleString('en-IN')}) has been marked as paid.`,
+                    description: `Invoice ${selectedInvoice.invoiceNumber} (${formatCurrency(selectedInvoice.total)}) has been marked as paid.`,
                   });
                   setShowMarkPaidConfirm(false);
                   setSelectedInvoice(null);
@@ -749,6 +751,7 @@ interface SendFormProps {
 
 const SendForm: React.FC<SendFormProps> = ({ invoice, onCancel, onSent }) => {
   const { clients } = useLegalData();
+  const { formatDateShort } = useFormatting();
   const client = clients.find(c => c.id === invoice.clientId);
 
   // Generate auto-generated content
@@ -765,7 +768,7 @@ const SendForm: React.FC<SendFormProps> = ({ invoice, onCancel, onSent }) => {
     }
 
     const totalAmount = `₹${invoice.total.toLocaleString('en-IN')}`;
-    const dueDate = new Date(invoice.dueDate).toLocaleDateString('en-IN');
+    const dueDate = formatDateShort(invoice.dueDate);
 
     return {
       subject: `Invoice ${invoice.invoiceNumber} - Legal Services - Due ${dueDate}`,
@@ -775,7 +778,7 @@ We hope this email finds you well. ${urgencyText}Please find attached your invoi
 
 INVOICE SUMMARY:
 • Invoice Number: ${invoice.invoiceNumber}
-• Issue Date: ${new Date(invoice.issueDate).toLocaleDateString('en-IN')}
+• Issue Date: ${formatDateShort(invoice.issueDate)}
 • Due Date: ${dueDate}
 • Total Amount: ${totalAmount}
 

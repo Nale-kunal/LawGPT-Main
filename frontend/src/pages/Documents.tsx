@@ -35,6 +35,7 @@ import { Label } from '@/components/ui/label';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFormAutoSave } from '@/hooks/useFormAutoSave';
+import { useFormatting } from '@/contexts/FormattingContext';
 
 interface ApiFile {
   _id: string;
@@ -61,6 +62,7 @@ type DocType = 'pdf' | 'doc' | 'docx' | 'image' | 'video' | 'audio' | 'other';
 
 const Documents = () => {
   const { cases } = useLegalData();
+  const { formatDate: formatDateGlobal, formatDateShort } = useFormatting();
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [caseFilter, setCaseFilter] = useState('all');
@@ -148,14 +150,9 @@ const Documents = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // Local formatDate function for file details with time
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return formatDateGlobal(dateString, { includeTime: true });
   };
 
   const filteredFiles = useMemo(() => {
@@ -522,17 +519,18 @@ const Documents = () => {
     setCurrentFolderId(folderId);
   };
 
-  // Calculate statistics from ALL files
-  const totalFiles = allFiles.length;
-  const totalSize = allFiles.reduce((sum, file) => sum + file.size, 0);
-  const imageFiles = allFiles.filter(f => detectType(f.mimetype) === 'image').length;
-  const documentFiles = allFiles.filter(f => ['pdf', 'doc', 'docx'].includes(detectType(f.mimetype))).length;
-  const videoFiles = allFiles.filter(f => detectType(f.mimetype) === 'video').length;
+  // Calculate statistics - use current folder files if inside a folder, otherwise use all files
+  const statsFiles = currentFolderId ? files : allFiles;
+  const totalFiles = statsFiles.length;
+  const totalSize = statsFiles.reduce((sum, file) => sum + file.size, 0);
+  const imageFiles = statsFiles.filter(f => detectType(f.mimetype) === 'image').length;
+  const documentFiles = statsFiles.filter(f => ['pdf', 'doc', 'docx'].includes(detectType(f.mimetype))).length;
+  const videoFiles = statsFiles.filter(f => detectType(f.mimetype) === 'video').length;
 
   return (
     <div className="space-y-2 md:space-y-3">
       {/* Header */}
-      <div className="flex items-center justify-between mb-1">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl md:text-2xl font-bold">Document Management</h1>
           <p className="text-xs text-muted-foreground">
@@ -641,15 +639,15 @@ const Documents = () => {
 
       {/* Search and Filters */}
       <Card className="shadow-card-custom">
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-1">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <Search className="h-4 w-4 text-primary" />
+            <Search className="h-3.5 w-3.5 text-primary" />
             Search & Filter Documents
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-64">
+        <CardContent className="pt-1">
+          <div className="flex flex-wrap gap-2">
+            <div className="flex-1 min-w-48">
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -695,8 +693,8 @@ const Documents = () => {
 
       {/* Enhanced Navigation -Simple & Intuitive */}
       <Card className="shadow-card-custom">
-        <CardContent className="py-4">
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+        <CardContent className="py-2">
+          <div className="flex flex-col md:flex-row gap-2 items-start md:items-center justify-between">
             {/* Left: Navigation Controls */}
             <div className="flex items-center gap-2 flex-wrap">
               {/* Back Button - Prominent */}
@@ -742,12 +740,12 @@ const Documents = () => {
               )}
 
               {/* Breadcrumb Path - Simplified */}
-              {folderPath.length > 0 && (
-                <div className="flex items-center gap-1 bg-muted/50 px-3 py-2 rounded-lg">
-                  <Home className="h-4 w-4 text-muted-foreground" />
+              {currentFolderId && (
+                <div className="flex items-center gap-1 bg-muted/50 px-2 py-1 rounded-lg">
+                  <Home className="h-3.5 w-3.5 text-muted-foreground" />
                   {folderPath.map((folder, index) => (
                     <div key={folder._id} className="flex items-center gap-1">
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                       <Button
                         variant="link"
                         size="sm"
@@ -766,7 +764,7 @@ const Documents = () => {
             </div>
 
             {/* Right: Current Location */}
-            <div className="text-sm text-muted-foreground bg-muted/30 px-4 py-2 rounded-lg">
+            <div className="text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-lg">
               📍 {currentFolderId
                 ? `Inside: ${folderPath[folderPath.length - 1]?.name || 'Folder'}`
                 : 'All Folders'}
@@ -777,9 +775,9 @@ const Documents = () => {
 
       {/* Folders Section */}
       {folders.filter(f => (f.parentId || null) === (currentFolderId || null)).length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm md:text-base font-semibold">
+            <h2 className="text-sm font-semibold">
               {currentFolderId ? 'Subfolders' : 'Folders'}
             </h2>
             <Badge variant="outline" className="text-[10px] h-4 px-1">
@@ -787,7 +785,7 @@ const Documents = () => {
             </Badge>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3">
             {folders
               .filter(f => (f.parentId || null) === (currentFolderId || null))
               .map((folder) => {
@@ -1096,7 +1094,7 @@ const Documents = () => {
                     <div className="bg-muted p-3 rounded-md text-sm space-y-1">
                       <div><span className="font-medium">Folder:</span> {folderToDelete.name}</div>
                       <div>
-                        <span className="font-medium">Created:</span> {new Date(folderToDelete.createdAt).toLocaleDateString('en-IN')}
+                        <span className="font-medium">Created:</span> {formatDateShort(folderToDelete.createdAt)}
                       </div>
                       {hasSubfolders && (
                         <div className="text-warning font-medium">

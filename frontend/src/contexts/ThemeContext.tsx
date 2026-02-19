@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { getApiUrl } from '@/lib/api';
 
 type Theme = 'dark' | 'light' | 'system';
 
@@ -11,6 +12,7 @@ type ThemeProviderProps = {
 type ThemeProviderState = {
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  setThemeAndSave: (theme: Theme) => Promise<void>;
   actualTheme: 'dark' | 'light';
   isAnimating: boolean;
   triggerThemeChange: () => void;
@@ -19,6 +21,7 @@ type ThemeProviderState = {
 const initialState: ThemeProviderState = {
   theme: 'system',
   setTheme: () => null,
+  setThemeAndSave: async () => { },
   actualTheme: 'light',
   isAnimating: false,
   triggerThemeChange: () => null,
@@ -32,7 +35,7 @@ export function ThemeProvider({
   storageKey = 'legal-pro-theme',
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
+  const [theme, setThemeState] = useState<Theme>(
     () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
   );
 
@@ -56,18 +59,48 @@ export function ThemeProvider({
     root.classList.add(finalTheme);
   }, [theme]);
 
+  // Apply theme locally (localStorage + DOM) — used internally
+  const applyTheme = (newTheme: Theme) => {
+    localStorage.setItem(storageKey, newTheme);
+    setThemeState(newTheme);
+  };
+
+  // Save theme to DB silently (fire-and-forget, no error surfacing)
+  const saveThemeToDB = async (newTheme: Theme) => {
+    try {
+      await fetch(getApiUrl('/api/auth/me'), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ preferences: { theme: newTheme } }),
+      });
+    } catch {
+      // Silently ignore — localStorage is still updated so UX is unaffected
+    }
+  };
+
+  // Public: set theme locally only (used by FormattingContext init sync)
+  const setTheme = (newTheme: Theme) => {
+    applyTheme(newTheme);
+  };
+
+  // Public: set theme AND save to DB — used by toggle button and Settings
+  const setThemeAndSave = async (newTheme: Theme) => {
+    applyTheme(newTheme);
+    await saveThemeToDB(newTheme);
+  };
+
+  // Toggle (used by ThemeToggle animation flow)
   const triggerThemeChange = () => {
     const newTheme = actualTheme === 'dark' ? 'light' : 'dark';
-    localStorage.setItem(storageKey, newTheme);
-    setTheme(newTheme);
+    applyTheme(newTheme);
+    saveThemeToDB(newTheme); // fire-and-forget
   };
 
   const value = {
     theme,
-    setTheme: (theme: Theme) => {
-      localStorage.setItem(storageKey, theme);
-      setTheme(theme);
-    },
+    setTheme,
+    setThemeAndSave,
     actualTheme,
     isAnimating,
     triggerThemeChange,

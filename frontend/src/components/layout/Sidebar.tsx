@@ -1,17 +1,17 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { 
-  LayoutDashboard, 
-  FileText, 
-  Calendar, 
-  Users, 
-  BookOpen, 
-  Receipt, 
-  FolderOpen, 
+import {
+  LayoutDashboard,
+  FileText,
+  Calendar,
+  Users,
+  BookOpen,
+  Receipt,
+  FolderOpen,
   Settings,
   Scale,
-  Bell,
+  Newspaper,
   ChevronLeft,
   ChevronRight,
   ChevronsLeftRight
@@ -83,7 +83,7 @@ export const Sidebar = () => {
   };
 
   return (
-    <SidebarComponent 
+    <SidebarComponent
       className="border-sidebar-border group hover:[&_[data-sidebar=group-label]]:opacity-100"
       collapsible="icon"
       onMouseEnter={handleMouseEnter}
@@ -112,7 +112,7 @@ export const Sidebar = () => {
                 const isActive = location.pathname === item.href;
                 return (
                   <SidebarMenuItem key={item.name}>
-                    <SidebarMenuButton 
+                    <SidebarMenuButton
                       asChild
                       className={cn(
                         isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
@@ -139,15 +139,10 @@ export const Sidebar = () => {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link to="/dashboard" className="flex items-center gap-2">
-                    <Bell className="h-4 w-4" />
-                    <span>Notifications</span>
-                    {unreadAlerts > 0 && (
-                      <Badge variant="destructive" className="ml-auto text-xs h-5 w-5 rounded-full p-0 flex items-center justify-center">
-                        {unreadAlerts}
-                      </Badge>
-                    )}
+                <SidebarMenuButton asChild className={location.pathname === '/dashboard/news' ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''}>
+                  <Link to="/dashboard/news" className="flex items-center gap-2">
+                    <Newspaper className="h-4 w-4" />
+                    <span>News</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

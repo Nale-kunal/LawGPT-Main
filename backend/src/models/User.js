@@ -8,14 +8,65 @@ const userSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
   role: { type: String, enum: ['lawyer', 'assistant', 'admin'], default: 'lawyer' },
 
-  // Professional info
+  // Account status (soft-delete support)
+  status: {
+    type: String,
+    enum: ['active', 'deleted'],
+    default: 'active',
+    index: true
+  },
+  deletedAt: {
+    type: Date,
+    default: null
+  },
+
+  // Onboarding tracking
+  onboardingCompleted: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  immutableFieldsLocked: {
+    type: Boolean,
+    default: false
+  },
+
+  // Comprehensive profile (new structure)
+  profile: {
+    fullName: { type: String, default: null, index: true },
+    barCouncilNumber: {
+      type: String,
+      default: null,
+      unique: true,
+      sparse: true, // Only enforce uniqueness when value exists
+      index: true
+    },
+    currency: { type: String, default: null },
+    phoneNumber: { type: String, default: null },
+    lawFirmName: { type: String, default: null },
+    practiceAreas: { type: [String], default: [] },
+    courtLevels: { type: [String], default: [] },
+    address: { type: String, default: null },
+    city: { type: String, default: null },
+    state: { type: String, default: null },
+    country: { type: String, default: null },
+    timezone: { type: String, default: null }
+  },
+
+  // Onboarding data audit trail
+  onboardingDataAudit: [
+    {
+      fieldName: String,
+      value: String,
+      enteredAt: Date
+    }
+  ],
+
+  // Legacy fields (kept for backward compatibility, will be migrated)
   barNumber: { type: String },
   firm: { type: String },
-
-  // Profile info
   phone: { type: String },
-  address: { type: String },
-  bio: { type: String },
+  // Note: legacy 'address' field removed - use profile.address instead
 
   // Email verification
   emailVerified: { type: Boolean, default: false },

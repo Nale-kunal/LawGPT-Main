@@ -22,9 +22,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useFormAutoSave } from '@/hooks/useFormAutoSave';
+import { useFormatting } from '@/contexts/FormattingContext';
 
 const Clients = () => {
   const { clients, cases, addClient, updateClient, deleteClient } = useLegalData();
+  const { formatDateShort } = useFormatting();
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -149,7 +151,7 @@ const Clients = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl md:text-2xl font-bold">Client Management</h1>
-          <p className="text-xs md:text-sm text-muted-foreground">Manage your client information and relationships</p>
+          <p className="text-xs text-muted-foreground">Manage your client information and relationships</p>
         </div>
 
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -422,7 +424,7 @@ const Clients = () => {
                         <div className="pt-1.5 border-t">
                           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                             <Calendar className="h-2.5 w-2.5" />
-                            <span>Next hearing: {new Date(nextHearing.nextHearing!).toLocaleDateString('en-IN')}</span>
+                            <span>Next hearing: {formatDateShort(nextHearing.nextHearing!)}</span>
                           </div>
                           <p className="text-[10px] text-primary ml-4">{nextHearing.caseNumber}</p>
                         </div>

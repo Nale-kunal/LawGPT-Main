@@ -8,8 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { getApiUrl } from '@/lib/api';
-import { useCSRF } from '@/hooks/useCSRF';
+import { getApiUrl, apiFetch } from '@/lib/api';
 import { Check, AlertCircle, Lock, Loader2, ChevronRight, ChevronLeft, LogOut } from 'lucide-react';
 
 interface FormData {
@@ -57,7 +56,6 @@ const CURRENCIES = [
 const OnboardingWizard = () => {
     const { user, refreshUser, logout } = useAuth();
     const { toast } = useToast();
-    const { fetchWithCSRF } = useCSRF();
     const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isAborting, setIsAborting] = useState(false);
@@ -153,7 +151,7 @@ const OnboardingWizard = () => {
         setIsSubmitting(true);
 
         try {
-            const response = await fetchWithCSRF(getApiUrl('/api/auth/complete-onboarding'), {
+            const response = await apiFetch(getApiUrl('/api/v1/auth/complete-onboarding'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),

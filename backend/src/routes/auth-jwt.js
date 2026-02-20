@@ -495,7 +495,12 @@ router.post('/logout', (req, res) => {
   res.clearCookie('refreshToken', { ...base, path: '/api' });
   res.clearCookie('refreshToken', { ...base, path: '/api/v1' });
   // Clear CSRF token so a fresh one is issued on next login
-  res.clearCookie('csrf-token', { httpOnly: false, path: '/' });
+  res.clearCookie('csrf-token', {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/'
+  });
 
   res.json({ message: 'Logged out successfully' });
 });

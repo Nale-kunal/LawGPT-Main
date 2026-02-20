@@ -21,6 +21,7 @@ const CSRF_EXEMPT_PATTERNS = [
     /\/auth\/login$/,
     /\/auth\/register$/,
     /\/auth\/refresh$/,
+    /\/auth\/logout$/,
     /\/auth\/forgot-password$/,
     /\/auth\/reset-password$/,
     /\/auth\/reactivate$/,

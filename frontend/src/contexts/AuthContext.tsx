@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
-import { getApiUrl } from '@/lib/api';
+import { getApiUrl, apiFetch } from '@/lib/api';
 
 interface NotificationSettings {
   emailAlerts: boolean;
@@ -118,7 +118,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      const res = await fetch(getApiUrl('/api/v1/auth/me'), {
+      const res = await apiFetch(getApiUrl('/api/v1/auth/me'), {
         credentials: 'include',
         cache: 'no-store',
         signal: controller.signal,
@@ -136,7 +136,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Skip refresh entirely if logout is in progress to prevent re-login after logout
         if (isLoggingOut.current) { persistUser(null); return; }
         try {
-          const refreshRes = await fetch(getApiUrl('/api/v1/auth/refresh'), {
+          const refreshRes = await apiFetch(getApiUrl('/api/v1/auth/refresh'), {
             method: 'POST',
             credentials: 'include',
             cache: 'no-store',
@@ -146,7 +146,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return;
           }
           // Retry /me with the new access token
-          const retryRes = await fetch(getApiUrl('/api/v1/auth/me'), {
+          const retryRes = await apiFetch(getApiUrl('/api/v1/auth/me'), {
             credentials: 'include',
             cache: 'no-store',
           });
@@ -250,7 +250,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Clear any existing auth state before login
       persistUser(null);
 
-      const res = await fetch(getApiUrl('/api/v1/auth/login'), {
+      const res = await apiFetch(getApiUrl('/api/v1/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -290,7 +290,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (userData: RegisterData): Promise<{ success: boolean; error?: string; errorCode?: string }> => {
     setIsLoading(true);
     try {
-      const res = await fetch(getApiUrl('/api/v1/auth/register'), {
+      const res = await apiFetch(getApiUrl('/api/v1/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -324,7 +324,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       persistUser(null);
 
       // Attempt server logout
-      await fetch(getApiUrl('/api/v1/auth/logout'), {
+      await apiFetch(getApiUrl('/api/v1/auth/logout'), {
         method: 'POST',
         credentials: 'include',
         cache: 'no-store'
@@ -365,7 +365,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const verifyEmail = async (token: string): Promise<{ success: boolean; message?: string; error?: string }> => {
     try {
-      const res = await fetch(getApiUrl('/api/v1/auth/verify-email'), {
+      const res = await apiFetch(getApiUrl('/api/v1/auth/verify-email'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),
@@ -385,7 +385,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const resendVerificationEmail = async (email: string): Promise<{ success: boolean; message?: string; error?: string }> => {
     try {
-      const res = await fetch(getApiUrl('/api/v1/auth/resend-verification'), {
+      const res = await apiFetch(getApiUrl('/api/v1/auth/resend-verification'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),

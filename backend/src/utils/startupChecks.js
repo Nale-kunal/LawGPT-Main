@@ -13,13 +13,17 @@ export function runStartupChecks() {
 
     // ── 1. Redis TLS enforcement ─────────────────────────────────────────────────
     const redisUrl = process.env.REDIS_URL;
+    const allowInsecureRedis = process.env.ALLOW_INSECURE_REDIS_FALLBACK === 'true';
+
     if (redisUrl) {
-        if (isProduction && !redisUrl.startsWith('rediss://')) {
+        if (isProduction && !redisUrl.startsWith('rediss://') && !allowInsecureRedis) {
             errors.push(
                 'REDIS_URL must use TLS in production (rediss://). ' +
                 'Unencrypted Redis connection is not allowed. ' +
-                'Update your Redis URL to use "rediss://" scheme.'
+                'Update your Redis URL to use "rediss://" scheme or set ALLOW_INSECURE_REDIS_FALLBACK=true.'
             );
+        } else if (isProduction && !redisUrl.startsWith('rediss://') && allowInsecureRedis) {
+            warnings.push('REDIS_URL: non-TLS Redis in production (allowed via ALLOW_INSECURE_REDIS_FALLBACK)');
         } else if (!isProduction && redisUrl.startsWith('redis://')) {
             warnings.push('REDIS_URL: non-TLS Redis in development (acceptable for local dev)');
         }

@@ -38,6 +38,7 @@ import hearingRoutes from './src/routes/hearings.js';
 import dashboardRoutes from './src/routes/dashboard.js';
 import twoFactorRoutes from './src/routes/twoFactor.js';
 import adminRoutes from './src/routes/admin.js';
+import newsRoutes from './routes/news.js';
 import { requestId } from './src/middleware/requestId.js';
 
 // dotenv already loaded at top — do not call again
@@ -312,6 +313,7 @@ app.use('/api/v1/hearings', hearingRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/2fa', twoFactorRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/news', newsRoutes);
 
 // ─── Backward Compatibility /api/* → /api/v1/* (90-day window) ───────────────
 app.use('/api/auth', authRoutes);

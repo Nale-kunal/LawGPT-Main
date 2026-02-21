@@ -53,7 +53,7 @@ export const AlertManager = () => {
           const data = await response.json();
           setNotifications(data);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to fetch notifications:', error);
       } finally {
         setLoading(false);

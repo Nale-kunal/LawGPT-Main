@@ -4,27 +4,26 @@
 
 /**
  * Get the API base URL
- * In development: uses Vite proxy (relative path)
- * In production: uses VITE_API_URL environment variable
+ * In development: uses Vite proxy or VITE_API_URL
+ * In production: returns relative path to leverage Vercel Proxy
  */
-export function getApiUrl(path: string = ''): string {
-  const apiUrl = import.meta.env.VITE_API_URL;
-  const baseUrl = apiUrl?.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
-
-  // Prevent double VITE_API_URL if it was already prepended
-  if (baseUrl && path.startsWith(baseUrl)) {
-    return path;
+export function getApiUrl(path: string): string {
+  // Use relative paths in production to leverage Vercel Proxy (vercel.json rewrites)
+  if (import.meta.env.PROD) {
+    // Ensure path starts with / if it doesn't already
+    return path.startsWith('/') ? path : `/${path}`;
   }
 
-  // Remove leading slash if present to avoid double slashes 
-  // (also safely prefixes external URLs like http://evil.com to /http://evil.com, nullifying them)
+  // In development, we might use an absolute URL or a relative path (Vite proxy)
+  const baseUrl = import.meta.env.VITE_API_URL || '';
+
+  // If the path already includes the base URL or is an absolute URL, return it
+  if (path.startsWith('http')) return path;
+
+  // Ensure we don't have double slashes
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
 
-  if (baseUrl) {
-    return `${baseUrl}${cleanPath}`;
-  }
-
-  return cleanPath;
+  return baseUrl ? `${baseUrl}${cleanPath}` : cleanPath;
 }
 
 /**
@@ -58,7 +57,7 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
   }
 
   // Attach CSRF token
-  // Safe parsing of origin. If url is relative, it is implicitly same-origin.
+  // If url is relative, it is implicitly same-origin.
   let isSameOrigin = true;
   if (url.startsWith('http://') || url.startsWith('https://')) {
     try {
@@ -126,7 +125,7 @@ export async function apiRequest<T = any>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const response = await apiFetch(getApiUrl(path), options);
+  const response = await apiFetch(path, options);
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: 'Request failed' }));

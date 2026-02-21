@@ -499,7 +499,7 @@ router.post('/logout', async (req, res) => {
   const base = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'lax',
   };
   // Clear access token (set at path '/')
   res.clearCookie('token', { ...base, path: '/' });

@@ -23,6 +23,7 @@ import {
   reactivateSchema,
 } from '../schemas/authSchemas.js';
 import { blacklistToken, isTokenBlacklisted } from '../services/tokenService.js';
+import activityEmitter from '../utils/eventEmitter.js';
 
 const router = express.Router();
 
@@ -367,6 +368,12 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
       // For non-existent users, show generic error
       // Note: Hard-deleted users (deleted before soft-delete implementation) cannot be detected
       // Only soft-deleted users (deleted after implementation) will show the deleted account dialog
+      await activityEmitter.emit({
+        userId: null,
+        eventType: 'login_failure',
+        req,
+        metadata: { reason: 'user_not_found', email: normalizedEmail }
+      });
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -442,6 +449,16 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
       if (process.env.NODE_ENV === 'development') {
         console.log('❌ Invalid password for user:', normalizedEmail);
       }
+
+      const { recordAbuseSignal } = await import('../middleware/abuseDetection.js');
+      await recordAbuseSignal(userDoc, 'failed_login', {}, req);
+
+      await activityEmitter.emit({
+        userId: user.id,
+        eventType: 'login_failure',
+        req,
+        metadata: { reason: 'invalid_password' }
+      });
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -456,6 +473,17 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
     if (process.env.NODE_ENV === 'development') {
       console.log('✅ Login successful for:', normalizedEmail);
     }
+
+    // Update lastLoginAt
+    await updateDocument(MODELS.USERS, user.id, {
+      'accountStatus.lastLoginAt': new Date()
+    }).catch(err => console.error('Failed to update lastLoginAt:', err));
+
+    await activityEmitter.emit({
+      userId: user.id,
+      eventType: 'login_success',
+      req
+    });
 
     // Return user data
     res.json({
@@ -517,6 +545,14 @@ router.post('/logout', async (req, res) => {
   });
 
   res.json({ message: 'Logged out successfully' });
+
+  if (req.user?.userId) {
+    await activityEmitter.emit({
+      userId: req.user.userId,
+      eventType: 'session_revoked',
+      req
+    });
+  }
 });
 
 /**
@@ -721,6 +757,12 @@ router.post('/forgot-password', validate({ body: forgotPasswordSchema }), async 
       // Continue anyway - token is stored
     }
 
+    await activityEmitter.emit({
+      userId: user.id,
+      eventType: 'password_reset_request',
+      req
+    });
+
     res.json({ message: 'If that email exists, a password reset link has been sent' });
   } catch (error) {
     console.error('Forgot password error:', error);
@@ -769,6 +811,12 @@ router.post('/reset-password', validate({ body: resetPasswordSchema }), async (r
     await PasswordReset.deleteMany({ userId: resetRequest.userId });
 
     res.json({ message: 'Password reset successfully' });
+
+    await activityEmitter.emit({
+      userId: resetRequest.userId,
+      eventType: 'password_reset_success',
+      req
+    });
   } catch (error) {
     console.error('Reset password error:', error);
     res.status(500).json({ error: 'Failed to reset password' });

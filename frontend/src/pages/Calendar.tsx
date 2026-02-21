@@ -138,24 +138,22 @@ const Calendar = () => {
     return combinedEvents;
   };
 
-  // Check for conflicts (same court, overlapping times)
+  // Check for conflicts (overlapping times within 3 hours)
   const getConflictsForDate = (date: Date) => {
     const casesForDay = getCasesForDate(date);
     const conflicts: string[] = [];
 
     casesForDay.forEach((case1, i) => {
       casesForDay.slice(i + 1).forEach(case2 => {
-        if (case1.courtName === case2.courtName) {
-          const time1 = case1.hearingTime || '10:00';
-          const time2 = case2.hearingTime || '10:00';
-          const timeDiff = Math.abs(
-            new Date(`2000-01-01 ${time1}`).getTime() -
-            new Date(`2000-01-01 ${time2}`).getTime()
-          );
+        const time1 = case1.hearingTime || '10:00';
+        const time2 = case2.hearingTime || '10:00';
+        const timeDiff = Math.abs(
+          new Date(`2000-01-01 ${time1}`).getTime() -
+          new Date(`2000-01-01 ${time2}`).getTime()
+        );
 
-          if (timeDiff < 2 * 60 * 60 * 1000) { // Less than 2 hours apart
-            conflicts.push(`${case1.caseNumber} & ${case2.caseNumber}`);
-          }
+        if (timeDiff < 3 * 60 * 60 * 1000) { // Less than 3 hours apart
+          conflicts.push(`${case1.caseNumber} & ${case2.caseNumber}`);
         }
       });
     });

@@ -23,34 +23,29 @@ export const CaseConflictChecker = ({ currentCase }: ConflictCheckerProps) => {
     if (!currentCase) return [];
 
     const foundConflicts: Conflict[] = [];
-    const sameDayCases: { [date: string]: Case[] } = {};
 
     cases.forEach(existingCase => {
       if (existingCase.id === currentCase.id) return;
 
-      // Same day conflict check - collect all cases on the same day
+      // Same day conflict check
       if (existingCase.hearingDate && currentCase.hearingDate) {
         const existingDate = new Date(existingCase.hearingDate);
         const currentDate = new Date(currentCase.hearingDate);
 
         if (existingDate.toDateString() === currentDate.toDateString()) {
           const dateKey = existingDate.toDateString();
-          if (!sameDayCases[dateKey]) {
-            sameDayCases[dateKey] = [];
-          }
-          sameDayCases[dateKey].push(existingCase);
 
-          // Time conflict check (more than 2 hours apart but same day)
+          // Time conflict check (less than 3 hours apart but same day)
           const timeDiff = Math.abs(
             new Date(`2000-01-01 ${existingCase.hearingTime || '10:00'}`).getTime() -
             new Date(`2000-01-01 ${currentCase.hearingTime || '10:00'}`).getTime()
           );
 
-          if (timeDiff < 2 * 60 * 60 * 1000) { // Less than 2 hours apart
+          if (timeDiff < 3 * 60 * 60 * 1000) { // Less than 3 hours apart
             foundConflicts.push({
               type: 'time',
               severity: timeDiff < 60 * 60 * 1000 ? 'high' : 'medium',
-              message: `Time conflict with ${existingCase.caseNumber} on ${existingDate.toLocaleDateString('en-IN')}`,
+              message: `Scheduling conflict with ${existingCase.caseNumber} on ${existingDate.toLocaleDateString('en-IN')}`,
               affectedCase: existingCase,
               date: dateKey
             });
@@ -78,56 +73,6 @@ export const CaseConflictChecker = ({ currentCase }: ConflictCheckerProps) => {
           message: `Conflict of interest: Same opposing party (${currentCase.opposingParty})`,
           affectedCase: existingCase
         });
-      }
-
-      // Court conflict check (same court, same date)
-      if (existingCase.courtName.toLowerCase() === currentCase.courtName.toLowerCase() &&
-        existingCase.hearingDate && currentCase.hearingDate) {
-        const existingDate = new Date(existingCase.hearingDate);
-        const currentDate = new Date(currentCase.hearingDate);
-
-        if (existingDate.toDateString() === currentDate.toDateString()) {
-          foundConflicts.push({
-            type: 'court',
-            severity: 'low',
-            message: `Multiple cases at ${currentCase.courtName} on ${currentDate.toLocaleDateString('en-IN')}`,
-            affectedCase: existingCase,
-            date: existingDate.toDateString()
-          });
-        }
-      }
-    });
-
-    // Add same-day conflicts for dates with multiple cases
-    Object.entries(sameDayCases).forEach(([dateKey, casesOnDate]) => {
-      // Only show conflicts if there are already multiple cases on the same day
-      // (This means existing cases on that date >= 2, not just 1)
-      if (casesOnDate.length >= 1) {
-        // Check if there are already multiple cases on this date (excluding current case)
-        const totalCasesOnDate = cases.filter(c => {
-          if (c.id === currentCase.id) return false;
-          if (!c.hearingDate) return false;
-          return new Date(c.hearingDate).toDateString() === dateKey;
-        }).length;
-
-        // Only show conflict if there are already 2 or more cases on this date
-        if (totalCasesOnDate >= 2) {
-          const date = new Date(dateKey);
-          casesOnDate.forEach(caseOnDate => {
-            foundConflicts.push({
-              type: 'same-day',
-              severity: 'medium',
-              message: `Multiple cases already scheduled on ${date.toLocaleDateString('en-IN', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })}`,
-              affectedCase: caseOnDate,
-              date: dateKey
-            });
-          });
-        }
       }
     });
 
@@ -164,21 +109,6 @@ export const CaseConflictChecker = ({ currentCase }: ConflictCheckerProps) => {
           <p className="text-xs text-muted-foreground">
             Enter case details to check for potential conflicts
           </p>
-          {cases.length > 0 && (
-            <div className="mt-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-xs font-medium text-blue-800 mb-1">Test Conflict Detection:</p>
-              <p className="text-[10px] text-blue-700 mb-1">
-                Create a case with the same date as an existing case to see conflicts:
-              </p>
-              <div className="space-y-0.5">
-                {cases.slice(0, 3).map(c => (
-                  <p key={c.id} className="text-[10px] text-blue-600">
-                    • {c.caseNumber} - {c.clientName} on {c.hearingDate ? new Date(c.hearingDate).toLocaleDateString() : 'No date'}
-                  </p>
-                ))}
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
     );

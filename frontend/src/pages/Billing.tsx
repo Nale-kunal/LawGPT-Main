@@ -751,7 +751,7 @@ interface SendFormProps {
 
 const SendForm: React.FC<SendFormProps> = ({ invoice, onCancel, onSent }) => {
   const { clients } = useLegalData();
-  const { formatDateShort } = useFormatting();
+  const { formatDateShort, currencySymbol, currencyCode } = useFormatting();
   const client = clients.find(c => c.id === invoice.clientId);
 
   // Generate auto-generated content

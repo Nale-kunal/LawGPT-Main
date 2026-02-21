@@ -64,7 +64,9 @@ router.get('/', async (req, res) => {
                 const seenTitles = new Set();
                 allItems = allItems.filter(item => {
                     const normalizedTitle = item.title?.split('|')[0].toLowerCase().trim();
-                    if (!normalizedTitle || seenTitles.has(normalizedTitle)) return false;
+                    if (!normalizedTitle || seenTitles.has(normalizedTitle)) {
+                        return false;
+                    }
                     seenTitles.add(normalizedTitle);
                     return true;
                 });

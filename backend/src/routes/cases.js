@@ -10,6 +10,8 @@ import {
   MODELS,
   COLLECTIONS
 } from '../services/mongodb.js';
+import activityEmitter from '../utils/eventEmitter.js';
+import { enforcePlanLimits } from '../middleware/planEnforcement.js';
 import { validateHearingType } from '../schemas/validation-schemas.js';
 
 
@@ -42,7 +44,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', enforcePlanLimits('case'), async (req, res) => {
   try {
     // Validate case number is provided (any format allowed)
     if (!req.body.caseNumber || typeof req.body.caseNumber !== 'string' || !req.body.caseNumber.trim()) {
@@ -113,6 +115,13 @@ router.post('/', async (req, res) => {
     );
 
     res.status(201).json(item);
+
+    await activityEmitter.emit({
+      userId: req.user.userId,
+      eventType: 'case_created',
+      req,
+      metadata: { caseId: item.id, caseNumber: item.caseNumber }
+    });
   } catch (error) {
     console.error('Create case error:', error);
     res.status(500).json({ error: 'Failed to create case' });

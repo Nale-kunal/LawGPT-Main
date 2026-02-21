@@ -10,6 +10,8 @@ import {
   MODELS,
   COLLECTIONS
 } from '../services/mongodb.js';
+import activityEmitter from '../utils/eventEmitter.js';
+import { enforcePlanLimits } from '../middleware/planEnforcement.js';
 import { uploadToCloudinary, deleteFromCloudinary, extractPublicIdFromUrl } from '../config/cloudinary.js';
 
 const router = express.Router();
@@ -463,7 +465,7 @@ router.get('/files/:id/download', requireAuth, async (req, res) => {
 
 
 
-router.post('/upload', requireAuth, upload.array('files'), async (req, res) => {
+router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array('files'), async (req, res) => {
   try {
     // Parse folderId - handle empty string, null, undefined
     let folderId = req.body.folderId;
@@ -562,6 +564,19 @@ router.post('/upload', requireAuth, upload.array('files'), async (req, res) => {
 
         console.log(`✅ File saved successfully:`, doc.id);
         saved.push(doc);
+
+        await activityEmitter.emit({
+          userId: ownerId,
+          eventType: 'document_uploaded',
+          req,
+          metadata: {
+            documentId: doc.id,
+            folderId: doc.folderId,
+            fileName: file.originalname,
+            fileSize: file.size,
+            mimeType: file.mimetype
+          }
+        });
       } catch (uploadError) {
         console.error(`❌ Error uploading file ${file.originalname}:`, uploadError);
         console.error('Error details:', {

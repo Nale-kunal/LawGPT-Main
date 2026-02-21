@@ -15,6 +15,7 @@ dotenv.config();
 import logger from '../utils/logger.js';
 import { startEmailWorker } from './emailWorker.js';
 import { startCleanupWorker } from './cleanupWorker.js';
+import { startAdminWorker } from './adminWorker.js';
 
 if (!process.env.REDIS_URL) {
     logger.error('REDIS_URL is required to run workers. Exiting.');
@@ -25,8 +26,9 @@ logger.info('Starting LawGPT background workers...');
 
 const emailWorker = startEmailWorker();
 const cleanupWorker = startCleanupWorker();
+const adminWorker = startAdminWorker();
 
-const workers = [emailWorker, cleanupWorker].filter(Boolean);
+const workers = [emailWorker, cleanupWorker, adminWorker].filter(Boolean);
 logger.info({ count: workers.length }, 'Workers started');
 
 // Graceful shutdown

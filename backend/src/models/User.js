@@ -104,6 +104,50 @@ const userSchema = new mongoose.Schema({
     sessionTimeout: { type: String, default: '30' },
     loginNotifications: { type: Boolean, default: true },
   },
+
+  // --- Admin/SaaS Extensions ---
+  plan: {
+    type: { type: String, enum: ['free', 'pro', 'enterprise'], default: 'free' },
+    limits: {
+      cases: { type: Number, default: 10 },
+      documents: { type: Number, default: 50 },
+      storageMB: { type: Number, default: 100 },
+      teamMembers: { type: Number, default: 1 },
+      aiDailyCap: { type: Number, default: 20 }
+    },
+    features: [String],
+    billingCycle: { type: String, enum: ['monthly', 'yearly', 'lifetime'], default: 'monthly' },
+    nextBillingDate: Date
+  },
+
+  securityFlags: {
+    isSuspicious: { type: Boolean, default: false },
+    abuseScore: { type: Number, default: 0 },
+    lastAbuseSignalAt: Date,
+    temporarySuspensionUntil: Date,
+    failedLoginAttempts: { type: Number, default: 0 },
+    lastFailedLoginAt: Date,
+    riskLevel: { type: String, enum: ['low', 'medium', 'high', 'critical'], default: 'low' }
+  },
+
+  accountStatus: {
+    isVerified: { type: Boolean, default: false },
+    isOnboarded: { type: Boolean, default: false },
+    isSuspended: { type: Boolean, default: false },
+    suspensionReason: String,
+    lastLoginAt: Date,
+    lastActiveAt: Date,
+    lastKnownGeo: {
+      region: String,
+      city: String,
+      lat: Number,
+      lon: Number
+    }
+  },
+
+  region: { type: String, default: 'IN' },
+  currency: { type: String, default: 'INR' },
+  dataResidency: { type: String, default: 'IN-MUM-1' },
 }, { timestamps: true });
 
 // Indexes (email already has unique index from field definition)

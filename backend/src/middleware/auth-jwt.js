@@ -142,7 +142,10 @@ export async function requireAuth(req, res, next) {
             console.log('Auth successful for user:', req.user.email);
         }
 
-        next();
+        // Apply abuse detection after successful authentication
+        // Note: we import it inside to avoid circular dependency if any
+        const { abuseDetection } = await import('./abuseDetection.js');
+        await abuseDetection(req, res, next);
     } catch (error) {
         console.error('Auth middleware error:', error.message);
         console.error('Auth middleware stack:', error.stack);

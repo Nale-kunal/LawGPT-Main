@@ -38,6 +38,7 @@ import hearingRoutes from './src/routes/hearings.js';
 import dashboardRoutes from './src/routes/dashboard.js';
 import twoFactorRoutes from './src/routes/twoFactor.js';
 import adminRoutes from './src/routes/admin.js';
+import adminInternalRoutes from './src/routes/adminInternal.js';
 import newsRoutes from './routes/news.js';
 import { requestId } from './src/middleware/requestId.js';
 
@@ -246,6 +247,13 @@ const uploadLimiter = buildRateLimiter({
   limiterName: 'uploads',
 });
 
+const adminInternalLimiter = buildRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  message: 'Admin API rate limit exceeded.',
+  limiterName: 'admin-internal',
+});
+
 app.use(globalLimiter);
 
 // ─── System Routes ────────────────────────────────────────────────────────────
@@ -313,6 +321,7 @@ app.use('/api/v1/hearings', hearingRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/2fa', twoFactorRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/internal/admin', adminInternalLimiter, adminInternalRoutes);
 app.use('/api/news', newsRoutes);
 
 // ─── Backward Compatibility /api/* → /api/v1/* (90-day window) ───────────────

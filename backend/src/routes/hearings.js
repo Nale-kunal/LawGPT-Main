@@ -15,6 +15,7 @@ import {
   computeHearingTimes,
   validateHearingData
 } from '../utils/conflictDetection.js';
+import activityEmitter from '../utils/eventEmitter.js';
 
 const router = express.Router();
 
@@ -355,6 +356,18 @@ router.post('/', async (req, res) => {
     );
 
     res.status(201).json(hearing);
+
+    await activityEmitter.emit({
+      userId: req.user.userId,
+      eventType: 'hearing_created',
+      req,
+      metadata: {
+        hearingId: hearing.id,
+        caseId: hearing.caseId,
+        hearingDate: hearingDate,
+        hearingType: hearing.hearingType
+      }
+    });
   } catch (error) {
     console.error('Create hearing error:', error);
     console.error('Error stack:', error.stack);

@@ -208,10 +208,10 @@ const Documents = () => {
           title: 'Upload Successful',
           description: `${f.length} file(s) uploaded successfully`
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Upload error:', error);
         // Don't show duplicate toast if we already showed one above
-        if (!error.message || !error.message.includes('Upload failed')) {
+        if (!error?.message || !error.message.includes('Upload failed')) {
           toast({
             title: 'Upload Failed',
             description: error instanceof Error ? error.message : 'Failed to upload files',
@@ -301,7 +301,7 @@ const Documents = () => {
 
       await loadFiles();
       toast({ title: 'Document Deleted', description: `${doc.name} has been deleted` });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Delete error:', error);
       toast({
         title: 'Delete Failed',
@@ -342,7 +342,7 @@ const Documents = () => {
         console.error('Failed to load folders');
         setFolders([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Load folders error:', error);
       setFolders([]);
     }
@@ -373,7 +373,7 @@ const Documents = () => {
         console.error('Failed to load files');
         setFiles([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Load files error:', error);
       setFiles([]);
       setAllFiles([]);
@@ -454,7 +454,7 @@ const Documents = () => {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to create folder');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Create folder error:', error);
       toast({
         title: 'Create Failed',
@@ -499,7 +499,7 @@ const Documents = () => {
           variant: 'destructive'
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Delete folder error:', error);
       toast({
         title: 'Delete Failed',

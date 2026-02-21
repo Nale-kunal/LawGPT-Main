@@ -22,7 +22,7 @@ import { CaseDetailsPopup } from '@/components/CaseDetailsPopup';
 import { CaseConflictChecker } from '@/components/CaseConflictChecker';
 import { HearingTooltip } from '@/components/HearingTooltip';
 import { ConflictDialog } from '@/components/ConflictDialog';
-import { cn } from '@/lib/utils';
+import { cn, parseTimeToMinutes } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { getApiUrl } from '@/lib/api';
 import { useFormatting } from '@/contexts/FormattingContext';
@@ -145,14 +145,11 @@ const Calendar = () => {
 
     casesForDay.forEach((case1, i) => {
       casesForDay.slice(i + 1).forEach(case2 => {
-        const time1 = case1.hearingTime || '10:00';
-        const time2 = case2.hearingTime || '10:00';
-        const timeDiff = Math.abs(
-          new Date(`2000-01-01 ${time1}`).getTime() -
-          new Date(`2000-01-01 ${time2}`).getTime()
-        );
+        const time1 = parseTimeToMinutes(case1.hearingTime || '10:00');
+        const time2 = parseTimeToMinutes(case2.hearingTime || '10:00');
+        const timeDiff = Math.abs(time1 - time2);
 
-        if (timeDiff < 3 * 60 * 60 * 1000) { // Less than 3 hours apart
+        if (timeDiff < 3 * 60) { // Less than 3 hours apart
           conflicts.push(`${case1.caseNumber} & ${case2.caseNumber}`);
         }
       });
@@ -852,7 +849,6 @@ const Calendar = () => {
         </DialogContent>
       </Dialog>
 
-      {/* AI Conflict Checker */}
       <CaseConflictChecker
         currentCase={editingCase || (isModalOpen ? {
           id: 'temp',
@@ -874,6 +870,7 @@ const Calendar = () => {
           createdAt: new Date(),
           updatedAt: new Date()
         } as Case : undefined)}
+        selectedDate={selectedDate || undefined}
       />
 
       {/* Case Details Popup */}

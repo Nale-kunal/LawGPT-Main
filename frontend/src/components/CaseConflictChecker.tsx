@@ -3,9 +3,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 import { useLegalData, Case } from '@/contexts/LegalDataContext';
+import { parseTimeToMinutes } from '@/lib/utils';
 
 interface ConflictCheckerProps {
   currentCase?: Case;
+  selectedDate?: Date;
 }
 
 interface Conflict {
@@ -13,71 +15,114 @@ interface Conflict {
   severity: 'high' | 'medium' | 'low';
   message: string;
   affectedCase: Case;
+  otherCase?: Case;
   date?: string;
 }
 
-export const CaseConflictChecker = ({ currentCase }: ConflictCheckerProps) => {
-  const { cases } = useLegalData();
+export const CaseConflictChecker = ({ currentCase, selectedDate }: ConflictCheckerProps) => {
+  const { cases, hearings } = useLegalData();
 
   const conflicts = useMemo(() => {
-    if (!currentCase) return [];
-
     const foundConflicts: Conflict[] = [];
 
-    cases.forEach(existingCase => {
-      if (existingCase.id === currentCase.id) return;
+    // Combine cases and hearings for comprehensive check
+    const allEvents = [
+      ...cases.map(c => ({ ...c, eventType: 'case' })),
+      ...hearings.map(h => {
+        const caseData = (h as any).populatedCase || (h.caseId && typeof h.caseId === 'object' ? h.caseId : null);
+        return {
+          id: h.id,
+          caseNumber: caseData?.caseNumber || `Case ${h.caseId}`,
+          clientName: caseData?.clientName || 'Unknown',
+          opposingParty: (h as any).opposingParty || '',
+          hearingDate: h.nextHearingDate,
+          hearingTime: h.nextHearingTime,
+          status: 'active' as const,
+          priority: 'medium' as const,
+          eventType: 'hearing'
+        };
+      })
+    ];
 
-      // Same day conflict check
-      if (existingCase.hearingDate && currentCase.hearingDate) {
-        const existingDate = new Date(existingCase.hearingDate);
-        const currentDate = new Date(currentCase.hearingDate);
+    if (currentCase) {
+      // MODE 1: Check conflicts FOR A SPECIFIC CASE (Editing/Adding mode)
+      allEvents.forEach(event => {
+        if (event.id === currentCase.id) return;
 
-        if (existingDate.toDateString() === currentDate.toDateString()) {
-          const dateKey = existingDate.toDateString();
+        // Same day conflict check
+        if (event.hearingDate && currentCase.hearingDate) {
+          const eDate = new Date(event.hearingDate);
+          const cDate = new Date(currentCase.hearingDate);
 
-          // Time conflict check (less than 3 hours apart but same day)
-          const timeDiff = Math.abs(
-            new Date(`2000-01-01 ${existingCase.hearingTime || '10:00'}`).getTime() -
-            new Date(`2000-01-01 ${currentCase.hearingTime || '10:00'}`).getTime()
-          );
+          if (eDate.toDateString() === cDate.toDateString()) {
+            const time1 = parseTimeToMinutes(event.hearingTime || '10:00');
+            const time2 = parseTimeToMinutes(currentCase.hearingTime || '10:00');
+            const timeDiff = Math.abs(time1 - time2);
 
-          if (timeDiff < 3 * 60 * 60 * 1000) { // Less than 3 hours apart
+            if (timeDiff < 3 * 60) { // Less than 3 hours apart
+              foundConflicts.push({
+                type: 'time',
+                severity: timeDiff < 60 ? 'high' : 'medium',
+                message: `Scheduling conflict with ${event.caseNumber} on ${eDate.toLocaleDateString('en-IN')}`,
+                affectedCase: event as any,
+                date: eDate.toDateString()
+              });
+            }
+          }
+        }
+
+        // Client conflict check
+        if (event.clientName?.toLowerCase() === currentCase.clientName?.toLowerCase() &&
+          event.status === 'active' && currentCase.status === 'active') {
+          foundConflicts.push({
+            type: 'client',
+            severity: 'medium',
+            message: `Multiple active cases for client: ${currentCase.clientName}`,
+            affectedCase: event as any
+          });
+        }
+
+        // Opposing party conflict check
+        if (event.opposingParty && currentCase.opposingParty &&
+          event.opposingParty.toLowerCase() === currentCase.opposingParty.toLowerCase()) {
+          foundConflicts.push({
+            type: 'opposing-party',
+            severity: 'high',
+            message: `Conflict of interest: Same opposing party (${currentCase.opposingParty})`,
+            affectedCase: event as any
+          });
+        }
+      });
+    } else if (selectedDate) {
+      // MODE 2: Check ALL conflicts for a selected date (Daily View mode)
+      const dateStr = selectedDate.toDateString();
+      const dayEvents = allEvents.filter(e => e.hearingDate && new Date(e.hearingDate).toDateString() === dateStr);
+
+      for (let i = 0; i < dayEvents.length; i++) {
+        for (let j = i + 1; j < dayEvents.length; j++) {
+          const e1 = dayEvents[i];
+          const e2 = dayEvents[j];
+
+          const time1 = parseTimeToMinutes(e1.hearingTime || '10:00');
+          const time2 = parseTimeToMinutes(e2.hearingTime || '10:00');
+          const timeDiff = Math.abs(time1 - time2);
+
+          if (timeDiff < 3 * 60) {
             foundConflicts.push({
               type: 'time',
-              severity: timeDiff < 60 * 60 * 1000 ? 'high' : 'medium',
-              message: `Scheduling conflict with ${existingCase.caseNumber} on ${existingDate.toLocaleDateString('en-IN')}`,
-              affectedCase: existingCase,
-              date: dateKey
+              severity: timeDiff < 60 ? 'high' : 'medium',
+              message: `Scheduling conflict: ${e1.caseNumber} & ${e2.caseNumber}`,
+              affectedCase: e1 as any,
+              otherCase: e2 as any,
+              date: dateStr
             });
           }
         }
       }
-
-      // Client conflict check
-      if (existingCase.clientName.toLowerCase() === currentCase.clientName.toLowerCase() &&
-        existingCase.status === 'active' && currentCase.status === 'active') {
-        foundConflicts.push({
-          type: 'client',
-          severity: 'medium',
-          message: `Multiple active cases for client: ${currentCase.clientName}`,
-          affectedCase: existingCase
-        });
-      }
-
-      // Opposing party conflict check
-      if (existingCase.opposingParty && currentCase.opposingParty &&
-        existingCase.opposingParty.toLowerCase() === currentCase.opposingParty.toLowerCase()) {
-        foundConflicts.push({
-          type: 'opposing-party',
-          severity: 'high',
-          message: `Conflict of interest: Same opposing party (${currentCase.opposingParty})`,
-          affectedCase: existingCase
-        });
-      }
-    });
+    }
 
     return foundConflicts;
-  }, [cases, currentCase]);
+  }, [cases, hearings, currentCase, selectedDate]);
 
   const getConflictIcon = (severity: Conflict['severity']) => {
     switch (severity) {
@@ -95,7 +140,7 @@ export const CaseConflictChecker = ({ currentCase }: ConflictCheckerProps) => {
     }
   };
 
-  if (!currentCase) {
+  if (!currentCase && !selectedDate) {
     return (
       <Card className="shadow-card-custom">
         <CardHeader className="pb-2">
@@ -107,7 +152,7 @@ export const CaseConflictChecker = ({ currentCase }: ConflictCheckerProps) => {
         </CardHeader>
         <CardContent className="pt-2">
           <p className="text-xs text-muted-foreground">
-            Enter case details to check for potential conflicts
+            Select a date or enter case details to check for conflicts
           </p>
         </CardContent>
       </Card>
@@ -131,9 +176,11 @@ export const CaseConflictChecker = ({ currentCase }: ConflictCheckerProps) => {
           )}
         </CardTitle>
         <CardDescription className="text-[10px]">
-          {conflicts.length > 0
-            ? 'Potential conflicts detected for this case'
-            : 'No conflicts detected for this case'
+          {selectedDate && !currentCase
+            ? `Checking all schedules for ${selectedDate.toLocaleDateString('en-IN')}`
+            : conflicts.length > 0
+              ? 'Potential conflicts detected for this case'
+              : 'No conflicts detected for this case'
           }
         </CardDescription>
       </CardHeader>
@@ -141,7 +188,7 @@ export const CaseConflictChecker = ({ currentCase }: ConflictCheckerProps) => {
         {conflicts.length > 0 ? (
           <div className="space-y-2">
             {(() => {
-              // Group conflicts by date
+              // Group conflicts by date (relevant if checked over multiple days, though here usually 1)
               const conflictsByDate: { [date: string]: Conflict[] } = {};
               const conflictsWithoutDate: Conflict[] = [];
 
@@ -158,49 +205,13 @@ export const CaseConflictChecker = ({ currentCase }: ConflictCheckerProps) => {
 
               return (
                 <>
-                  {/* Conflicts grouped by date */}
-                  {Object.entries(conflictsByDate).map(([dateKey, dateConflicts]) => {
-                    const date = new Date(dateKey);
-                    return (
-                      <div key={dateKey} className="space-y-1.5">
-                        <h4 className="text-xs font-semibold text-primary border-b pb-0.5">
-                          {date.toLocaleDateString('en-IN', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
-                        </h4>
-                        <div className="space-y-1.5 ml-1.5">
-                          {dateConflicts.map((conflict, index) => (
-                            <div key={index} className="flex items-start gap-2 p-2 border rounded-lg">
-                              {getConflictIcon(conflict.severity)}
-                              <div className="flex-1">
-                                <div className="flex items-center gap-1.5 mb-0.5">
-                                  <p className="text-xs font-medium">{conflict.message}</p>
-                                  <Badge variant={getConflictColor(conflict.severity)} className="text-[10px] h-4 px-1">
-                                    {conflict.severity}
-                                  </Badge>
-                                </div>
-                                <p className="text-[10px] text-muted-foreground">
-                                  Conflicting case: {conflict.affectedCase.caseNumber} - {conflict.affectedCase.clientName}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {/* Conflicts without specific dates */}
-                  {conflictsWithoutDate.length > 0 && (
-                    <div className="space-y-1.5">
+                  {Object.entries(conflictsByDate).map(([dateKey, dateConflicts]) => (
+                    <div key={dateKey} className="space-y-1.5">
                       <h4 className="text-xs font-semibold text-primary border-b pb-0.5">
-                        General Conflicts
+                        {new Date(dateKey).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                       </h4>
                       <div className="space-y-1.5 ml-1.5">
-                        {conflictsWithoutDate.map((conflict, index) => (
+                        {dateConflicts.map((conflict, index) => (
                           <div key={index} className="flex items-start gap-2 p-2 border rounded-lg">
                             {getConflictIcon(conflict.severity)}
                             <div className="flex-1">
@@ -211,8 +222,27 @@ export const CaseConflictChecker = ({ currentCase }: ConflictCheckerProps) => {
                                 </Badge>
                               </div>
                               <p className="text-[10px] text-muted-foreground">
-                                Conflicting case: {conflict.affectedCase.caseNumber} - {conflict.affectedCase.clientName}
+                                {conflict.otherCase
+                                  ? `${conflict.affectedCase.caseNumber} vs ${conflict.otherCase.caseNumber}`
+                                  : `Conflicting with: ${conflict.affectedCase.caseNumber}`
+                                }
                               </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  {conflictsWithoutDate.length > 0 && (
+                    <div className="space-y-1.5">
+                      <h4 className="text-xs font-semibold text-primary border-b pb-0.5">General Conflicts</h4>
+                      <div className="space-y-1.5 ml-1.5">
+                        {conflictsWithoutDate.map((conflict, index) => (
+                          <div key={index} className="flex items-start gap-2 p-2 border rounded-lg">
+                            {getConflictIcon(conflict.severity)}
+                            <div className="flex-1">
+                              <p className="text-xs font-medium">{conflict.message}</p>
+                              <Badge variant={getConflictColor(conflict.severity)} className="text-[10px] h-4 px-1">{conflict.severity}</Badge>
                             </div>
                           </div>
                         ))}

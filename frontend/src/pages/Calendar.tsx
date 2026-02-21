@@ -100,15 +100,17 @@ const Calendar = () => {
   // Get cases and hearings for a specific date
   const getCasesForDate = (date: Date) => {
     const casesForDate = cases.filter(case_ => {
-      if (!case_.nextHearing) return false;
-      const caseDate = new Date(case_.nextHearing);
+      const eventDate = case_.nextHearing || case_.hearingDate;
+      if (!eventDate) return false;
+      const caseDate = new Date(eventDate);
       return caseDate.toDateString() === date.toDateString();
     });
 
     // Also include hearings with next hearing dates
     const hearingsForDate = hearings.filter(hearing => {
-      if (!hearing.nextHearingDate) return false;
-      const hearingDate = new Date(hearing.nextHearingDate);
+      const eventDate = hearing.nextHearingDate || hearing.hearingDate;
+      if (!eventDate) return false;
+      const hearingDate = new Date(eventDate);
       return hearingDate.toDateString() === date.toDateString();
     });
 
@@ -128,8 +130,8 @@ const Calendar = () => {
           clientName: caseData?.clientName || 'Client Name Not Found',
           courtName: hearing.courtName,
           judgeName: hearing.judgeName,
-          hearingTime: hearing.nextHearingTime,
-          hearingDate: hearing.nextHearingDate,
+          hearingTime: hearing.nextHearingTime || hearing.hearingTime,
+          hearingDate: hearing.nextHearingDate || hearing.hearingDate,
           description: hearing.purpose || hearing.courtInstructions || 'Next hearing scheduled'
         };
       })

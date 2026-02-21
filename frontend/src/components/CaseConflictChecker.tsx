@@ -27,7 +27,17 @@ export const CaseConflictChecker = ({ currentCase, selectedDate }: ConflictCheck
 
     // Combine cases and hearings for comprehensive check
     const allEvents = [
-      ...cases.map(c => ({ ...c, eventType: 'case' })),
+      ...cases.map(c => ({
+        id: c.id,
+        caseNumber: c.caseNumber,
+        clientName: c.clientName,
+        opposingParty: c.opposingParty,
+        // Preference: nextHearing, fallback to hearingDate
+        eventDate: c.nextHearing || c.hearingDate,
+        eventTime: c.hearingTime,
+        status: c.status,
+        eventType: 'case'
+      })),
       ...hearings.map(h => {
         const caseData = (h as any).populatedCase || (h.caseId && typeof h.caseId === 'object' ? h.caseId : null);
         return {
@@ -35,10 +45,9 @@ export const CaseConflictChecker = ({ currentCase, selectedDate }: ConflictCheck
           caseNumber: caseData?.caseNumber || `Case ${h.caseId}`,
           clientName: caseData?.clientName || 'Unknown',
           opposingParty: (h as any).opposingParty || '',
-          hearingDate: h.nextHearingDate,
-          hearingTime: h.nextHearingTime,
+          eventDate: h.nextHearingDate || h.hearingDate,
+          eventTime: h.nextHearingTime || h.hearingTime,
           status: 'active' as const,
-          priority: 'medium' as const,
           eventType: 'hearing'
         };
       })
@@ -50,12 +59,12 @@ export const CaseConflictChecker = ({ currentCase, selectedDate }: ConflictCheck
         if (event.id === currentCase.id) return;
 
         // Same day conflict check
-        if (event.hearingDate && currentCase.hearingDate) {
-          const eDate = new Date(event.hearingDate);
+        if (event.eventDate && currentCase.hearingDate) {
+          const eDate = new Date(event.eventDate);
           const cDate = new Date(currentCase.hearingDate);
 
           if (eDate.toDateString() === cDate.toDateString()) {
-            const time1 = parseTimeToMinutes(event.hearingTime || '10:00');
+            const time1 = parseTimeToMinutes(event.eventTime || '10:00');
             const time2 = parseTimeToMinutes(currentCase.hearingTime || '10:00');
             const timeDiff = Math.abs(time1 - time2);
 
@@ -96,15 +105,17 @@ export const CaseConflictChecker = ({ currentCase, selectedDate }: ConflictCheck
     } else if (selectedDate) {
       // MODE 2: Check ALL conflicts for a selected date (Daily View mode)
       const dateStr = selectedDate.toDateString();
-      const dayEvents = allEvents.filter(e => e.hearingDate && new Date(e.hearingDate).toDateString() === dateStr);
+      const dayEvents = allEvents.filter(e => e.eventDate && new Date(e.eventDate).toDateString() === dateStr);
+
+      console.log(`[CaseConflictChecker] Mode=Daily Date=${dateStr} EventsSelected=${dayEvents.length}`);
 
       for (let i = 0; i < dayEvents.length; i++) {
         for (let j = i + 1; j < dayEvents.length; j++) {
           const e1 = dayEvents[i];
           const e2 = dayEvents[j];
 
-          const time1 = parseTimeToMinutes(e1.hearingTime || '10:00');
-          const time2 = parseTimeToMinutes(e2.hearingTime || '10:00');
+          const time1 = parseTimeToMinutes(e1.eventTime || '10:00');
+          const time2 = parseTimeToMinutes(e2.eventTime || '10:00');
           const timeDiff = Math.abs(time1 - time2);
 
           if (timeDiff < 3 * 60) {

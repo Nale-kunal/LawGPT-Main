@@ -25,6 +25,10 @@ export function parseTimeToMinutes(timeStr: string): number {
 
     if (isPM && h < 12) h += 12;
     if (isAM && h === 12) h = 0;
+  } else {
+    // HEURISTIC: In a legal/court context, times like "1:45" or "01:45" are almost certainly PM.
+    // No court hearings happen at 1 AM - 7 AM.
+    if (h >= 1 && h <= 7) h += 12;
   }
 
   return h * 60 + m;

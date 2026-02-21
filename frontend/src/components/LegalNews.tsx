@@ -212,7 +212,7 @@ const LegalNews: React.FC = () => {
                                 <Badge
                                     key={source}
                                     variant={selectedSource === source ? "default" : "outline"}
-                                    className={`cursor-pointer px-2 py-0.5 text-[9px] transition-all ${selectedSource === source ? '' : 'border-transparent hover:border-accent hover:border-1'}`}
+                                    className={`cursor-pointer px-2 py-0.5 text-[10px] transition-all ${selectedSource === source ? '' : 'border-border hover:border-accent bg-muted/10 hover:bg-muted/30'}`}
                                     onClick={() => setSelectedSource(selectedSource === source ? null : source)}
                                 >
                                     {source}

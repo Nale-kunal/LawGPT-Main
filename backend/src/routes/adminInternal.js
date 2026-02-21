@@ -90,15 +90,35 @@ router.post('/upgrade-plan', async (req, res) => {
 });
 
 router.post('/reset-password', async (req, res) => {
-    const { userId, newPassword } = req.body;
+    const { userId } = req.body;
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    user.passwordHash = await User.hashPassword(newPassword);
-    await user.save();
+    try {
+        const crypto = await import('crypto');
+        const mailer = await import('../utils/mailer.js');
+        const { default: PasswordReset } = await import('../models/PasswordReset.js');
 
-    await logAdminAction(null, 'password_reset', userId, {}, req);
-    res.json({ success: true, message: 'Password reset successful' });
+        const resetToken = crypto.default.randomBytes(32).toString('hex');
+        const tokenHash = crypto.default.createHash('sha256').update(resetToken).digest('hex');
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+        await PasswordReset.create({
+            userId: user._id,
+            email: user.email,
+            tokenHash,
+            expiresAt
+        });
+
+        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/reset-password?token=${resetToken}`;
+        await mailer.sendPasswordResetEmail({ to: user.email, resetUrl });
+
+        await logAdminAction(null, 'password_reset', userId, {}, req);
+        res.json({ success: true, message: 'Password reset email sent' });
+    } catch (err) {
+        console.error('Failed to trigger reset email from admin:', err);
+        res.status(500).json({ error: 'Failed to process password reset request' });
+    }
 });
 
 router.post('/revoke-all-sessions', async (req, res) => {

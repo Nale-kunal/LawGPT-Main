@@ -38,18 +38,6 @@ router.use(internalSecretAuth, internalSourceCheck);
 
 // --- Endpoints ---
 
-// Helper for logging admin actions
-const logAdminAction = async (adminId, action, targetUserId, details = {}, req) => {
-    await AdminAuditLog.create({
-        adminId,
-        action,
-        targetUserId,
-        details,
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent']
-    });
-};
-
 router.post('/suspend-user', async (req, res) => {
     const { userId, reason } = req.body;
     const user = await User.findById(userId);
@@ -59,7 +47,6 @@ router.post('/suspend-user', async (req, res) => {
     user.accountStatus.suspensionReason = reason;
     await user.save();
 
-    await logAdminAction(null, 'user_suspend', userId, { reason }, req);
     res.json({ success: true, message: 'User suspended' });
 });
 
@@ -72,7 +59,6 @@ router.post('/unsuspend-user', async (req, res) => {
     user.securityFlags.abuseScore = 0; // Reset abuse score on manual unsuspend
     await user.save();
 
-    await logAdminAction(null, 'user_unsuspend', userId, {}, req);
     res.json({ success: true, message: 'User unsuspended' });
 });
 
@@ -85,7 +71,6 @@ router.post('/upgrade-plan', async (req, res) => {
     if (limits) user.plan.limits = { ...user.plan.limits, ...limits };
     await user.save();
 
-    await logAdminAction(null, 'plan_upgrade', userId, { planType, limits }, req);
     res.json({ success: true, plan: user.plan });
 });
 
@@ -113,7 +98,6 @@ router.post('/reset-password', async (req, res) => {
         const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/reset-password?token=${resetToken}`;
         await mailer.sendPasswordResetEmail({ to: user.email, resetUrl });
 
-        await logAdminAction(null, 'password_reset', userId, {}, req);
         res.json({ success: true, message: 'Password reset email sent' });
     } catch (err) {
         console.error('Failed to trigger reset email from admin:', err);
@@ -129,7 +113,6 @@ router.post('/revoke-all-sessions', async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    await logAdminAction(null, 'sessions_revoke', userId, {}, req);
     res.json({ success: true, message: 'All sessions revoked (mock)' });
 });
 

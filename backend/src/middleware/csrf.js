@@ -29,6 +29,7 @@ const CSRF_EXEMPT_PATTERNS = [
     /\/auth\/resend-verification$/,
     /\/auth\/csrf-token$/, // Endpoint itself
     /\/auth\/change-password$/, // Requires auth but user sends old+new password
+    /\/internal\/admin\//, // Admin Control Plane server-to-server routes
 ];
 
 function isExempt(req) {

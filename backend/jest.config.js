@@ -1,4 +1,5 @@
 export default {
+    coverageProvider: 'v8',
     transform: {
         '^.+\\.js$': ['babel-jest', { presets: [['@babel/preset-env', { targets: { node: 'current' } }]] }],
     },

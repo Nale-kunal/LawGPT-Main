@@ -18,6 +18,15 @@ export default [
                 setImmediate: 'readonly',
                 __dirname: 'readonly',
                 __filename: 'readonly',
+                // Node 18+ built-ins
+                fetch: 'readonly',
+                URL: 'readonly',
+                URLSearchParams: 'readonly',
+                AbortController: 'readonly',
+                FormData: 'readonly',
+                Headers: 'readonly',
+                Request: 'readonly',
+                Response: 'readonly',
             },
         },
         rules: {
@@ -38,6 +47,27 @@ export default [
             'no-var': 'error',
             'eqeqeq': ['error', 'always', { null: 'ignore' }],
             'curly': ['warn', 'all'],
+        },
+    },
+    // ── Test files: declare Jest globals to eliminate no-undef errors ────────
+    {
+        files: ['**/__tests__/**/*.js', '**/*.test.js'],
+        languageOptions: {
+            globals: {
+                describe: 'readonly',
+                it: 'readonly',
+                test: 'readonly',
+                expect: 'readonly',
+                beforeAll: 'readonly',
+                afterAll: 'readonly',
+                beforeEach: 'readonly',
+                afterEach: 'readonly',
+                jest: 'readonly',
+            },
+        },
+        rules: {
+            'no-console': 'off',           // test helpers may use console
+            'preserve-caught-error': 'off', // jest assertions don't need cause
         },
     },
 ];

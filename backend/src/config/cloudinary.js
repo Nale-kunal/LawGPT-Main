@@ -88,7 +88,7 @@ export async function uploadToCloudinary(fileBuffer, fileName, folder = 'lawyer-
   try {
     validateCloudinaryConfig();
   } catch (configError) {
-    throw new Error(`Cloudinary not configured: ${configError.message}. Please check your .env file.`);
+    throw new Error(`Cloudinary not configured: ${configError.message}. Please check your .env file.`, { cause: configError });
   }
 
   return new Promise((resolve, reject) => {

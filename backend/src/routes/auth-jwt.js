@@ -751,7 +751,7 @@ router.post('/forgot-password', validate({ body: forgotPasswordSchema }), async 
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/reset-password?token=${resetToken}`;
 
     try {
-      await sendPasswordResetEmail(normalizedEmail, resetUrl);
+      await sendPasswordResetEmail({ to: normalizedEmail, resetUrl });
     } catch (emailError) {
       console.error('Failed to send password reset email:', emailError);
       // Continue anyway - token is stored

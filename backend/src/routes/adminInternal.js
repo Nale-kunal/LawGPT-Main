@@ -81,12 +81,14 @@ router.post('/reset-password', async (req, res) => {
 
     try {
         const crypto = await import('crypto');
-        const mailer = await import('../utils/mailer.js');
         const { default: PasswordReset } = await import('../models/PasswordReset.js');
 
         const resetToken = crypto.default.randomBytes(32).toString('hex');
         const tokenHash = crypto.default.createHash('sha256').update(resetToken).digest('hex');
         const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+        // Invalidate any existing reset tokens for this user
+        await PasswordReset.deleteMany({ userId: user._id });
 
         await PasswordReset.create({
             userId: user._id,
@@ -96,9 +98,17 @@ router.post('/reset-password', async (req, res) => {
         });
 
         const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/reset-password?token=${resetToken}`;
-        await mailer.sendPasswordResetEmail({ to: user.email, resetUrl });
 
-        res.json({ success: true, message: 'Password reset email sent' });
+        // Attempt to send email — log warning if SMTP is not configured but still succeed
+        try {
+            const mailer = await import('../utils/mailer.js');
+            await mailer.sendPasswordResetEmail({ to: user.email, resetUrl });
+        } catch (emailErr) {
+            // SMTP may not be configured in all environments — token is stored and usable
+            console.warn('Admin reset-password: email delivery failed (SMTP may not be configured):', emailErr.message);
+        }
+
+        res.json({ success: true, message: 'Password reset link generated successfully', resetUrl });
     } catch (err) {
         console.error('Failed to trigger reset email from admin:', err);
         res.status(500).json({ error: 'Failed to process password reset request' });

@@ -22,8 +22,7 @@ import {
   AlertTriangle,
   Edit
 } from 'lucide-react';
-import { Case, Hearing } from '@/contexts/LegalDataContext';
-import { useLegalData } from '@/contexts/LegalDataContext';
+import { Case, Hearing, useLegalData } from '@/contexts/LegalDataContext';
 import { useToast } from '@/hooks/use-toast';
 
 interface HearingRecordPopupProps {

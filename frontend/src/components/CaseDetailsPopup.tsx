@@ -23,8 +23,7 @@ import {
   MapPin,
   Eye
 } from 'lucide-react';
-import { Case, Hearing } from '@/contexts/LegalDataContext';
-import { useLegalData } from '@/contexts/LegalDataContext';
+import { Case, Hearing, useLegalData } from '@/contexts/LegalDataContext';
 import { HearingRecordPopup } from './HearingRecordPopup';
 import { HearingViewPopup } from './HearingViewPopup';
 import { getApiUrl, apiFetch } from '@/lib/api';

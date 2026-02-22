@@ -166,7 +166,7 @@ const Settings = () => {
 
   const validatePhone = (phone: string) => {
     if (!phone.trim()) return true; // Optional field
-    const phoneRegex = /^[\d\s\+\-\(\)]+$/;
+    const phoneRegex = /^[\d\s+\-()]+$/;
     return phoneRegex.test(phone);
   };
 

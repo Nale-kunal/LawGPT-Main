@@ -352,18 +352,14 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
 
   // Client management functions
   const addClient = async (clientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => {
-    try {
-      const res = await apiFetch(getApiUrl('/api/clients'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(clientData) });
-      if (res.ok) {
-        const saved = await res.json();
-        setClients(prev => [...prev, mapClientFromApi(saved)]);
-        return saved;
-      } else {
-        const errorData = await res.json().catch(() => ({ error: 'Failed to create client' }));
-        throw new Error(errorData.error || 'Failed to create client');
-      }
-    } catch (error) {
-      throw error;
+    const res = await apiFetch(getApiUrl('/api/clients'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(clientData) });
+    if (res.ok) {
+      const saved = await res.json();
+      setClients(prev => [...prev, mapClientFromApi(saved)]);
+      return saved;
+    } else {
+      const errorData = await res.json().catch(() => ({ error: 'Failed to create client' }));
+      throw new Error(errorData.error || 'Failed to create client');
     }
   };
 
@@ -498,50 +494,46 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
   };
 
   const updateHearing = async (hearingId: string, updates: Partial<Hearing>) => {
-    try {
-      console.log('[LegalDataContext] updateHearing called with ID:', hearingId);
-      console.log('[LegalDataContext] API URL:', getApiUrl(`/api/hearings/${hearingId}`));
+    console.log('[LegalDataContext] updateHearing called with ID:', hearingId);
+    console.log('[LegalDataContext] API URL:', getApiUrl(`/api/hearings/${hearingId}`));
 
-      const res = await apiFetch(getApiUrl(`/api/hearings/${hearingId}`), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(updates)
-      });
+    const res = await apiFetch(getApiUrl(`/api/hearings/${hearingId}`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(updates)
+    });
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: 'Failed to update hearing' }));
-        console.error('[LegalDataContext] Update failed:', errorData);
-        throw new Error(errorData.error || 'Failed to update hearing');
-      }
-
-      const saved = await res.json();
-      const mappedHearing = mapHearingFromApi(saved);
-
-      // Update hearing in state
-      setHearings(prev => {
-        const hearingIndex = prev.findIndex(h => {
-          const idMatch = h.id === hearingId ||
-            h.id === hearingId.toString() ||
-            h.id === saved._id ||
-            h.id === saved.id;
-          const caseIdMatch = h.caseId === saved.caseId || h.caseId === saved.caseId?.toString();
-          return idMatch || (caseIdMatch && h.hearingDate === saved.hearingDate);
-        });
-
-        if (hearingIndex !== -1) {
-          const updatedHearings = [...prev];
-          updatedHearings[hearingIndex] = mappedHearing;
-          return updatedHearings;
-        } else {
-          return [...prev, mappedHearing];
-        }
-      });
-
-      return saved;
-    } catch (error) {
-      throw error;
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: 'Failed to update hearing' }));
+      console.error('[LegalDataContext] Update failed:', errorData);
+      throw new Error(errorData.error || 'Failed to update hearing');
     }
+
+    const saved = await res.json();
+    const mappedHearing = mapHearingFromApi(saved);
+
+    // Update hearing in state
+    setHearings(prev => {
+      const hearingIndex = prev.findIndex(h => {
+        const idMatch = h.id === hearingId ||
+          h.id === hearingId.toString() ||
+          h.id === saved._id ||
+          h.id === saved.id;
+        const caseIdMatch = h.caseId === saved.caseId || h.caseId === saved.caseId?.toString();
+        return idMatch || (caseIdMatch && h.hearingDate === saved.hearingDate);
+      });
+
+      if (hearingIndex !== -1) {
+        const updatedHearings = [...prev];
+        updatedHearings[hearingIndex] = mappedHearing;
+        return updatedHearings;
+      } else {
+        return [...prev, mappedHearing];
+      }
+    });
+
+    return saved;
   };
 
   const deleteHearing = async (hearingId: string) => {

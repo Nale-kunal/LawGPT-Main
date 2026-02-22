@@ -38,7 +38,7 @@ export const ThemeToggle = () => {
             // Add direction class so CSS knows which way to animate
             document.documentElement.dataset.themeTransition = newTheme === 'dark' ? 'to-dark' : 'to-light';
 
-            // @ts-ignore — TS may not have this type yet
+            // @ts-expect-error — startViewTransition not yet in TS lib types
             const transition = document.startViewTransition(async () => {
                 await setThemeAndSave(newTheme);
             });

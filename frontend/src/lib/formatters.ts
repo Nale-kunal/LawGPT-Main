@@ -162,6 +162,7 @@ export function formatRelativeDate(date: Date | string | number): string {
  * Parse date string based on format
  */
 export function parseDate(dateStr: string, format: DateFormatType = 'DD/MM/YYYY'): Date | null {
+    // eslint-disable-next-line no-useless-escape
     const parts = dateStr.split(/[\/\-]/);
 
     if (parts.length !== 3) {

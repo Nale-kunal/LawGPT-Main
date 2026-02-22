@@ -67,7 +67,7 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
 
       let apiOrigin = '';
       if (apiUrl) {
-        try { apiOrigin = new URL(apiUrl, currentOrigin).origin; } catch (e) { }
+        try { apiOrigin = new URL(apiUrl, currentOrigin).origin; } catch { /* invalid VITE_API_URL — ignore */ }
       }
 
       isSameOrigin = requestOrigin === currentOrigin || (apiOrigin !== '' && requestOrigin === apiOrigin);

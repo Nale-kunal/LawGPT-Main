@@ -128,6 +128,7 @@ function buildUserResponse(userId, profile) {
     id: userId,
     name: profile.name,
     email: profile.email,
+    recoveryEmail: profile.recoveryEmail || null,
     role: profile.role || 'lawyer',
     emailVerified: profile.emailVerified || false,
     onboardingCompleted,
@@ -184,9 +185,14 @@ router.post('/register', validate({ body: registerSchema }), async (req, res) =>
       console.log('📝 Registration attempt for:', normalizedEmail);
     }
 
-    // Check if user already exists (including deleted users)
+    // Check if user already exists (including deleted users) in either email or recoveryEmail
     // Use findOne to get all fields including 'deleted'
-    const existingUser = await User.findOne({ email: normalizedEmail });
+    const existingUser = await User.findOne({
+      $or: [
+        { email: normalizedEmail },
+        { recoveryEmail: normalizedEmail }
+      ]
+    });
 
     if (existingUser) {
       // Check if user was deleted - show dialog to confirm reactivation
@@ -341,14 +347,17 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
       console.log('🔐 Login attempt for:', normalizedEmail);
     }
 
-    // Find user by email
-    let users;
+    // Find users by email or recovery email
+    let matchedUsers;
     try {
-      users = await queryDocuments(MODELS.USERS, [
-        { field: 'email', operator: '==', value: normalizedEmail }
-      ]);
+      matchedUsers = await User.find({
+        $or: [
+          { email: normalizedEmail },
+          { recoveryEmail: normalizedEmail }
+        ]
+      });
       if (process.env.NODE_ENV === 'development') {
-        console.log('👤 Found users:', users.length);
+        console.log(`👤 Found ${matchedUsers.length} user match(es)`);
       }
     } catch (dbError) {
       console.error('❌ Database query error:', dbError.message);
@@ -361,13 +370,10 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
       });
     }
 
-    if (users.length === 0) {
+    if (!matchedUsers || matchedUsers.length === 0) {
       if (process.env.NODE_ENV === 'development') {
-        console.log('❌ No user found with email:', normalizedEmail);
+        console.log('❌ No user found with email or recoveryEmail:', normalizedEmail);
       }
-      // For non-existent users, show generic error
-      // Note: Hard-deleted users (deleted before soft-delete implementation) cannot be detected
-      // Only soft-deleted users (deleted after implementation) will show the deleted account dialog
       await activityEmitter.emit({
         userId: null,
         eventType: 'login_failure',
@@ -377,90 +383,69 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    const user = users[0];
+    let userDoc = null;
+    let isPasswordValid = false;
 
-    // Check if user account has been soft-deleted (support both old and new fields)
-    if (user.status === 'deleted' || user.deleted === true || user.deletedAt) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('❌ User account has been deleted:', normalizedEmail);
+    // Check all matches for a valid password
+    for (const doc of matchedUsers) {
+      // ⚠️ CRITICAL: Check if user account has been soft-deleted BEFORE password verification
+      if (doc.status === 'deleted' || doc.deleted === true || doc.deletedAt) {
+        continue; // Skip deleted documents, try next match
       }
-      return res.status(403).json({
-        success: false,
-        errorCode: 'ACCOUNT_DELETED',
-        message: 'This account was deleted previously.'
-      });
-    }
 
-    // Get full user document to access passwordHash
-    let userDoc;
-    try {
-      userDoc = await User.findById(user.id);
-      if (process.env.NODE_ENV === 'development') {
-        console.log('📄 User document found:', !!userDoc);
+      try {
+        const isValid = await doc.verifyPassword(password);
+        if (isValid) {
+          userDoc = doc;
+          isPasswordValid = true;
+          break; // Stop at the first valid active credential pair
+        }
+      } catch (verifyError) {
+        // Log individual verification errors but keep searching
+        console.error(`Verification error for candidate ${doc._id}:`, verifyError.message);
       }
-    } catch (findError) {
-      console.error('❌ Error finding user document:', findError.message);
-      if (process.env.NODE_ENV === 'development') {
-        console.error('📋 Find error details:', findError);
-      }
-      return res.status(500).json({
-        error: 'Error retrieving user data. Please try again.',
-        ...(process.env.NODE_ENV === 'development' && { details: findError.message })
-      });
     }
 
     if (!userDoc) {
-      console.error('❌ User document not found for ID:', user.id);
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
+      // Verify if ALL candidate users were soft-deleted
+      const allDeleted = matchedUsers.every(doc => doc.status === 'deleted' || doc.deleted === true || doc.deletedAt);
 
-    // ⚠️ CRITICAL: Check if user account has been soft-deleted BEFORE password verification
-    // Deleted users may have passwordHash set to null in old implementation, so password check would fail
-    if (userDoc.status === 'deleted' || userDoc.deleted === true || userDoc.deletedAt) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('❌ User account has been deleted:', normalizedEmail);
+      if (allDeleted) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('❌ All matching user accounts have been deleted');
+        }
+        return res.status(403).json({
+          success: false,
+          errorCode: 'ACCOUNT_DELETED',
+          message: 'This account was deleted previously.'
+        });
       }
-      return res.status(403).json({
-        success: false,
-        errorCode: 'ACCOUNT_DELETED',
-        message: 'This account was deleted previously.'
-      });
-    }
 
-    // Verify password
-    let isPasswordValid;
-    try {
-      isPasswordValid = await userDoc.verifyPassword(password);
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔑 Password valid:', isPasswordValid);
-      }
-    } catch (verifyError) {
-      console.error('❌ Password verification error:', verifyError.message);
-      if (process.env.NODE_ENV === 'development') {
-        console.error('📋 Verify error details:', verifyError);
-      }
-      return res.status(500).json({
-        error: 'Error verifying password. Please try again.',
-        ...(process.env.NODE_ENV === 'development' && { details: verifyError.message })
-      });
-    }
-
-    if (!isPasswordValid) {
+      // Otherwise, the password(s) didn't match any active accounts
       if (process.env.NODE_ENV === 'development') {
         console.log('❌ Invalid password for user:', normalizedEmail);
       }
 
-      const { recordAbuseSignal } = await import('../middleware/abuseDetection.js');
-      await recordAbuseSignal(userDoc, 'failed_login', {}, req);
+      // Record abuse signal against the first non-deleted candidate as best-effort tracking
+      const attemptTarget = matchedUsers.find(doc => !(doc.status === 'deleted' || doc.deleted === true || doc.deletedAt));
+      if (attemptTarget) {
+        const { recordAbuseSignal } = await import('../middleware/abuseDetection.js');
+        await recordAbuseSignal(attemptTarget, 'failed_login', {}, req);
 
-      await activityEmitter.emit({
-        userId: user.id,
-        eventType: 'login_failure',
-        req,
-        metadata: { reason: 'invalid_password' }
-      });
+        await activityEmitter.emit({
+          userId: attemptTarget._id.toString(),
+          eventType: 'login_failure',
+          req,
+          metadata: { reason: 'invalid_password' }
+        });
+      }
+
       return res.status(401).json({ error: 'Invalid email or password' });
     }
+
+    // Since we're replacing the previous lean() query, let's map it back to a plain object
+    const user = userDoc.toObject();
+    user.id = userDoc._id.toString();
 
     // Generate JWT
     const token = generateJWT(user.id, user.email, user.role);
@@ -722,17 +707,21 @@ router.post('/forgot-password', validate({ body: forgotPasswordSchema }), async 
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Find user
-    const users = await queryDocuments(MODELS.USERS, [
-      { field: 'email', operator: '==', value: normalizedEmail }
-    ]);
+    // Find user by primary email or recovery email
+    const user = await User.findOne({
+      $or: [
+        { email: normalizedEmail },
+        { recoveryEmail: normalizedEmail }
+      ]
+    }).lean();
 
     // Always return success even if user doesn't exist (security best practice)
-    if (users.length === 0) {
+    if (!user) {
       return res.json({ message: 'If that email exists, a password reset link has been sent' });
     }
 
-    const user = users[0];
+    // Set id for consistency
+    user.id = user._id.toString();
 
     // Generate reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
@@ -747,11 +736,11 @@ router.post('/forgot-password', validate({ body: forgotPasswordSchema }), async 
       expiresAt
     });
 
-    // Send email (implement this based on your email service)
+    // Send email to the PRIMARY email ALWAYS (never to recovery email)
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/reset-password?token=${resetToken}`;
 
     try {
-      await sendPasswordResetEmail({ to: normalizedEmail, resetUrl });
+      await sendPasswordResetEmail({ to: user.email, resetUrl });
     } catch (emailError) {
       console.error('Failed to send password reset email:', emailError);
       // Continue anyway - token is stored
@@ -830,9 +819,9 @@ router.post('/reset-password', validate({ body: resetPasswordSchema }), async (r
 router.put('/me', requireAuth, async (req, res) => {
   console.log('🔥🔥🔥 PUT /me ENDPOINT HIT 🔥🔥🔥');
   try {
-    const { name, profile, notifications, preferences, security } = req.body;
+    const { name, recoveryEmail, profile, notifications, preferences, security } = req.body;
 
-    console.log('📝 PUT /api/auth/me - Received:', JSON.stringify({ name, profile }, null, 2));
+    console.log('📝 PUT /api/auth/me - Received:', JSON.stringify({ name, recoveryEmail, profile }, null, 2));
 
     // Get current user
     const user = await User.findById(req.user.userId);
@@ -847,6 +836,43 @@ router.put('/me', requireAuth, async (req, res) => {
     // Update display name if provided
     if (name !== undefined) {
       updateFields.name = name.trim();
+    }
+
+    // Process recovery email update
+    if (recoveryEmail !== undefined) {
+      let normalizedRecoveryEmail = null;
+
+      if (recoveryEmail?.trim()) {
+        normalizedRecoveryEmail = recoveryEmail.toLowerCase().trim();
+
+        if (normalizedRecoveryEmail === user.email.toLowerCase()) {
+          return res.status(400).json({ error: 'Recovery email cannot be the same as your primary email' });
+        }
+
+        const existingEmailConflict = await User.findOne({
+          $or: [
+            { email: normalizedRecoveryEmail },
+            { recoveryEmail: normalizedRecoveryEmail }
+          ],
+          $and: [
+            { status: { $ne: 'deleted' } },
+            { deleted: { $ne: true } }
+          ]
+        });
+
+        if (existingEmailConflict && existingEmailConflict._id.toString() !== req.user.userId) {
+          return res.status(409).json({
+            errorCode: 'EMAIL_EXISTS',
+            error: 'This recovery email is already in use by another account.'
+          });
+        }
+      }
+
+      if (normalizedRecoveryEmail) {
+        updateFields.recoveryEmail = normalizedRecoveryEmail;
+      } else {
+        updateFields.$unset = { recoveryEmail: 1 };
+      }
     }
 
     // Update editable profile fields (NOT immutable: fullName, barCouncilNumber, currency)
@@ -892,6 +918,20 @@ router.put('/me', requireAuth, async (req, res) => {
 
     const response = buildUserResponse(updatedUser._id.toString(), updatedUser);
     console.log('✅ Profile updated. New profile:', JSON.stringify(response.profile, null, 2));
+
+    // Emit activity event if recovery email was added/changed/removed
+    if (recoveryEmail !== undefined && recoveryEmail !== user.recoveryEmail) {
+      await activityEmitter.emit({
+        userId: req.user.userId,
+        eventType: 'profile_update',
+        req,
+        metadata: {
+          action: 'recovery_email_changed',
+          oldValue: user.recoveryEmail || null,
+          newValue: updateFields.recoveryEmail || null
+        }
+      });
+    }
 
     res.json({
       user: response,
@@ -1109,6 +1149,7 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
       practiceAreas,
       courtLevels,
       phoneNumber,
+      recoveryEmail,
       address,
       city,
       state,
@@ -1157,6 +1198,36 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
       });
     }
 
+    // Process and validate optional recoveryEmail
+    let normalizedRecoveryEmail = null;
+    if (recoveryEmail?.trim()) {
+      normalizedRecoveryEmail = recoveryEmail.toLowerCase().trim();
+
+      // Must not match user's own primary email
+      if (normalizedRecoveryEmail === user.email.toLowerCase()) {
+        return res.status(400).json({ error: 'Recovery email cannot be the same as your primary email' });
+      }
+
+      // Must be unique across active users (either in email or recoveryEmail fields)
+      const existingEmailConflict = await User.findOne({
+        $or: [
+          { email: normalizedRecoveryEmail },
+          { recoveryEmail: normalizedRecoveryEmail }
+        ],
+        $and: [
+          { status: { $ne: 'deleted' } },
+          { deleted: { $ne: true } }
+        ]
+      });
+
+      if (existingEmailConflict && existingEmailConflict._id.toString() !== req.user.userId) {
+        return res.status(409).json({
+          errorCode: 'EMAIL_EXISTS',
+          error: 'This email is already in use by another account.'
+        });
+      }
+    }
+
     // Validate immutable fields - Currency
     if (!currency || !currencyConfirm) {
       return res.status(400).json({ error: 'Currency is required' });
@@ -1185,6 +1256,9 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
     if (phoneNumber?.trim()) {
       auditEntries.push({ fieldName: 'phoneNumber', value: phoneNumber.trim(), enteredAt: now });
     }
+    if (normalizedRecoveryEmail) {
+      auditEntries.push({ fieldName: 'recoveryEmail', value: normalizedRecoveryEmail, enteredAt: now });
+    }
     if (lawFirmName?.trim()) {
       auditEntries.push({ fieldName: 'lawFirmName', value: lawFirmName.trim(), enteredAt: now });
     }
@@ -1210,33 +1284,40 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
       auditEntries.push({ fieldName: 'timezone', value: timezone, enteredAt: now });
     }
 
+    const updateQuery = {
+      $set: {
+        onboardingCompleted: true,
+        immutableFieldsLocked: true,
+        'profile.fullName': fullName.trim(),
+        'profile.barCouncilNumber': barCouncilNumber.trim(),
+        'profile.currency': currency,
+        'profile.phoneNumber': phoneNumber?.trim() || null,
+        'profile.lawFirmName': lawFirmName?.trim() || null,
+        'profile.practiceAreas': practiceAreas || [],
+        'profile.courtLevels': courtLevels || [],
+        'profile.address': address?.trim() || null,
+        'profile.city': city?.trim() || null,
+        'profile.state': state?.trim() || null,
+        'profile.country': country?.trim() || null,
+        'profile.timezone': timezone || 'Asia/Kolkata',
+        'preferences.timezone': timezone || 'Asia/Kolkata',
+        'preferences.currency': currency,
+      },
+      $push: {
+        onboardingDataAudit: { $each: auditEntries }
+      }
+    };
+
+    if (normalizedRecoveryEmail) {
+      updateQuery.$set.recoveryEmail = normalizedRecoveryEmail;
+    } else {
+      updateQuery.$unset = { recoveryEmail: 1 };
+    }
+
     // Perform atomic update using Mongoose directly for better control
     const updatedUser = await User.findByIdAndUpdate(
       req.user.userId,
-      {
-        $set: {
-          onboardingCompleted: true,
-          immutableFieldsLocked: true,
-          'profile.fullName': fullName.trim(),
-          'profile.barCouncilNumber': barCouncilNumber.trim(),
-          'profile.currency': currency,
-          'profile.phoneNumber': phoneNumber?.trim() || null,
-          'profile.lawFirmName': lawFirmName?.trim() || null,
-          'profile.practiceAreas': practiceAreas || [],
-          'profile.courtLevels': courtLevels || [],
-          'profile.address': address?.trim() || null,
-          'profile.city': city?.trim() || null,
-          'profile.state': state?.trim() || null,
-          'profile.country': country?.trim() || null,
-          'profile.timezone': timezone || 'Asia/Kolkata',
-          // Also save to preferences so Settings page and app-wide context reflect it
-          'preferences.timezone': timezone || 'Asia/Kolkata',
-          'preferences.currency': currency,
-        },
-        $push: {
-          onboardingDataAudit: { $each: auditEntries }
-        }
-      },
+      updateQuery,
       { new: true, runValidators: true }
     );
 

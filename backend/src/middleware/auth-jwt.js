@@ -97,7 +97,7 @@ export async function requireAuth(req, res, next) {
         const userProfile = await getDocumentById(MODELS.USERS, decodedToken.userId);
 
         if (!userProfile) {
-            console.error('User profile not found for userId:', decodedToken.userId);
+            console.error('User profile not found for userId:', decodedToken.userId, '- returning 401');
             res.clearCookie('token', {
                 httpOnly: true,
                 sameSite: 'lax',

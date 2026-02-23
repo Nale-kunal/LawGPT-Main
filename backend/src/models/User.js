@@ -5,6 +5,20 @@ const userSchema = new mongoose.Schema({
   // Basic info
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true, lowercase: true },
+  recoveryEmail: {
+    type: String,
+    unique: true,
+    sparse: true,
+    lowercase: true,
+    trim: true,
+    validate: {
+      validator: function (value) {
+        if (!value) return true; // sparse index implies optional
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+      },
+      message: "Invalid email format"
+    }
+  },
   passwordHash: { type: String, required: true },
   role: { type: String, enum: ['lawyer', 'assistant', 'admin'], default: 'lawyer' },
 

@@ -31,6 +31,7 @@ interface FormData {
 
     // Step 4: Contact Information
     phoneNumber: string;
+    recoveryEmail: string;
     address: string;
     city: string;
     state: string;
@@ -75,6 +76,7 @@ const Onboarding = () => {
         practiceAreas: [],
         courtLevels: [],
         phoneNumber: '',
+        recoveryEmail: '',
         address: '',
         city: '',
         state: '',
@@ -129,6 +131,28 @@ const Onboarding = () => {
     const handleNext = () => {
         if (currentStep === 1 && !validateStep1()) return;
         if (currentStep === 2 && !validateStep2()) return;
+        if (currentStep === 4) {
+            // Optional recovery email validation
+            if (formData.recoveryEmail && user?.email) {
+                if (formData.recoveryEmail.trim().toLowerCase() === user.email.trim().toLowerCase()) {
+                    toast({
+                        title: 'Invalid Recovery Email',
+                        description: 'Recovery email cannot be the same as your primary email address.',
+                        variant: 'destructive'
+                    });
+                    return;
+                }
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(formData.recoveryEmail)) {
+                    toast({
+                        title: 'Invalid Email Format',
+                        description: 'Please enter a valid email address structure.',
+                        variant: 'destructive'
+                    });
+                    return;
+                }
+            }
+        }
         setCurrentStep(prev => prev + 1);
     };
 
@@ -473,6 +497,17 @@ const Onboarding = () => {
                                 </div>
 
                                 <div>
+                                    <Label htmlFor="recoveryEmail">Recovery Email (Optional)</Label>
+                                    <Input
+                                        id="recoveryEmail"
+                                        type="email"
+                                        value={formData.recoveryEmail}
+                                        onChange={(e) => updateField('recoveryEmail', e.target.value)}
+                                        placeholder="backup@email.com"
+                                    />
+                                </div>
+
+                                <div>
                                     <Label htmlFor="address">Address</Label>
                                     <Input
                                         id="address"
@@ -602,13 +637,19 @@ const Onboarding = () => {
                                     </div>
                                 )}
 
-                                {(formData.phoneNumber || formData.address || formData.city) && (
+                                {(formData.phoneNumber || formData.recoveryEmail || formData.address || formData.city) && (
                                     <div>
                                         <h3 className="font-semibold mb-2">Contact Information</h3>
                                         {formData.phoneNumber && (
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Phone</p>
                                                 <p className="font-medium">{formData.phoneNumber}</p>
+                                            </div>
+                                        )}
+                                        {formData.recoveryEmail && (
+                                            <div className="mt-2">
+                                                <p className="text-sm text-muted-foreground">Recovery Email</p>
+                                                <p className="font-medium">{formData.recoveryEmail}</p>
                                             </div>
                                         )}
                                         {formData.address && (

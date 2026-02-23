@@ -91,6 +91,7 @@ const Settings = () => {
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
+    recoveryEmail: '',
     fullName: '',
     barCouncilNumber: '',
     lawFirmName: '',
@@ -118,6 +119,7 @@ const Settings = () => {
     setProfileData({
       name: user.name || '',
       email: user.email || '',
+      recoveryEmail: user.recoveryEmail || '',
       fullName: user.profile?.fullName || '',
       barCouncilNumber: user.profile?.barCouncilNumber || '',
       lawFirmName: user.profile?.lawFirmName || '',
@@ -192,6 +194,7 @@ const Settings = () => {
         setProfileData(prev => ({
           ...prev,
           name: data.user.name || prev.name,
+          recoveryEmail: data.user.recoveryEmail !== undefined ? data.user.recoveryEmail : prev.recoveryEmail,
           lawFirmName: data.user.profile?.lawFirmName || prev.lawFirmName,
           practiceAreas: data.user.profile?.practiceAreas || prev.practiceAreas,
           courtLevels: data.user.profile?.courtLevels || prev.courtLevels,
@@ -231,6 +234,26 @@ const Settings = () => {
       return;
     }
 
+    // Validate recovery email
+    if (profileData.recoveryEmail) {
+      if (profileData.recoveryEmail.trim().toLowerCase() === profileData.email.trim().toLowerCase()) {
+        toast({
+          title: 'Invalid recovery email',
+          description: 'Recovery email cannot be the same as your primary email',
+          variant: 'destructive'
+        });
+        return;
+      }
+      if (!validateEmail(profileData.recoveryEmail)) {
+        toast({
+          title: 'Invalid recovery email',
+          description: 'Please enter a valid recovery email address',
+          variant: 'destructive'
+        });
+        return;
+      }
+    }
+
     // Validate phone
     if (profileData.phoneNumber && !validatePhone(profileData.phoneNumber)) {
       toast({
@@ -253,6 +276,7 @@ const Settings = () => {
 
     saveSettings({
       name: profileData.name.trim(),
+      recoveryEmail: profileData.recoveryEmail.trim(),
       profile: {
         lawFirmName: profileData.lawFirmName.trim(),
         practiceAreas: profileData.practiceAreas,
@@ -511,16 +535,23 @@ const Settings = () => {
               <Input id="name" value={profileData.name} onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))} placeholder="Your display name" disabled={isSavingProfile} className="h-7 text-xs mt-0.5" />
             </div>
             <div>
-              <Label htmlFor="email" className="text-xs">Email Address</Label>
+              <Label htmlFor="email" className="text-xs">Primary Email Address</Label>
               <Input id="email" type="email" value={profileData.email} disabled placeholder="your@email.com" className="bg-muted h-7 text-xs mt-0.5" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
+              <Label htmlFor="recoveryEmail" className="text-xs">Recovery Email (Optional)</Label>
+              <Input id="recoveryEmail" type="email" value={profileData.recoveryEmail} onChange={(e) => setProfileData(prev => ({ ...prev, recoveryEmail: e.target.value }))} placeholder="backup@email.com" disabled={isSavingProfile} className="h-7 text-xs mt-0.5" />
+            </div>
+            <div>
               <Label htmlFor="phoneNumber" className="text-xs">Phone Number</Label>
               <Input id="phoneNumber" value={profileData.phoneNumber} onChange={(e) => setProfileData(prev => ({ ...prev, phoneNumber: e.target.value }))} placeholder="+91 98765 43210" disabled={isSavingProfile} className="h-7 text-xs mt-0.5" />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
             <div>
               <Label htmlFor="lawFirmName" className="text-xs">Law Firm/Organization</Label>
               <Input id="lawFirmName" value={profileData.lawFirmName} onChange={(e) => setProfileData(prev => ({ ...prev, lawFirmName: e.target.value }))} placeholder="Your law firm name" disabled={isSavingProfile} className="h-7 text-xs mt-0.5" />

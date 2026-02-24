@@ -24,6 +24,7 @@ const Billing = React.lazy(() => import("./pages/Billing"));
 const Documents = React.lazy(() => import("./pages/Documents"));
 const Settings = React.lazy(() => import("./pages/Settings"));
 const News = React.lazy(() => import("./pages/News"));
+const Notes = React.lazy(() => import("./pages/Notes"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const ForgotPassword = React.lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = React.lazy(() => import("./pages/ResetPassword"));
@@ -94,6 +95,7 @@ const App = () => (
                       <Route path="documents" element={<Documents />} />
                       <Route path="settings" element={<Settings />} />
                       <Route path="news" element={<News />} />
+                      <Route path="notes" element={<Notes />} />
                     </Route>
 
                     {/* Catch All */}

@@ -28,6 +28,7 @@ import logger from './src/utils/logger.js';
 
 import authRoutes from './src/routes/auth-jwt.js';
 import caseRoutes from './src/routes/cases.js';
+import caseNotesRoutes from './src/routes/caseNotes.js';
 import clientRoutes from './src/routes/clients.js';
 import alertRoutes from './src/routes/alerts.js';
 import timeEntryRoutes from './src/routes/timeEntries.js';
@@ -298,18 +299,9 @@ app.get('/api/v1/metrics', async (_req, res) => {
 app.get('/api/v1/auth/csrf-token', setCsrfToken);
 app.get('/api/auth/csrf-token', setCsrfToken);
 
-// ─── Strict Auth Rate Limiters (applied before route handlers) ────────────────
-['login', 'register', 'forgot-password'].forEach(route => {
-  app.use(`/api/v1/auth/${route}`, authLimiter);
-  app.use(`/api/auth/${route}`, authLimiter);
-});
-
-// Upload limiter applied to document upload routes
-app.use('/api/v1/documents', uploadLimiter);
-app.use('/api/documents', uploadLimiter);
-
 // ─── API v1 Routes ────────────────────────────────────────────────────────────
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/cases/:caseId/notes', caseNotesRoutes);
 app.use('/api/v1/cases', caseRoutes);
 app.use('/api/v1/clients', clientRoutes);
 app.use('/api/v1/alerts', alertRoutes);
@@ -327,6 +319,7 @@ app.use('/api/news', newsRoutes);
 // ─── Backward Compatibility /api/* → /api/v1/* (90-day window) ───────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/cases', caseRoutes);
+app.use('/api/cases/:caseId/notes', caseNotesRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/time-entries', timeEntryRoutes);

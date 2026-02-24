@@ -547,7 +547,9 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
 
   const getHearingsByCaseId = (caseId: string) => {
     return hearings.filter(h => {
-      return h.caseId === caseId || h.caseId === caseId.toString();
+      // Handle cases where caseId might be populated as an object or just a string ID
+      const hCaseId = typeof h.caseId === 'object' && h.caseId !== null ? (h.caseId as any)._id || (h.caseId as any).id : h.caseId;
+      return hCaseId === caseId || hCaseId === caseId.toString();
     });
   };
 

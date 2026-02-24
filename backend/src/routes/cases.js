@@ -19,6 +19,8 @@ const router = express.Router();
 
 router.use(requireAuth);
 
+// API Routes
+
 router.get('/', async (req, res) => {
   try {
     const cases = await queryDocuments(

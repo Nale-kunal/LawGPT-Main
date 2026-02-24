@@ -24,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { CaseConflictChecker } from '@/components/CaseConflictChecker';
 import { CaseSummaryGenerator } from '@/components/CaseSummaryGenerator';
 import { CaseDetailsPopup } from '@/components/CaseDetailsPopup';
+import { CaseNotesPanel } from '@/components/CaseNotesPanel';
 import { useToast } from '@/hooks/use-toast';
 import { useFormAutoSave } from '@/hooks/useFormAutoSave';
 import { useFormatting } from '@/contexts/FormattingContext';
@@ -43,7 +44,7 @@ const COURT_OPTIONS = [
 ];
 
 const Cases = () => {
-  const { cases, clients, addCase, updateCase, deleteCase, addClient } = useLegalData();
+  const { cases, clients, addCase, updateCase, deleteCase, addClient, getHearingsByCaseId } = useLegalData();
   const { formatDateShort } = useFormatting();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -52,6 +53,8 @@ const Cases = () => {
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
   const [showCaseDetails, setShowCaseDetails] = useState(false);
   const [caseForDetails, setCaseForDetails] = useState<Case | null>(null);
+  const [showNotesPanel, setShowNotesPanel] = useState(false);
+  const [caseForNotes, setCaseForNotes] = useState<Case | null>(null);
   const { toast } = useToast();
   const [clientSelection, setClientSelection] = useState<{ mode: 'existing' | 'custom'; clientId?: string }>({ mode: 'custom' });
   const [courtSelectValue, setCourtSelectValue] = useState('');
@@ -735,6 +738,18 @@ const Cases = () => {
                   className="h-6 text-[10px] px-2 border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
                   onClick={(e) => {
                     e.stopPropagation();
+                    setCaseForNotes(case_);
+                    setShowNotesPanel(true);
+                  }}
+                >
+                  Notes
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 text-[10px] px-2 border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setSelectedCase(case_);
                     setFormData({
                       caseNumber: case_.caseNumber,
@@ -838,6 +853,19 @@ const Cases = () => {
           setCaseForDetails(null);
         }}
       />
+
+      {/* Case Notes Panel */}
+      {caseForNotes && (
+        <CaseNotesPanel
+          isOpen={showNotesPanel}
+          onClose={() => {
+            setShowNotesPanel(false);
+            setCaseForNotes(null);
+          }}
+          caseId={caseForNotes.id}
+          hearings={getHearingsByCaseId(caseForNotes.id)}
+        />
+      )}
     </div>
   );
 };

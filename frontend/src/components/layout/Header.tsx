@@ -44,7 +44,7 @@ export const Header = () => {
   return (
     <header
       className={`
-        sticky top-0 z-[10000] flex items-center justify-between px-2 md:px-4 py-2
+        sticky top-0 z-[40] flex items-center justify-between px-2 md:px-4 py-2
         border-b will-change-auto
         transition-[background-color,border-color,box-shadow,backdrop-filter] duration-150 ease-out
         ${scrolled

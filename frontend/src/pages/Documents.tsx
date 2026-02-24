@@ -24,8 +24,10 @@ import {
   ArrowLeft,
   Home,
   ChevronRight,
+  MessageSquare
 } from 'lucide-react';
 import { useLegalData } from '@/contexts/LegalDataContext';
+import { CaseNotesPanel } from '@/components/CaseNotesPanel';
 import { getApiUrl, apiFetch } from '@/lib/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -79,6 +81,10 @@ const Documents = () => {
   const [selectedFile, setSelectedFile] = useState<ApiFile | null>(null);
   const [showFileDetailsDialog, setShowFileDetailsDialog] = useState(false);
   const [folderToDelete, setFolderToDelete] = useState<ApiFolder | null>(null); // For delete confirmation
+  const [showNotesPanel, setShowNotesPanel] = useState(false);
+
+  const currentFolder = useMemo(() => folders.find(f => f._id === currentFolderId), [folders, currentFolderId]);
+  const activeCase = useMemo(() => cases.find(c => c.id === currentFolder?.caseId), [cases, currentFolder]);
 
   // Auto-save folder name
   const { clearSavedData: clearFolderDraft, getSavedData: getFolderDraft } = useFormAutoSave(
@@ -580,6 +586,17 @@ const Documents = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {activeCase && (
+            <Button
+              onClick={() => setShowNotesPanel(true)}
+              variant="outline"
+              className="h-8 text-xs border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
+            >
+              <MessageSquare className="mr-2 h-3.5 w-3.5" />
+              Case Notes
+            </Button>
+          )}
 
           <Button onClick={handleFileUpload} disabled={isLoading} className="h-8 text-xs border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
             <Upload className="mr-2 h-3.5 w-3.5" />
@@ -1130,6 +1147,16 @@ const Documents = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Case Notes Panel */}
+      {activeCase && (
+        <CaseNotesPanel
+          isOpen={showNotesPanel}
+          onClose={() => setShowNotesPanel(false)}
+          caseId={activeCase.id}
+          hearings={[]}
+        />
+      )}
     </div>
   );
 };

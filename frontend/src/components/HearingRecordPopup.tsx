@@ -20,10 +20,12 @@ import {
   Users,
   CheckCircle,
   AlertTriangle,
-  Edit
+  Edit,
+  MessageSquare
 } from 'lucide-react';
 import { Case, Hearing, useLegalData } from '@/contexts/LegalDataContext';
 import { useToast } from '@/hooks/use-toast';
+import { CaseNotesPanel } from '@/components/CaseNotesPanel';
 
 interface HearingRecordPopupProps {
   case_: Case | null;
@@ -51,6 +53,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
   const { addHearing, updateHearing, deleteHearing } = useLegalData();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showNotesPanel, setShowNotesPanel] = useState(false);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -705,8 +708,20 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
 
           {/* Notes */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg">Additional Notes</CardTitle>
+              {case_ && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNotesPanel(true)}
+                  className="h-8 text-xs border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
+                >
+                  <MessageSquare className="mr-2 h-3.5 w-3.5" />
+                  Open Threaded Notes
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               <Textarea
@@ -744,6 +759,17 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {/* Case Notes Panel */}
+      {case_ && (
+        <CaseNotesPanel
+          isOpen={showNotesPanel}
+          onClose={() => setShowNotesPanel(false)}
+          caseId={case_.id}
+          hearings={hearing ? [hearing] : []}
+          defaultHearingId={hearing?.id}
+        />
+      )}
     </Dialog>
   );
 };

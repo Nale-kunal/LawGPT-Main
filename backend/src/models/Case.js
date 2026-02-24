@@ -15,6 +15,7 @@ const caseSchema = new mongoose.Schema({
   nextHearing: { type: Date },
   notes: { type: String },
   alerts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Alert' }],
+  caseNotes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'CaseNote' }],
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
 }, { timestamps: true });
 

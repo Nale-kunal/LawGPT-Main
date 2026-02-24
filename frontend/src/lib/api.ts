@@ -111,6 +111,7 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
   // We skip intercepting 401s on the explicitly auth endpoints so refresh logic can handle it gracefully.
   const isAuthEndpoint = url.includes('/api/v1/auth/') || url.includes('/api/auth/');
   if (response.status === 401 && !isAuthEndpoint) {
+    console.warn('API 401 Unauthorized encountered:', { url, method, isMutating });
     // Dispatch centralized auth event for any listeners
     window.dispatchEvent(new CustomEvent('auth:unauthorized'));
   }

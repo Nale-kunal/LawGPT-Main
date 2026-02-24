@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Draggable from 'react-draggable';
+import { useNavigate } from 'react-router-dom';
 import { getApiUrl, apiFetch, apiRequest } from '@/lib/api';
 import { formatDistanceToNow, format } from 'date-fns';
 import {
@@ -541,6 +542,7 @@ export const CaseNotesPanel = ({
 
     const { user } = useAuth();
     const { toast } = useToast();
+    const navigate = useNavigate();
     const nodeRef = React.useRef<HTMLDivElement>(null);
 
     const fetchNotes = async () => {
@@ -747,8 +749,8 @@ export const CaseNotesPanel = ({
                             <Minus className="w-3 h-3" />
                         </Button>
                         {!inline && (
-                            <Button variant="ghost" size="icon" onClick={() => { setIsFullscreen(!isFullscreen); setIsMinimized(false); }} className="rounded-full h-5 w-5" title={isFullscreen ? 'Restore' : 'Fullscreen'}>
-                                {isFullscreen ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+                            <Button variant="ghost" size="icon" onClick={() => { navigate('/dashboard/notes'); if (onClose) onClose(); }} className="rounded-full h-5 w-5" title="Open Fullscreen Dashboard">
+                                <Maximize2 className="w-3 h-3" />
                             </Button>
                         )}
                         <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full h-5 w-5" title="Close">

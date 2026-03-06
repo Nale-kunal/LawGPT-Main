@@ -42,7 +42,7 @@ const NotesPage = () => {
                         <SelectTrigger className="w-[260px] h-8 text-xs bg-background/50 border-border/60">
                             <SelectValue placeholder="Select a case to begin" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-h-[200px]">
                             {cases.map(c => (
                                 <SelectItem key={c.id} value={c.id}>
                                     <span className="font-semibold text-xs">{c.caseNumber}</span>

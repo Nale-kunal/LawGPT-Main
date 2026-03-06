@@ -183,7 +183,8 @@ router.put('/:noteId', async (req, res) => {
             return res.status(403).json({ error: 'Unauthorized to edit this note' });
         }
 
-        let { title, content, evidenceTags, isPinned } = req.body;
+        let { title, content, evidenceTags, isPinned, noteType, hearingId, isPrivate } = req.body;
+        console.log(`[CaseNotes] Updating note ${noteId}. Incoming data:`, { title, noteType, hearingId, isPrivate });
 
         if (content !== undefined) {
             if (!content.trim()) return res.status(400).json({ error: 'Content cannot be empty' });
@@ -199,9 +200,19 @@ router.put('/:noteId', async (req, res) => {
 
         if (isPinned !== undefined) note.isPinned = !!isPinned;
 
+        if (noteType !== undefined) {
+            console.log(`[CaseNotes] Updating noteType. Received: "${noteType}"`);
+            note.noteType = noteType || 'general';
+        }
+
+        if (hearingId !== undefined) note.hearingId = hearingId === 'none' ? null : hearingId;
+
+        if (isPrivate !== undefined) note.isPrivate = !!isPrivate;
+
         note.editedAt = Date.now();
 
         const updatedNote = await note.save();
+        console.log(`[CaseNotes] Note ${noteId} saved successfully. New type: ${updatedNote.noteType}`);
 
         await logActivity(
             req.user.userId,

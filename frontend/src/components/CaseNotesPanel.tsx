@@ -72,6 +72,18 @@ const findNoteByIdRecursive = (items: Note[], id: string): Note | undefined => {
     return undefined;
 };
 
+const updateNoteInList = (notes: Note[], updatedNote: Note): Note[] => {
+    return notes.map(note => {
+        if (note._id === updatedNote._id) {
+            return { ...note, ...updatedNote };
+        }
+        if (note.replies && note.replies.length > 0) {
+            return { ...note, replies: updateNoteInList(note.replies, updatedNote) };
+        }
+        return note;
+    });
+};
+
 const authorName = (authorId: Note['authorId']): string =>
     typeof authorId === 'object' && authorId !== null ? authorId.name : 'Unknown User';
 
@@ -439,8 +451,8 @@ const NoteDetailModal = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
-            <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-                <DialogHeader className="pb-3 border-b">
+            <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
+                <DialogHeader className="px-6 py-4 border-b">
                     <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
                             {note.title && <DialogTitle className="text-base font-semibold">{note.title}</DialogTitle>}
@@ -458,8 +470,8 @@ const NoteDetailModal = ({
                     </div>
                 </DialogHeader>
 
-                <ScrollArea className="flex-1 mt-3">
-                    <div className="pr-2 space-y-4">
+                <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4">
+                    <div className="space-y-4">
                         <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground">{note.content}</p>
 
                         {(note.evidenceTags?.length > 0 || (note.attachments && note.attachments.length > 0)) && (
@@ -516,9 +528,9 @@ const NoteDetailModal = ({
                             </div>
                         )}
                     </div>
-                </ScrollArea>
+                </div>
 
-                <DialogFooter className="border-t pt-3 mt-3 flex justify-between items-center">
+                <DialogFooter className="border-t p-6 flex justify-between items-center bg-muted/10">
                     <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={() => { onReply(note); onClose(); }}>
                             <MessageSquare size={13} className="mr-1" /> Reply
@@ -617,6 +629,11 @@ const AddNoteModal = ({
         e.preventDefault();
         if (!content.trim()) return;
         setIsSubmitting(true);
+        console.log('[AddNoteModal] Submitting note data:', {
+            title: title.trim(),
+            noteType,
+            hearingId
+        });
         try {
             await onSubmit({
                 title: title.trim(),
@@ -629,7 +646,8 @@ const AddNoteModal = ({
                 parentNoteId: parentNote?._id
             });
             onClose();
-        } catch {
+        } catch (error) {
+            console.error('[AddNoteModal] Save error:', error);
             toast({ title: 'Error', description: 'Failed to save note', variant: 'destructive' });
         } finally {
             setIsSubmitting(false);
@@ -638,9 +656,9 @@ const AddNoteModal = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
-            <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle className="text-base">
+            <DialogContent className="max-w-2xl h-[min(900px,95vh)] flex flex-col p-0 overflow-hidden">
+                <DialogHeader className="px-6 py-4 border-b shrink-0">
+                    <DialogTitle className="text-base font-bold">
                         {initialData ? 'Edit Note' : parentNote ? 'Reply to Note' : 'New Case Note'}
                     </DialogTitle>
                     <DialogDescription className="sr-only">
@@ -648,107 +666,115 @@ const AddNoteModal = ({
                     </DialogDescription>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-4 py-3">
-                    {parentNote && (
-                        <div className="bg-muted/30 border border-dashed border-border/60 rounded-md p-3 text-sm italic text-muted-foreground">
-                            <p className="text-[10px] font-semibold uppercase tracking-widest mb-1 not-italic text-muted-foreground/70">Replying to:</p>
-                            "{parentNote.content.substring(0, 120)}{parentNote.content.length > 120 ? '…' : ''}"
-                        </div>
-                    )}
+                <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden bg-background min-h-0">
+                    <div className="flex-1 overflow-y-auto px-6 py-6 min-h-0">
+                        <div className="space-y-5 pb-8">
+                            {parentNote && (
+                                <div className="bg-muted/40 border border-border/40 rounded-lg p-3 text-sm italic text-muted-foreground shadow-sm">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest mb-2 not-italic text-primary/70">Replying to:</p>
+                                    <div className="border-l-2 border-primary/30 pl-3">
+                                        "{parentNote.content.substring(0, 240)}{parentNote.content.length > 240 ? '…' : ''}"
+                                    </div>
+                                </div>
+                            )}
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-semibold uppercase tracking-wider">Title <span className="text-muted-foreground font-normal normal-case">(optional)</span></Label>
-                            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Brief descriptive title" maxLength={150} className="text-sm" />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-semibold uppercase tracking-wider">Note Type</Label>
-                            <Select value={noteType} onValueChange={setNoteType}>
-                                <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="general">General</SelectItem>
-                                    <SelectItem value="hearing">Hearing</SelectItem>
-                                    <SelectItem value="evidence">Evidence</SelectItem>
-                                    <SelectItem value="strategy">Strategy</SelectItem>
-                                    <SelectItem value="internal">Internal</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Title <span className="font-normal normal-case">(optional)</span></Label>
+                                    <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Brief descriptive title" maxLength={150} className="text-sm bg-background/50" />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Note Type</Label>
+                                    <Select value={noteType} onValueChange={setNoteType}>
+                                        <SelectTrigger className="text-sm bg-background/50"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="general">General</SelectItem>
+                                            <SelectItem value="hearing">Hearing</SelectItem>
+                                            <SelectItem value="evidence">Evidence</SelectItem>
+                                            <SelectItem value="strategy">Strategy</SelectItem>
+                                            <SelectItem value="internal">Internal</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Content *</Label>
+                                {/* Formatting toolbar */}
+                                <div className="flex items-center gap-1 p-1.5 border border-b-0 border-border/60 rounded-t-md bg-muted/30">
+                                    <button type="button" title="Bold" onClick={() => insertFormat('**', '**')} className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                                        <Bold size={13} />
+                                    </button>
+                                    <button type="button" title="Italic" onClick={() => insertFormat('_', '_')} className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                                        <Italic size={13} />
+                                    </button>
+                                    <div className="w-px h-4 bg-border/50 mx-0.5" />
+                                    <button type="button" title="Section heading" onClick={() => insertFormat('', ':')} className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                                        <Heading1 size={13} />
+                                    </button>
+                                    <button type="button" title="Bullet point" onClick={() => insertFormat('• ')} className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                                        <List size={13} />
+                                    </button>
+                                    <div className="w-px h-4 bg-border/50 mx-0.5" />
+                                    <span className="text-[10px] text-muted-foreground ml-1">Use "Heading:" for section titles • "- item" for bullets</span>
+                                </div>
+                                <Textarea
+                                    id="note-content-editor"
+                                    value={content}
+                                    onChange={e => setContent(e.target.value)}
+                                    placeholder={"Observation:\nWrite your legal observation here...\n\nAction Items:\n- Item one\n- Item two\n\nRisk: Note any risks here"}
+                                    rows={8}
+                                    required
+                                    className="rounded-t-none text-sm leading-relaxed font-mono resize-y min-h-[120px] max-h-[40vh]"
+                                />
+                                <div className="flex justify-between items-center mt-1">
+                                    <p className="text-[10px] text-muted-foreground">{content.length.toLocaleString()} / 10,000 characters</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Linked Hearing</Label>
+                                    <Select value={hearingId} onValueChange={setHearingId}>
+                                        <SelectTrigger className="text-sm bg-background/50"><SelectValue placeholder="None" /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">None</SelectItem>
+                                            {hearings?.map(h => (
+                                                <SelectItem key={h.id} value={h.id}>
+                                                    {format(new Date(h.hearingDate), 'MMM d, yyyy')} — {h.hearingType}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Evidence Tags</Label>
+                                    <Input
+                                        value={tagsInput}
+                                        onChange={e => setTagsInput(e.target.value)}
+                                        placeholder="FIR discrepancy, CCTV missing…"
+                                        className="text-sm bg-background/50"
+                                    />
+                                    <p className="text-[10px] text-muted-foreground mt-1">Comma-separated tag names</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-6 py-2 border-y border-border/40 my-2">
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox id="isPrivate" checked={isPrivate} onCheckedChange={(v) => setIsPrivate(!!v)} />
+                                    <Label htmlFor="isPrivate" className="text-sm font-medium cursor-pointer text-foreground/80">Private / Internal</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox id="isPinned" checked={isPinned} onCheckedChange={(v) => setIsPinned(!!v)} />
+                                    <Label htmlFor="isPinned" className="text-sm font-medium cursor-pointer text-foreground/80">Pin to Top</Label>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold uppercase tracking-wider">Content *</Label>
-                        {/* Formatting toolbar */}
-                        <div className="flex items-center gap-1 p-1.5 border border-b-0 border-border/60 rounded-t-md bg-muted/30">
-                            <button type="button" title="Bold" onClick={() => insertFormat('**', '**')} className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-                                <Bold size={13} />
-                            </button>
-                            <button type="button" title="Italic" onClick={() => insertFormat('_', '_')} className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-                                <Italic size={13} />
-                            </button>
-                            <div className="w-px h-4 bg-border/50 mx-0.5" />
-                            <button type="button" title="Section heading" onClick={() => insertFormat('', ':')} className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-                                <Heading1 size={13} />
-                            </button>
-                            <button type="button" title="Bullet point" onClick={() => insertFormat('• ')} className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-                                <List size={13} />
-                            </button>
-                            <div className="w-px h-4 bg-border/50 mx-0.5" />
-                            <span className="text-[10px] text-muted-foreground ml-1">Use "Heading:" for section titles • "- item" for bullets</span>
-                        </div>
-                        <Textarea
-                            id="note-content-editor"
-                            value={content}
-                            onChange={e => setContent(e.target.value)}
-                            placeholder={"Observation:\nWrite your legal observation here...\n\nAction Items:\n- Item one\n- Item two\n\nRisk: Note any risks here"}
-                            rows={10}
-                            required
-                            className="rounded-t-none text-sm leading-relaxed font-mono resize-y"
-                        />
-                        <p className="text-[10px] text-muted-foreground">{content.length} / 10,000 characters</p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-semibold uppercase tracking-wider">Linked Hearing</Label>
-                            <Select value={hearingId} onValueChange={setHearingId}>
-                                <SelectTrigger className="text-sm"><SelectValue placeholder="None" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">None</SelectItem>
-                                    {hearings?.map(h => (
-                                        <SelectItem key={h.id} value={h.id}>
-                                            {format(new Date(h.hearingDate), 'MMM d, yyyy')} — {h.hearingType}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-semibold uppercase tracking-wider">Evidence Tags</Label>
-                            <Input
-                                value={tagsInput}
-                                onChange={e => setTagsInput(e.target.value)}
-                                placeholder="FIR discrepancy, CCTV missing…"
-                                className="text-sm"
-                            />
-                            <p className="text-[10px] text-muted-foreground">Comma-separated tag names</p>
-                        </div>
-                    </div>
-
-                    <div className="flex gap-6 pt-1">
-                        <div className="flex items-center space-x-2">
-                            <Checkbox id="isPrivate" checked={isPrivate} onCheckedChange={(v) => setIsPrivate(!!v)} />
-                            <Label htmlFor="isPrivate" className="text-sm font-normal cursor-pointer">Private / Internal</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Checkbox id="isPinned" checked={isPinned} onCheckedChange={(v) => setIsPinned(!!v)} />
-                            <Label htmlFor="isPinned" className="text-sm font-normal cursor-pointer">Pin to Top</Label>
-                        </div>
-                    </div>
-
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>Cancel</Button>
-                        <Button type="submit" disabled={isSubmitting || !content.trim()}>
+                    <DialogFooter className="p-6 border-t mt-auto bg-muted/10 gap-3 shrink-0">
+                        <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="h-9 px-4">Cancel</Button>
+                        <Button type="submit" disabled={isSubmitting || !content.trim()} className="h-9 px-6 bg-primary hover:bg-primary/95 shadow-md">
                             {isSubmitting ? 'Saving…' : initialData ? 'Save Changes' : parentNote ? 'Post Reply' : 'Create Note'}
                         </Button>
                     </DialogFooter>
@@ -812,6 +838,10 @@ export const CaseNotesPanel = ({
             const params = new URLSearchParams();
             if (filterType !== 'all') params.append('noteType', filterType);
             if (filterHearing !== 'all') params.append('hearingId', filterHearing);
+
+            // Add cache-buster to prevent stale data
+            params.append('_t', Date.now().toString());
+
             const query = params.toString();
             const url = query ? `${baseUrl}?${query}` : baseUrl;
             const data = await apiRequest(url, { credentials: 'include' });
@@ -844,13 +874,29 @@ export const CaseNotesPanel = ({
         let method = 'POST';
         let url = getApiUrl(`/api/v1/cases/${caseId}/notes`);
         if (editingNote) { method = 'PUT'; url += `/${editingNote._id}`; }
-        await apiRequest(url, {
+
+        console.log(`[CaseNotesPanel] Saving note. Method: ${method}, Type: ${data.noteType}`);
+
+        const response = await apiRequest(url, {
             method,
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify(data)
         });
+
         toast({ title: 'Success', description: `Note ${editingNote ? 'updated' : 'created'} successfully` });
+        setEditingNote(null);
+        setReplyingTo(null);
+
+        // Optimistically update the list and detail view immediately
+        if (editingNote) {
+            setNotes(prev => updateNoteInList(prev, response));
+        }
+
+        if (editingNote && detailNote && editingNote._id === detailNote._id) {
+            setDetailNote(response);
+        }
+
         fetchNotes();
     };
 

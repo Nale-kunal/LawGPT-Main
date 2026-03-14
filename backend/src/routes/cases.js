@@ -259,4 +259,135 @@ router.post('/migrate-next-hearing', async (req, res) => {
   }
 });
 
+// ─── Pipeline endpoints ─────────────────────────────────────────────────────
+
+// The ordered list of built-in (system) pipeline node IDs
+const SYSTEM_PIPELINE_NODES = [
+  { nodeId: 'sys_filed', name: 'Case Filed', type: 'system', color: '#22c55e' },
+  { nodeId: 'sys_first', name: 'First Hearing', type: 'system', color: '#22c55e' },
+  { nodeId: 'sys_interim', name: 'Interim', type: 'system', color: '#22c55e' },
+  { nodeId: 'sys_evidence', name: 'Evidence', type: 'system', color: '#22c55e' },
+  { nodeId: 'sys_arguments', name: 'Arguments', type: 'system', color: '#22c55e' },
+  { nodeId: 'sys_final', name: 'Final Hearing', type: 'system', color: '#22c55e' },
+  { nodeId: 'sys_judgment', name: 'Judgment', type: 'system', color: '#22c55e' },
+];
+
+/**
+ * GET /api/cases/:id/pipeline
+ * Returns the merged pipeline for a case.
+ */
+router.get('/:id/pipeline', async (req, res) => {
+  try {
+    const caseDoc = await getDocumentById(COLLECTIONS.CASES, req.params.id);
+    if (!caseDoc || String(caseDoc.owner) !== String(req.user.userId)) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    const customNodes = (caseDoc.customPipelineNodes || []).map(n => ({
+      nodeId: n.nodeId,
+      name: n.name,
+      description: n.description || '',
+      color: n.color || '#6366f1',
+      type: 'custom',
+    }));
+
+    // Build a map for quick lookup
+    const allNodesMap = {};
+    SYSTEM_PIPELINE_NODES.forEach(n => { allNodesMap[n.nodeId] = n; });
+    customNodes.forEach(n => { allNodesMap[n.nodeId] = n; });
+
+    // Merge order: stored order (may include both system + custom) or default system order
+    const storedOrder = caseDoc.pipelineOrder || [];
+    let orderedNodes;
+
+    if (storedOrder.length > 0) {
+      // Trust the stored order exactly — nodes absent from pipelineOrder are intentionally hidden
+      orderedNodes = storedOrder.map(id => allNodesMap[id]).filter(Boolean);
+    } else {
+      orderedNodes = SYSTEM_PIPELINE_NODES.map(n => ({ ...n }));
+    }
+
+    res.json({
+      nodes: orderedNodes,
+      systemNodes: SYSTEM_PIPELINE_NODES,
+      customNodes,
+    });
+  } catch (error) {
+    console.error('Get pipeline error:', error);
+    res.status(500).json({ error: 'Failed to fetch pipeline' });
+  }
+});
+
+/**
+ * POST /api/cases/:id/pipeline
+ * Saves custom nodes and the full ordered node ID list.
+ * Body: { customNodes: [{nodeId, name, description, color}], pipelineOrder: [nodeId, ...] }
+ */
+router.post('/:id/pipeline', async (req, res) => {
+  try {
+    const caseDoc = await getDocumentById(COLLECTIONS.CASES, req.params.id);
+    if (!caseDoc || String(caseDoc.owner) !== String(req.user.userId)) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    const { customNodes = [], pipelineOrder = [] } = req.body;
+
+    // Validate custom nodes
+    const systemIds = new Set(SYSTEM_PIPELINE_NODES.map(n => n.nodeId));
+    for (const node of customNodes) {
+      if (!node.nodeId || !node.name || !node.name.trim()) {
+        return res.status(400).json({ error: 'Each custom node must have a nodeId and name.' });
+      }
+      if (systemIds.has(node.nodeId)) {
+        return res.status(400).json({ error: `Node ID "${node.nodeId}" is reserved for system nodes.` });
+      }
+    }
+
+    // Check unique names within custom nodes
+    const nameSet = new Set();
+    for (const node of customNodes) {
+      const key = node.name.trim().toLowerCase();
+      if (nameSet.has(key)) {
+        return res.status(400).json({ error: `Duplicate custom node name: "${node.name}"` });
+      }
+      nameSet.add(key);
+    }
+
+    await updateDocument(COLLECTIONS.CASES, req.params.id, {
+      customPipelineNodes: customNodes.map(n => ({
+        nodeId: n.nodeId,
+        name: n.name.trim(),
+        description: n.description || '',
+        color: n.color || '#6366f1',
+      })),
+      pipelineOrder: pipelineOrder.filter(Boolean),
+    });
+
+    // Re-fetch to return fresh data
+    const updated = await getDocumentById(COLLECTIONS.CASES, req.params.id);
+    const updatedCustom = (updated.customPipelineNodes || []).map(n => ({
+      nodeId: n.nodeId, name: n.name, description: n.description || '', color: n.color || '#6366f1', type: 'custom',
+    }));
+
+    const allNodesMap = {};
+    SYSTEM_PIPELINE_NODES.forEach(n => { allNodesMap[n.nodeId] = n; });
+    updatedCustom.forEach(n => { allNodesMap[n.nodeId] = n; });
+
+    const savedOrder = updated.pipelineOrder || [];
+    const orderedNodes = savedOrder.map(id => allNodesMap[id]).filter(Boolean);
+
+    res.json({
+      nodes: orderedNodes,
+      systemNodes: SYSTEM_PIPELINE_NODES,
+      customNodes: updatedCustom,
+    });
+  } catch (error) {
+    console.error('Save pipeline error:', error);
+    res.status(500).json({ error: 'Failed to save pipeline' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default router;
+

@@ -17,9 +17,13 @@ const hearingSchema = new mongoose.Schema({
   judgeName: { type: String },
   hearingType: {
     type: String,
-    enum: ['first_hearing', 'interim_hearing', 'final_hearing', 'evidence_hearing', 'argument_hearing', 'judgment_hearing', 'other'],
+    // Built-in values: first_hearing, interim_hearing, final_hearing,
+    // evidence_hearing, argument_hearing, judgment_hearing, other
+    // Custom pipeline node IDs are stored in customHearingType; hearingType is set to 'other'.
     default: 'interim_hearing'
   },
+  // When hearingType is a custom pipeline node ID, the raw ID is stored here
+  customHearingType: { type: String },
   status: {
     type: String,
     enum: ['scheduled', 'completed', 'adjourned', 'cancelled'],

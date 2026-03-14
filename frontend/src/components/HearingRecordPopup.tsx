@@ -32,8 +32,10 @@ interface HearingRecordPopupProps {
   hearing: Hearing | null;
   isOpen: boolean;
   onClose: () => void;
-  onHearingSaved?: () => void; // Add callback for when hearing is saved
-  onHearingDeleted?: (hearingId: string) => void; // Add callback for when hearing is deleted
+  onHearingSaved?: () => void;
+  onHearingDeleted?: (hearingId: string) => void;
+  /** Custom pipeline nodes for this case — added as extra hearing-type options */
+  customPipelineNodes?: Array<{ nodeId: string; name: string }>;
 }
 
 interface Order {
@@ -48,7 +50,8 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
   isOpen,
   onClose,
   onHearingSaved,
-  onHearingDeleted
+  onHearingDeleted,
+  customPipelineNodes = [],
 }) => {
   const { addHearing, updateHearing, deleteHearing } = useLegalData();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -441,6 +444,16 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
                       <SelectItem value="argument_hearing">Argument Hearing</SelectItem>
                       <SelectItem value="judgment_hearing">Judgment Hearing</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
+                      {customPipelineNodes.length > 0 && (
+                        <>
+                          <div className="px-2 py-1.5 text-xs text-muted-foreground border-t mt-1 pt-2">Custom Stages</div>
+                          {customPipelineNodes.map(node => (
+                            <SelectItem key={node.nodeId} value={node.nodeId}>
+                              {node.name}
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

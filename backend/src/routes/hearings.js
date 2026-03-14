@@ -212,6 +212,14 @@ router.post('/', async (req, res) => {
       duration
     );
 
+    const BUILT_IN_HEARING_TYPES = new Set([
+      'first_hearing', 'interim_hearing', 'final_hearing',
+      'evidence_hearing', 'argument_hearing', 'judgment_hearing', 'other'
+    ]);
+
+    const rawHearingType = req.body.hearingType;
+    const isCustomType = rawHearingType && !BUILT_IN_HEARING_TYPES.has(rawHearingType);
+
     const data = {
       ...req.body,
       owner: req.user.userId,
@@ -219,7 +227,11 @@ router.post('/', async (req, res) => {
       timezone,
       startAt,
       endAt,
-      duration
+      duration,
+      // If custom type, safeguard against old cached enum by storing as 'other'
+      // and keeping the real value in customHearingType
+      hearingType: isCustomType ? 'other' : (rawHearingType || 'interim_hearing'),
+      ...(isCustomType ? { customHearingType: rawHearingType } : {}),
     };
 
     if (normalizedNextHearingDate) {
@@ -326,7 +338,6 @@ router.post('/', async (req, res) => {
           ? futureDates.sort((a, b) => a - b)[0]
           : null;
 
-        console.log('[Hearing Create] Calculated nextHearing for case:', hearing.caseId, 'Date:', nextHearingDate);
 
         // Update the case's nextHearing field
         await updateDocument(COLLECTIONS.CASES, hearing.caseId, {
@@ -382,17 +393,6 @@ router.put('/:id', async (req, res) => {
     const original = await getDocumentById(COLLECTIONS.HEARINGS, req.params.id);
     if (!original) return res.status(404).json({ error: 'Hearing not found' });
 
-    // Debug ownership check
-    console.log('[Hearing Update] Ownership check:', {
-      hearingId: req.params.id,
-      hearingOwner: original.owner,
-      hearingOwnerType: typeof original.owner,
-      currentUser: req.user.userId,
-      currentUserType: typeof req.user.userId,
-      match: String(original.owner) === String(req.user.userId)
-    });
-
-    // Compare as strings to handle ObjectId vs string inconsistencies
     if (String(original.owner) !== String(req.user.userId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
@@ -550,7 +550,6 @@ router.put('/:id', async (req, res) => {
           ? futureDates.sort((a, b) => a - b)[0]
           : null;
 
-        console.log('[Hearing Update] Calculated nextHearing for case:', hearing.caseId, 'Date:', nextHearingDate);
 
         // Update the case's nextHearing field
         await updateDocument(COLLECTIONS.CASES, hearing.caseId, {
@@ -650,7 +649,6 @@ router.delete('/:id', async (req, res) => {
           ? futureDates.sort((a, b) => a - b)[0]
           : null;
 
-        console.log('[Hearing Delete] Calculated nextHearing for case:', hearing.caseId, 'Date:', nextHearingDate);
 
         // Update the case's nextHearing field
         await updateDocument(COLLECTIONS.CASES, hearing.caseId, {

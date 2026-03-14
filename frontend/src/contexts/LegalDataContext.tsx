@@ -76,7 +76,9 @@ export interface Hearing {
   hearingTime?: string;
   courtName: string;
   judgeName?: string;
-  hearingType: 'first_hearing' | 'interim_hearing' | 'final_hearing' | 'evidence_hearing' | 'argument_hearing' | 'judgment_hearing' | 'other';
+  // Built-in values: 'first_hearing' | 'interim_hearing' | 'final_hearing' | 'evidence_hearing' | 'argument_hearing' | 'judgment_hearing' | 'other'
+  // Custom pipeline node IDs (e.g. custom_<timestamp>) are also allowed.
+  hearingType: string;
   status: 'scheduled' | 'completed' | 'adjourned' | 'cancelled';
   purpose?: string;
   courtInstructions?: string;

@@ -20,12 +20,12 @@ import {
   Users,
   FileCheck,
   ArrowRight,
-  MapPin,
   Eye
 } from 'lucide-react';
 import { Case, Hearing, useLegalData } from '@/contexts/LegalDataContext';
 import { HearingRecordPopup } from './HearingRecordPopup';
 import { HearingViewPopup } from './HearingViewPopup';
+import { HearingPipelinePanel } from './HearingPipelinePanel';
 import { getApiUrl, apiFetch } from '@/lib/api';
 
 interface CaseDetailsPopupProps {
@@ -42,6 +42,7 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
   const [isLoading, setIsLoading] = useState(false);
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [localHearings, setLocalHearings] = useState<Hearing[]>([]);
+  const [customPipelineNodes, setCustomPipelineNodes] = useState<Array<{ nodeId: string; name: string }>>([]);
 
   // Helper function to safely parse and validate dates
   const safeParseDate = (date: any): Date | undefined => {
@@ -180,6 +181,13 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
   useEffect(() => {
     if (case_ && isOpen) {
       reloadHearings();
+      // Fetch pipeline nodes so HearingRecordPopup dropdown is in sync
+      apiFetch(getApiUrl(`/api/cases/${case_.id}/pipeline`), { credentials: 'include' })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.customNodes) setCustomPipelineNodes(data.customNodes);
+        })
+        .catch(() => { });
     }
   }, [case_, isOpen]);
 
@@ -345,128 +353,12 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
                 </CardContent>
               </Card>
 
-              {/* Amazon-style Pipeline */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MapPin className="h-5 w-5" />
-                    Case Progress Pipeline
-                  </CardTitle>
-                  <CardDescription>
-                    Track your case through different stages
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    {/* Pipeline Steps */}
-                    <div className="flex items-center space-x-2 flex-1 overflow-x-auto">
-                      {/* Case Filed */}
-                      <div className="flex flex-col items-center space-y-2 min-w-[70px]">
-                        <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
-                          <CheckCircle className="h-4 w-4 text-white" />
-                        </div>
-                        <span className="text-xs text-center">Case Filed</span>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-
-                      {/* First Hearing */}
-                      <div className="flex flex-col items-center space-y-2 min-w-[70px]">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${sortedHearings.some(h => h.hearingType === 'first_hearing')
-                          ? 'bg-green-500'
-                          : 'bg-gray-300'
-                          }`}>
-                          {sortedHearings.some(h => h.hearingType === 'first_hearing') ? (
-                            <CheckCircle className="h-4 w-4 text-white" />
-                          ) : (
-                            <Clock className="h-4 w-4 text-gray-600" />
-                          )}
-                        </div>
-                        <span className="text-xs text-center">First Hearing</span>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-
-                      {/* Interim Hearing */}
-                      <div className="flex flex-col items-center space-y-2 min-w-[70px]">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${sortedHearings.some(h => h.hearingType === 'interim_hearing')
-                          ? 'bg-green-500'
-                          : 'bg-gray-300'
-                          }`}>
-                          {sortedHearings.some(h => h.hearingType === 'interim_hearing') ? (
-                            <CheckCircle className="h-4 w-4 text-white" />
-                          ) : (
-                            <Clock className="h-4 w-4 text-gray-600" />
-                          )}
-                        </div>
-                        <span className="text-xs text-center">Interim</span>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-
-                      {/* Evidence */}
-                      <div className="flex flex-col items-center space-y-2 min-w-[70px]">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${sortedHearings.some(h => h.hearingType === 'evidence_hearing')
-                          ? 'bg-green-500'
-                          : 'bg-gray-300'
-                          }`}>
-                          {sortedHearings.some(h => h.hearingType === 'evidence_hearing') ? (
-                            <CheckCircle className="h-4 w-4 text-white" />
-                          ) : (
-                            <Clock className="h-4 w-4 text-gray-600" />
-                          )}
-                        </div>
-                        <span className="text-xs text-center">Evidence</span>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-
-                      {/* Arguments */}
-                      <div className="flex flex-col items-center space-y-2 min-w-[70px]">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${sortedHearings.some(h => h.hearingType === 'argument_hearing')
-                          ? 'bg-green-500'
-                          : 'bg-gray-300'
-                          }`}>
-                          {sortedHearings.some(h => h.hearingType === 'argument_hearing') ? (
-                            <CheckCircle className="h-4 w-4 text-white" />
-                          ) : (
-                            <Clock className="h-4 w-4 text-gray-600" />
-                          )}
-                        </div>
-                        <span className="text-xs text-center">Arguments</span>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-
-                      {/* Final Hearing */}
-                      <div className="flex flex-col items-center space-y-2 min-w-[70px]">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${sortedHearings.some(h => h.hearingType === 'final_hearing')
-                          ? 'bg-green-500'
-                          : 'bg-gray-300'
-                          }`}>
-                          {sortedHearings.some(h => h.hearingType === 'final_hearing') ? (
-                            <CheckCircle className="h-4 w-4 text-white" />
-                          ) : (
-                            <Clock className="h-4 w-4 text-gray-600" />
-                          )}
-                        </div>
-                        <span className="text-xs text-center">Final</span>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-
-                      {/* Judgment */}
-                      <div className="flex flex-col items-center space-y-2 min-w-[70px]">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${sortedHearings.some(h => h.hearingType === 'judgment_hearing')
-                          ? 'bg-green-500'
-                          : 'bg-gray-300'
-                          }`}>
-                          {sortedHearings.some(h => h.hearingType === 'judgment_hearing') ? (
-                            <CheckCircle className="h-4 w-4 text-white" />
-                          ) : (
-                            <Clock className="h-4 w-4 text-gray-600" />
-                          )}
-                        </div>
-                        <span className="text-xs text-center">Judgment</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Hearing Pipeline Panel – custom + system nodes with drag-and-drop */}
+              <HearingPipelinePanel
+                caseId={case_.id}
+                hearings={hearings}
+                onCustomNodesChange={setCustomPipelineNodes}
+              />
 
               {/* Next Hearing Details */}
               {nextHearing && (
@@ -684,35 +576,26 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
         case_={case_}
         hearing={selectedHearing}
         isOpen={showHearingRecord}
+        customPipelineNodes={customPipelineNodes}
         onClose={() => {
           setShowHearingRecord(false);
           setSelectedHearing(null);
         }}
         onHearingSaved={async () => {
-          // Refetch the case to get updated nextHearing field and update global state
           if (case_?.id) {
             try {
               await refreshCase(case_.id);
-              console.log('[CaseDetailsPopup] Case refreshed successfully');
             } catch (error) {
               console.error('Failed to refresh case:', error);
             }
           }
-
-          // Force reload hearings from API after case refresh completes
           await new Promise(resolve => setTimeout(resolve, 800));
           await reloadHearings();
-
-          // Force re-render
           setRefreshCounter(prev => prev + 1);
         }}
         onHearingDeleted={(hearingId) => {
           removeHearingFromLocalState(hearingId);
-
-          // Also reload from API to ensure consistency
-          setTimeout(() => {
-            reloadHearings();
-          }, 200);
+          setTimeout(() => { reloadHearings(); }, 200);
         }}
       />
     </>

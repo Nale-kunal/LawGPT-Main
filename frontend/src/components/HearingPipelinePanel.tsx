@@ -343,11 +343,12 @@ export const HearingPipelinePanel: React.FC<HearingPipelinePanelProps> = ({
                                                 onDragOver={e => e.preventDefault()}
                                                 className="group relative flex items-center justify-center w-[70px] h-12 cursor-grab active:cursor-grabbing select-none flex-shrink-0"
                                             >
-                                                {/* X button — top-right of circle */}
-                                                <button
-                                                    type="button"
-                                                    onClick={e => { e.stopPropagation(); confirmDelete(node); }}
-                                                    className={`
+                                                {/* X button — hidden for sys_filed (Case Filed is permanent) */}
+                                                {node.nodeId !== 'sys_filed' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={e => { e.stopPropagation(); confirmDelete(node); }}
+                                                        className={`
                                                         absolute top-0.5 right-3 z-10
                                                         w-4 h-4 rounded-full flex items-center justify-center
                                                         bg-background border border-border
@@ -355,14 +356,15 @@ export const HearingPipelinePanel: React.FC<HearingPipelinePanelProps> = ({
                                                         transition-all duration-150
                                                         opacity-0 group-hover:opacity-100
                                                         ${node.type === 'custom'
-                                                            ? 'hover:border-destructive hover:text-destructive hover:bg-destructive/10'
-                                                            : 'hover:border-orange-400 hover:text-orange-400'}
+                                                                ? 'hover:border-destructive hover:text-destructive hover:bg-destructive/10'
+                                                                : 'hover:border-orange-400 hover:text-orange-400'}
                                                     `}
-                                                    title={node.type === 'custom' ? `Delete "${node.name}"` : `Remove "${node.name}" from pipeline`}
-                                                    aria-label={`Delete ${node.name}`}
-                                                >
-                                                    <X className="h-2.5 w-2.5" />
-                                                </button>
+                                                        title={node.type === 'custom' ? `Delete "${node.name}"` : `Remove "${node.name}" from pipeline`}
+                                                        aria-label={`Delete ${node.name}`}
+                                                    >
+                                                        <X className="h-2.5 w-2.5" />
+                                                    </button>
+                                                )}
 
                                                 {/* Circle */}
                                                 <div

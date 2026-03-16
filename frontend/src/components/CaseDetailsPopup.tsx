@@ -43,6 +43,7 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [localHearings, setLocalHearings] = useState<Hearing[]>([]);
   const [customPipelineNodes, setCustomPipelineNodes] = useState<Array<{ nodeId: string; name: string }>>([]);
+  const [highlightedHearingId, setHighlightedHearingId] = useState<string | null>(null);
 
   // Helper function to safely parse and validate dates
   const safeParseDate = (date: any): Date | undefined => {
@@ -250,8 +251,15 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
     }
   };
 
-  const getHearingTypeLabel = (type: Hearing['hearingType']) => {
-    switch (type) {
+  /** Returns the display label for a hearing type, including custom pipeline node names */
+  const getHearingTypeLabel = (hearing: any): string => {
+    // Check customHearingType first — this is what the backend stores for pipeline custom nodes
+    const customId = (hearing as any)?.customHearingType;
+    if (customId) {
+      const match = customPipelineNodes.find(n => n.nodeId === customId);
+      if (match) return match.name;
+    }
+    switch (hearing.hearingType ?? hearing) {
       case 'first_hearing': return 'First Hearing';
       case 'interim_hearing': return 'Interim Hearing';
       case 'final_hearing': return 'Final Hearing';
@@ -259,7 +267,7 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
       case 'argument_hearing': return 'Argument Hearing';
       case 'judgment_hearing': return 'Judgment Hearing';
       case 'other': return 'Other';
-      default: return type;
+      default: return typeof hearing === 'string' ? hearing : hearing.hearingType ?? 'Other';
     }
   };
 
@@ -358,6 +366,22 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
                 caseId={case_.id}
                 hearings={hearings}
                 onCustomNodesChange={setCustomPipelineNodes}
+                onNodeClick={(hearingType) => {
+                  // Find the first hearing matching this node type
+                  const match = sortedHearings.find(h =>
+                    h.hearingType === hearingType ||
+                    (h as any).customHearingType === hearingType
+                  );
+                  if (match) {
+                    setHighlightedHearingId(match.id);
+                    // Scroll to the hearing card
+                    setTimeout(() => {
+                      document.getElementById(`hearing-${match.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                    // Clear highlight after 3s
+                    setTimeout(() => setHighlightedHearingId(null), 3000);
+                  }
+                }}
               />
 
               {/* Next Hearing Details */}
@@ -460,7 +484,14 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
                   ) : (
                     <div className="space-y-4" key={`hearings-${refreshCounter}`}>
                       {sortedHearings.map((hearing) => (
-                        <div key={`${hearing.id}-${refreshCounter}`} className="border rounded-lg p-4 space-y-3">
+                        <div
+                          key={`${hearing.id}-${refreshCounter}`}
+                          id={`hearing-${hearing.id}`}
+                          className={`border rounded-lg p-4 space-y-3 transition-all duration-500 ${highlightedHearingId === hearing.id
+                              ? 'ring-2 ring-primary border-primary bg-primary/5'
+                              : ''
+                            }`}
+                        >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <div className="flex items-center gap-2">
@@ -510,7 +541,7 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                               <span className="font-medium">Type:</span>
-                              <span className="ml-2">{getHearingTypeLabel(hearing.hearingType)}</span>
+                              <span className="ml-2">{getHearingTypeLabel(hearing)}</span>
                             </div>
                             <div>
                               <span className="font-medium">Court:</span>

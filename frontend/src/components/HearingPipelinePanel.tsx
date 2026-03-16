@@ -43,6 +43,8 @@ interface HearingPipelinePanelProps {
     hearings?: HearingSummary[];
     /** Called immediately whenever the custom nodes list changes (add/delete) */
     onCustomNodesChange?: (nodes: Array<{ nodeId: string; name: string }>) => void;
+    /** Called when a node circle is clicked — receives the node's hearingType key */
+    onNodeClick?: (hearingType: string) => void;
 }
 
 // ─── System node → hearing-type mapping ──────────────────────────────────────
@@ -85,6 +87,7 @@ export const HearingPipelinePanel: React.FC<HearingPipelinePanelProps> = ({
     caseId,
     hearings = [],
     onCustomNodesChange,
+    onNodeClick,
 }) => {
     const [nodes, setNodes] = useState<PipelineNode[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -152,6 +155,36 @@ export const HearingPipelinePanel: React.FC<HearingPipelinePanelProps> = ({
         onCustomNodesChange?.(customNodes);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [nodes]);
+
+    // ── Auto-restore deleted system nodes when a matching hearing exists ──────
+    // If a system node was deleted but the user recorded a hearing for it,
+    // add the node back (at the end) so it shows with green status.
+    useEffect(() => {
+        if (isLoading || hearings.length === 0) return;
+        const existingIds = new Set(nodes.map(n => n.nodeId));
+        const completedTypes = new Set(hearings.flatMap(h =>
+            [h.hearingType, (h as any).customHearingType].filter(Boolean)
+        ));
+        const DEFAULT_SYSTEM_NODES: PipelineNode[] = [
+            { nodeId: 'sys_filed', name: 'Case Filed', type: 'system', color: '#22c55e' },
+            { nodeId: 'sys_first', name: 'First Hearing', type: 'system', color: '#6366f1' },
+            { nodeId: 'sys_interim', name: 'Interim', type: 'system', color: '#6366f1' },
+            { nodeId: 'sys_evidence', name: 'Evidence', type: 'system', color: '#6366f1' },
+            { nodeId: 'sys_arguments', name: 'Arguments', type: 'system', color: '#6366f1' },
+            { nodeId: 'sys_final', name: 'Final Hearing', type: 'system', color: '#6366f1' },
+            { nodeId: 'sys_judgment', name: 'Judgment', type: 'system', color: '#6366f1' },
+        ];
+        const toRestore = DEFAULT_SYSTEM_NODES.filter(sn => {
+            if (existingIds.has(sn.nodeId)) return false; // already in pipeline
+            const expectedType = SYSTEM_NODE_HEARING_MAP[sn.nodeId];
+            if (!expectedType || expectedType === '__always_complete__') return false;
+            return completedTypes.has(expectedType);
+        });
+        if (toRestore.length > 0) {
+            setNodes(prev => [...prev, ...toRestore]);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hearings, isLoading]);
 
     // ── Persist pipeline (debounced) ─────────────────────────────────────────
 
@@ -333,7 +366,14 @@ export const HearingPipelinePanel: React.FC<HearingPipelinePanelProps> = ({
 
                                                 {/* Circle */}
                                                 <div
-                                                    className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-110"
+                                                    className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-110 cursor-pointer"
+                                                    onClick={() => {
+                                                        const key = node.type === 'system'
+                                                            ? (SYSTEM_NODE_HEARING_MAP[node.nodeId] ?? node.nodeId)
+                                                            : node.nodeId;
+                                                        onNodeClick?.(key);
+                                                    }}
+                                                    title={`Click to find hearing for ${node.name}`}
                                                     style={
                                                         node.type === 'system'
                                                             ? complete

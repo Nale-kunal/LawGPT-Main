@@ -34,6 +34,19 @@ const Login = () => {
     }
   }, [isAuthenticated, isLoading, user, navigate]);
 
+  // Ensure pressing Back from the login page always goes to the landing page.
+  // We replace the current history entry with '/' and then push '/login' on top,
+  // so the stack is: [..., /, /login]. The logout handler may have used replace or
+  // push — this normalises the stack regardless.
+  useEffect(() => {
+    if (!isAuthenticated && !isLoading) {
+      window.history.replaceState(null, '', '/');
+      window.history.pushState(null, '', '/login');
+    }
+    // Run once on mount only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Return null when authenticated to prevent flicker
   if (isAuthenticated) {
     return null;

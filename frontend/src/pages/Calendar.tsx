@@ -540,7 +540,7 @@ const Calendar = () => {
                     key={`day-${currentYear}-${currentMonth}-${day}`}
                     onClick={() => setSelectedDate(date)}
                     className={cn(
-                      "p-1.5 h-12 border rounded-lg cursor-pointer transition-colors hover:bg-muted relative",
+                      "p-1.5 h-12 border rounded-lg cursor-pointer transition-colors hover:bg-muted relative overflow-hidden",
                       isToday(day) && "bg-blue-500/10 border-blue-600 border-2",
                       isSelected && !isToday(day) && "border-accent border-2",
                       isSelected && isToday(day) && "bg-blue-500/10 border-blue-600 border-2",
@@ -548,38 +548,38 @@ const Calendar = () => {
                       conflictsForDay.length > 0 && !isToday(day) && "bg-destructive/5"
                     )}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="text-[11px] font-medium">{day}</div>
+                    {/* Day number row */}
+                    <div className="flex items-center justify-between">
+                      <div className="text-[11px] font-medium leading-none">{day}</div>
                       {isToday(day) && (
-                        <span className="text-[8px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-1 py-0.5 rounded">
+                        <span className="text-[8px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-1 py-0.5 rounded leading-none">
                           Today
                         </span>
                       )}
                     </div>
+                    {/* Events row — always one line, never wraps outside the cell */}
                     {casesForDay.length > 0 && (
-                      <div className="text-[9px]">
-                        <div className="flex flex-wrap gap-0.5 mt-0.5">
-                          {casesForDay.slice(0, 2).map((event, idx) => (
-                            <div
-                              key={idx}
-                              className={cn(
-                                "w-1.5 h-1.5 rounded-full",
-                                event.isHearing ? 'bg-blue-500' :
-                                  (event as any).priority === 'urgent' ? 'bg-red-500' :
-                                    (event as any).priority === 'high' ? 'bg-orange-500' :
-                                      (event as any).priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
-                              )}
-                              title={event.isHearing ? 'Next Hearing' : `${(event as any).priority || 'medium'} priority case`}
-                            />
-                          ))}
-                          {casesForDay.length > 2 && (
-                            <span className="text-[9px]">+{casesForDay.length - 2}</span>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-0.5 mt-1 flex-nowrap">
+                        {casesForDay.slice(0, 2).map((event, idx) => (
+                          <div
+                            key={idx}
+                            className={cn(
+                              "w-1.5 h-1.5 rounded-full flex-shrink-0",
+                              event.isHearing ? 'bg-blue-500' :
+                                (event as any).priority === 'urgent' ? 'bg-red-500' :
+                                  (event as any).priority === 'high' ? 'bg-orange-500' :
+                                    (event as any).priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                            )}
+                            title={event.isHearing ? 'Next Hearing' : `${(event as any).priority || 'medium'} priority case`}
+                          />
+                        ))}
+                        {casesForDay.length > 2 && (
+                          <span className="text-[8px] text-muted-foreground leading-none flex-shrink-0">
+                            +{casesForDay.length - 2}
+                          </span>
+                        )}
                         {conflictsForDay.length > 0 && (
-                          <div className="text-[9px] text-destructive font-medium mt-0.5">
-                            ⚠ Conflict
-                          </div>
+                          <span className="text-[8px] text-destructive leading-none ml-auto flex-shrink-0" title="Schedule conflict">⚠</span>
                         )}
                       </div>
                     )}

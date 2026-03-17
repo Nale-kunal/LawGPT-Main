@@ -14,6 +14,15 @@ const caseSchema = new mongoose.Schema({
   description: { type: String },
   nextHearing: { type: Date },
   notes: { type: String },
+  customPipelineNodes: [
+    {
+      nodeId: { type: String, required: true },
+      name: { type: String, required: true },
+      description: { type: String, default: '' },
+      color: { type: String, default: '#6366f1' },
+    }
+  ],
+  pipelineOrder: [{ type: String }],
   alerts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Alert' }],
   caseNotes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'CaseNote' }],
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },

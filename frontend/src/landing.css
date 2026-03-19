@@ -402,6 +402,57 @@ html.light {
   margin-left: auto;
 }
 
+/* ── Navbar Dropdowns ────────────────────────────────────── */
+.lp-nav-dropdown {
+  position: relative;
+}
+
+.lp-nav-dropdown-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.lp-nav-dropdown-content {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 200px;
+  background: var(--lp-bg2);
+  border: 1px solid var(--lp-border);
+  border-radius: var(--lp-r-sm);
+  padding: 8px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: all 0.2s var(--lp-ease);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.lp-nav-dropdown:hover .lp-nav-dropdown-content {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(8px);
+}
+
+.lp-nav-dropdown-item {
+  display: block;
+  padding: 10px 14px;
+  color: var(--lp-muted);
+  text-decoration: none;
+  font-size: 13.5px;
+  border-radius: 6px;
+  transition: var(--lp-t);
+}
+
+.lp-nav-dropdown-item:hover {
+  background: var(--lp-bg-card);
+  color: var(--lp-text);
+  padding-left: 18px;
+}
+
 /* ── Buttons ─────────────────────────────────────────────── */
 .lp-btn {
   display: inline-flex;
@@ -746,33 +797,68 @@ html.light {
   margin: 0 auto;
 }
 
-.lp-sec-hd {
+/* ── Typography System ───────────────────────────────────── */
+.lp-sec-hd-center {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   margin-bottom: 52px;
 }
 
 .lp-sec-label {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 2.5px;
   text-transform: uppercase;
   color: var(--lp-gold);
-  margin-bottom: 10px;
-}
-
-.lp-sec-title {
-  font-size: clamp(26px, 3vw, 36px);
-  font-weight: 800;
-  letter-spacing: -1.2px;
-  line-height: 1.18;
-  color: var(--lp-text);
   margin-bottom: 12px;
 }
 
+.lp-sec-title {
+  font-size: clamp(28px, 3.5vw, 38px);
+  font-weight: 800;
+  letter-spacing: -1.25px;
+  line-height: 1.15;
+  color: var(--lp-text);
+  margin-bottom: 14px;
+}
+
 .lp-sec-sub {
-  font-size: 16px;
+  font-size: 16.5px;
   color: var(--lp-muted);
   line-height: 1.7;
-  max-width: 520px;
+  max-width: 540px;
+}
+
+/* Unified Card Titles */
+.lp-title-lg {
+  font-size: 17.5px;
+  font-weight: 700;
+  color: var(--lp-text);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.lp-title-md {
+  font-size: 14.8px;
+  font-weight: 600;
+  color: var(--lp-text);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+/* Standard Body Text */
+.lp-text-p {
+  font-size: 14px;
+  color: var(--lp-muted);
+  line-height: 1.65;
+}
+
+.lp-text-sm {
+  font-size: 12.5px;
+  color: var(--lp-subtle);
+  line-height: 1.55;
 }
 
 /* ── Trust bar ───────────────────────────────────────────── */

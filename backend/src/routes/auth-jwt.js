@@ -2,6 +2,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import User from '../models/User.js';
+import AdminAuditLog from '../models/AdminAuditLog.js';
 import PasswordReset from '../models/PasswordReset.js';
 import {
   createDocument,
@@ -24,6 +25,7 @@ import {
 } from '../schemas/authSchemas.js';
 import { blacklistToken, isTokenBlacklisted } from '../services/tokenService.js';
 import activityEmitter from '../utils/eventEmitter.js';
+import userDeletionService from '../services/userDeletionService.js';
 
 const router = express.Router();
 
@@ -186,26 +188,41 @@ router.post('/register', validate({ body: registerSchema }), async (req, res) =>
     }
 
     // Check if user already exists (including deleted users) in either email or recoveryEmail
-    // Use findOne to get all fields including 'deleted'
     const existingUser = await User.findOne({
       $or: [
         { email: normalizedEmail },
         { recoveryEmail: normalizedEmail }
       ]
-    });
+    }).select('+passwordHash +status +deleted +deletedAt'); // Ensure all flags are loaded
 
     if (existingUser) {
-      // Check if user was deleted - show dialog to confirm reactivation
-      if (existingUser.status === 'deleted' || existingUser.deleted === true || existingUser.deletedAt) {
-        console.log(`🗑️ Deleted account signup attempt: ${normalizedEmail}`);
+      // Check if user was deleted
+      const isDeleted = existingUser.status === 'deleted' || existingUser.deleted === true || existingUser.deletedAt;
+
+      if (isDeleted) {
+        // If the account was previously soft-deleted, we finish the job by hard-deleting it now.
+        console.log(`♻️ Purging old deleted account before fresh signup: ${normalizedEmail}`);
+        await userDeletionService.deleteUserAccount(existingUser._id.toString());
+        // After purging, we continue with normal registration flow
+      } else {
+        // User exists and is ACTIVE - this is a genuine conflict
+        return res.status(409).json({ error: 'User with this email already exists' });
+      }
+    } else {
+      // NO ACTIVE USER FOUND - But check if it was previously hard-deleted
+      // to trigger the "Account Previously Deleted" warning as requested by the user.
+      const hardDeletionLog = await AdminAuditLog.findOne({
+        action: 'user_delete_hard',
+        'details.email': normalizedEmail
+      }).sort({ timestamp: -1 });
+
+      if (hardDeletionLog) {
+        console.log(`⚠️ Hard-deleted account signup attempt: ${normalizedEmail}. Triggering warning popup.`);
         return res.status(409).json({
           errorCode: 'ACCOUNT_DELETED',
           error: 'This email belongs to a previously deleted account.'
         });
       }
-
-      // User exists and is not deleted
-      return res.status(409).json({ error: 'User with this email already exists' });
     }
 
     // Hash password
@@ -274,48 +291,44 @@ router.post('/reactivate', validate({ body: reactivateSchema }), async (req, res
     const normalizedEmail = email.toLowerCase().trim();
     const existingUser = await User.findOne({ email: normalizedEmail });
 
-    if (!existingUser) {
-      return res.status(404).json({ error: 'Account not found' });
+    // If account not found, it means it was already hard-deleted.
+    // If found but soft-deleted, we purge it now.
+    if (existingUser) {
+      const isDeleted = existingUser.status === 'deleted' || existingUser.deleted === true || existingUser.deletedAt;
+      if (isDeleted) {
+        console.log(`♻️ Purging old deleted account during reactivation: ${normalizedEmail}`);
+        await userDeletionService.deleteUserAccount(existingUser._id.toString());
+      } else {
+        return res.status(400).json({ error: 'This account is not deleted' });
+      }
     }
 
-    if (existingUser.status !== 'deleted' && !existingUser.deleted && !existingUser.deletedAt) {
-      return res.status(400).json({ error: 'This account is not deleted' });
-    }
-
-    // Hash new password
+    // Now proceed with fresh signup logic as this is a "whole new account" request
     const passwordHash = await User.hashPassword(password);
+    const userData = {
+      name: name.trim(),
+      email: normalizedEmail,
+      passwordHash,
+      role: 'lawyer', // Default role for reactivation
+      emailVerified: false,
+      onboardingCompleted: false,
+      immutableFieldsLocked: false,
+      deleted: false,
+      notifications: defaultNotificationSettings,
+      preferences: defaultPreferenceSettings,
+      security: defaultSecuritySettings
+    };
 
-    // Reactivate the account with fresh data
-    const reactivatedUser = await User.findByIdAndUpdate(
-      existingUser._id,
-      {
-        $set: {
-          name: name.trim(),
-          passwordHash,
-          emailVerified: false,
-          onboardingCompleted: false,
-          immutableFieldsLocked: false,
-          status: 'active',
-          deleted: false,
-          deletedAt: null,
-          profile: {},
-          notifications: defaultNotificationSettings,
-          preferences: defaultPreferenceSettings,
-          security: defaultSecuritySettings,
-        }
-      },
-      { new: true }
-    );
+    const user = await createDocument(MODELS.USERS, userData);
+    console.log(`✅ Account reactivated as fresh signup: ${user.email}`);
 
-    console.log(`♻️ Account reactivated: ${reactivatedUser.email}`);
-
-    const token = generateJWT(reactivatedUser._id.toString(), reactivatedUser.email, reactivatedUser.role);
+    const token = generateJWT(user.id, user.email, user.role);
     setAuthCookie(res, token);
 
     res.status(200).json({
-      user: buildUserResponse(reactivatedUser._id.toString(), reactivatedUser),
+      user: buildUserResponse(user.id, user),
       token,
-      message: 'Account reactivated successfully'
+      message: 'Account reactivated successfully (fresh start)'
     });
   } catch (error) {
     console.error('Reactivation error:', error);
@@ -374,6 +387,21 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
       if (process.env.NODE_ENV === 'development') {
         console.log('❌ No user found with email or recoveryEmail:', normalizedEmail);
       }
+
+      // NO ACTIVE USER FOUND - Check if it was previously hard-deleted
+      const hardDeletionLog = await AdminAuditLog.findOne({
+        action: 'user_delete_hard',
+        'details.email': normalizedEmail
+      }).sort({ timestamp: -1 });
+
+      if (hardDeletionLog) {
+        console.log(`⚠️ Hard-deleted account login attempt: ${normalizedEmail}. Triggering warning popup.`);
+        return res.status(403).json({
+          errorCode: 'ACCOUNT_DELETED',
+          error: 'This account was deleted previously.'
+        });
+      }
+
       await activityEmitter.emit({
         userId: null,
         eventType: 'login_failure',
@@ -1106,16 +1134,17 @@ router.delete('/delete-account', requireAuth, async (req, res) => {
       return res.status(401).json({ error: 'Incorrect password' });
     }
 
-    // Soft delete: Mark user as deleted instead of removing from database
-    // This allows for account recovery and prevents email reuse issues
-    await User.findByIdAndUpdate(req.user.userId, {
-      status: 'deleted',
-      deleted: true,      // Keep for backward compatibility
-      deletedAt: new Date()
-      // DO NOT clear passwordHash - preserve it for security and potential verification
-    });
+    // Hard delete: Remove user and all associated data from the system permanently
+    // This replaces the previous soft-delete logic to prevent data reappearing on re-signup
+    const deletionResult = await userDeletionService.deleteUserAccount(req.user.userId);
 
-    console.log(`✅ User account marked as deleted: ${req.user.userId}`);
+    // Post-deletion validation: Ensure user is truly gone
+    const checkUser = await User.findById(req.user.userId);
+    if (checkUser) {
+      throw new Error('Critical: User record persists after deletion attempt');
+    }
+
+    console.log(`✅ User account and all associated data permanently deleted: ${req.user.userId} (${deletionResult.email})`);
 
     // Clear auth cookie
     res.clearCookie('token', {

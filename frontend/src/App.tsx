@@ -11,8 +11,13 @@ import React, { Suspense } from "react";
 import RequireAuth from "./components/auth/RequireAuth";
 import { Loader2 } from "lucide-react";
 
-// ── 15. React Lazy Loading — all pages loaded on-demand ───────────────────────
-const Index = React.lazy(() => import("./pages/Index"));
+// ── Consolidated Landing Pages ─────────────────────────────────────────────
+const Home = React.lazy(() => import("./pages/Home"));
+const Product = React.lazy(() => import("./pages/Product"));
+const Experience = React.lazy(() => import("./pages/Experience"));
+const Security = React.lazy(() => import("./pages/Security"));
+const About = React.lazy(() => import("./pages/About"));
+
 const Login = React.lazy(() => import("./pages/Login"));
 const Signup = React.lazy(() => import("./pages/Signup"));
 const Dashboard = React.lazy(() => import("./pages/Dashboard"));
@@ -68,8 +73,14 @@ const App = () => (
               <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
-                    {/* Public Routes */}
-                    <Route path="/" element={<Index />} />
+                    {/* Public Landing Routes */}
+                    <Route path="/" element={<Home />} />
+                    <Route path="/product" element={<Product />} />
+                    <Route path="/experience" element={<Experience />} />
+                    <Route path="/security" element={<Security />} />
+                    <Route path="/about" element={<About />} />
+
+                    {/* Auth & Support */}
                     <Route path="/login" element={<Login />} />
                     <Route path="/signup" element={<Signup />} />
                     <Route path="/forgot-password" element={<ForgotPassword />} />

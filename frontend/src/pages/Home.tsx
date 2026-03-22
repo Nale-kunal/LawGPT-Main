@@ -37,7 +37,7 @@ const Home = () => {
                             Built for Indian Legal Professionals
                         </div>
                         <h1 id="hero-title" className="lp-hero-title">
-                            <span className="lp-hero-title-line lp-anim-up-d1"><span className="lp-gold-text">LegalPro</span></span>
+                            <span className="lp-hero-title-line lp-anim-up-d1"><span className="lp-gold-text">Juriq</span></span>
                             <span className="lp-hero-title-line lp-anim-up-d2">— The Smarter Way</span>
                             <span className="lp-hero-title-line lp-anim-up-d2">to Run Your Law Firm</span>
                         </h1>
@@ -45,7 +45,7 @@ const Home = () => {
                             AI-powered case management built for modern Indian law firms. Manage cases, track hearings, collaborate with clients — all in one workspace.
                         </p>
                         <p className="lp-hero-support lp-anim-up-d4">
-                            From criminal to civil, family to corporate — LegalPro handles the complexity so you can focus on winning.
+                            From criminal to civil, family to corporate — Juriq handles the complexity so you can focus on winning.
                         </p>
                         <div className="lp-hero-actions lp-anim-up-d5">
                             <button id="hero-signup" className="lp-btn lp-btn-gold-lg" onClick={() => go('/signup')}>
@@ -135,7 +135,7 @@ const Home = () => {
                             Free to start, no credit card required
                         </div>
                         <h2 className="lp-cta-title">Start Organizing Your<br />Legal Practice</h2>
-                        <p className="lp-cta-sub">LegalPro provides a structured digital system for managing cases, documents, and hearings. Join advocates who have moved from scattered folders to a professional legal workspace.</p>
+                        <p className="lp-cta-sub">Juriq provides a structured digital system for managing cases, documents, and hearings. Join advocates who have moved from scattered folders to a professional legal workspace.</p>
                         <div className="lp-cta-actions">
                             <button id="cta-signup" className="lp-btn lp-btn-gold-lg" onClick={() => go('/signup')}>Create Account <Ic.Arrow /></button>
                             <button id="cta-login" className="lp-btn lp-btn-outline-lg" onClick={() => go('/login')}>Login</button>

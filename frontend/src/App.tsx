@@ -39,9 +39,16 @@ const EmailVerificationPending = React.lazy(
 const EmailVerificationSuccess = React.lazy(
   () => import("./pages/EmailVerificationSuccess")
 );
+const Privacy = React.lazy(() => import("./pages/Privacy"));
+const Terms = React.lazy(() => import("./pages/Terms"));
+const DataProcessing = React.lazy(() => import("./pages/DataProcessing"));
+const CookiePolicy = React.lazy(() => import("./pages/CookiePolicy"));
+const ClientPortalLanding = React.lazy(() => import("./pages/ClientPortalLanding"));
+const LegalNotesLanding = React.lazy(() => import("./pages/LegalNotesLanding"));
 
 // Import Layout (not lazy — needed immediately for dashboard shell)
 import DashboardLayout from "./components/layout/DashboardLayout";
+import ScrollToHash from "./components/ScrollToHash";
 
 // Suspense fallback loader
 const PageLoader = () => (
@@ -71,6 +78,7 @@ const App = () => (
               <Toaster />
               <Sonner />
               <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                <ScrollToHash />
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
                     {/* Public Landing Routes */}
@@ -79,6 +87,12 @@ const App = () => (
                     <Route path="/experience" element={<Experience />} />
                     <Route path="/security" element={<Security />} />
                     <Route path="/about" element={<About />} />
+                    <Route path="/privacy" element={<Privacy />} />
+                    <Route path="/terms" element={<Terms />} />
+                    <Route path="/data-processing" element={<DataProcessing />} />
+                    <Route path="/cookie-policy" element={<CookiePolicy />} />
+                    <Route path="/client-portal" element={<ClientPortalLanding />} />
+                    <Route path="/legal-notes" element={<LegalNotesLanding />} />
 
                     {/* Auth & Support */}
                     <Route path="/login" element={<Login />} />

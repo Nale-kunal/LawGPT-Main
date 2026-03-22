@@ -48,12 +48,12 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
         <div className="lp-root">
             {/* ══ NAVBAR ══════════════════════════════════════════════════════════════ */}
             <nav className="lp-nav lp-anim-fade" ref={el => { navRef.current = el; }}>
-                <Link className="lp-nav-logo" to="/" aria-label="LegalPro">
+                <Link className="lp-nav-logo" to="/" aria-label="Juriq">
                     <div className="lp-nav-logo-icon">
                         <Scale className="lp-logo-icon" />
                     </div>
                     <div>
-                        <span className="lp-nav-logo-text">LegalPro</span>
+                        <span className="lp-nav-logo-text">Juriq</span>
                         <span className="lp-nav-logo-sub">Indian Law Management</span>
                     </div>
                 </Link>
@@ -83,7 +83,7 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                             <div className="lp-nav-logo-icon" style={{ width: 28, height: 28 }}><Scale className="lp-logo-icon" /></div>
-                            <div><span className="lp-footer-brand-name">LegalPro</span><span className="lp-footer-sub">Indian Law Management</span></div>
+                            <div><span className="lp-footer-brand-name">Juriq</span><span className="lp-footer-sub">Indian Law Management</span></div>
                         </div>
                         <p className="lp-footer-brand-tag">Professional case management for Indian advocates and legal professionals.</p>
                     </div>
@@ -91,12 +91,12 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
                         <div className="lp-footer-col-title">Platform</div>
                         <div className="lp-footer-links-list">
                             {[
-                                { lbl: 'Case Management', to: '/features' },
-                                { lbl: 'Client Portal', to: '/features' },
-                                { lbl: 'Court Calendar', to: '/features' },
-                                { lbl: 'Legal Research', to: '/features' },
-                                { lbl: 'Legal Notes', to: '/features' },
-                                { lbl: 'Billing', to: '/features' }
+                                { lbl: 'Case Management', to: '/product#features' },
+                                { lbl: 'Client Portal', to: '/client-portal' },
+                                { lbl: 'Court Calendar', to: '/product#hearings' },
+                                { lbl: 'Legal Research', to: '/product#features' },
+                                { lbl: 'Legal Notes', to: '/legal-notes' },
+                                { lbl: 'Billing', to: '/product#hub' }
                             ].map(item => (
                                 <Link key={item.lbl} className="lp-footer-link-btn" to={item.to} style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0 }}>{item.lbl}</Link>
                             ))}
@@ -105,22 +105,24 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
                     <div>
                         <div className="lp-footer-col-title">Legal</div>
                         <div className="lp-footer-links-list">
-                            {['Privacy Policy', 'Terms of Service', 'Data Processing', 'Cookie Policy', 'Security'].map(lbl => (
-                                <button key={lbl} className="lp-footer-link-btn">{lbl}</button>
-                            ))}
+                            <Link className="lp-footer-link-btn" to="/privacy" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Privacy Policy</Link>
+                            <Link className="lp-footer-link-btn" to="/terms" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Terms of Service</Link>
+                            <Link className="lp-footer-link-btn" to="/data-processing" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Data Processing</Link>
+                            <Link className="lp-footer-link-btn" to="/cookie-policy" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Cookie Policy</Link>
+                            <Link className="lp-footer-link-btn" to="/security" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Security</Link>
                         </div>
                     </div>
                     <div>
                         <div className="lp-footer-col-title">Account</div>
                         <div className="lp-footer-links-list">
-                            <button className="lp-footer-link-btn" onClick={() => navigate('/login')}>Login</button>
-                            <button className="lp-footer-link-btn" onClick={() => navigate('/signup')}>Sign Up Free</button>
-                            <button className="lp-footer-link-btn" onClick={() => navigate('/forgot-password')}>Forgot Password</button>
+                            <Link className="lp-footer-link-btn" to="/login" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0 }}>Login</Link>
+                            <Link className="lp-footer-link-btn" to="/signup" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0 }}>Sign Up Free</Link>
+                            <Link className="lp-footer-link-btn" to="/forgot-password" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0 }}>Forgot Password</Link>
                         </div>
                     </div>
                 </div>
                 <div className="lp-footer-bottom">
-                    <span className="lp-footer-copy">2026 LegalPro. All Rights Reserved.</span>
+                    <span className="lp-footer-copy">2026 Juriq. All Rights Reserved.</span>
                     <span className="lp-footer-badge"><span style={{ color: '#22c55e' }}>*</span> Systems Operational</span>
                 </div>
             </footer>

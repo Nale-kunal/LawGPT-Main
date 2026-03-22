@@ -54,7 +54,7 @@ const Product = () => {
                             {
                                 Icon: Ic.Book,
                                 title: 'Legal Research',
-                                desc: 'Access Indian legal knowledge base, case precedents, and statute references directly inside LegalPro. Supports your argument building instantly.',
+                                desc: 'Access Indian legal knowledge base, case precedents, and statute references directly inside Juriq. Supports your argument building instantly.',
                                 tag: 'AI-Assisted',
                             },
                             {
@@ -99,7 +99,7 @@ const Product = () => {
                     <div className="lp-sec-hd lp-reveal" ref={r(45)}>
                         <p className="lp-sec-label">Case Pipeline</p>
                         <h2 id="pipe-heading" className="lp-sec-title">Track Case Progress Clearly</h2>
-                        <p className="lp-sec-sub">Every legal matter progresses through multiple stages. LegalPro lets you track these stages through a structured case pipeline so nothing falls through the cracks.</p>
+                        <p className="lp-sec-sub">Every legal matter progresses through multiple stages. Juriq lets you track these stages through a structured case pipeline so nothing falls through the cracks.</p>
                     </div>
                     <div className="lp-pipeline-row lp-reveal" ref={r(46)}>
                         {[
@@ -132,7 +132,7 @@ const Product = () => {
                         <div>
                             <p className="lp-sec-label">Hearing Management</p>
                             <h2 id="hear-heading" className="lp-sec-title">Never Miss a Hearing</h2>
-                            <p className="lp-sec-sub" style={{ marginBottom: 28 }}>LegalPro provides a calendar-based system to track every hearing and identify scheduling overlaps across multiple courts.</p>
+                            <p className="lp-sec-sub" style={{ marginBottom: 28 }}>Juriq provides a calendar-based system to track every hearing and identify scheduling overlaps across multiple courts.</p>
                             <div className="lp-hearing-features">
                                 {[
                                     { Icon: Ic.Calendar, t: 'Hearing Timeline Tracking', d: 'Every hearing date logged against its case with full context.' },
@@ -173,7 +173,7 @@ const Product = () => {
                     <div className="lp-sec-hd lp-reveal" ref={r(49)}>
                         <p className="lp-sec-label">Document Management</p>
                         <h2 id="vault-heading" className="lp-sec-title">Secure Case Document Vault</h2>
-                        <p className="lp-sec-sub">LegalPro organizes every document directly within the case where it belongs.</p>
+                        <p className="lp-sec-sub">Juriq organizes every document directly within the case where it belongs.</p>
                     </div>
                     <div className="lp-vault-grid lp-reveal" ref={r(50)}>
                         {[
@@ -197,7 +197,7 @@ const Product = () => {
                     <div className="lp-sec-hd-center lp-reveal" ref={r(54)}>
                         <p className="lp-sec-label">All-in-One</p>
                         <h2 id="hub-heading" className="lp-sec-title">Your Entire Legal Practice in One Workspace</h2>
-                        <p className="lp-sec-sub">LegalPro centralizes every essential component of legal practice management.</p>
+                        <p className="lp-sec-sub">Juriq centralizes every essential component of legal practice management.</p>
                     </div>
                     <div className="lp-hub-grid lp-reveal" ref={r(55)}>
                         {[
@@ -224,7 +224,7 @@ const Product = () => {
                     <div className="lp-sec-hd lp-reveal" ref={r(51)}>
                         <p className="lp-sec-label">Legal Reference</p>
                         <h2 id="ref-heading" className="lp-sec-title">Quick Legal Reference</h2>
-                        <p className="lp-sec-sub">LegalPro includes an integrated reference system containing commonly used Indian laws, keeping key statutes accessible while you work on cases.</p>
+                        <p className="lp-sec-sub">Juriq includes an integrated reference system containing commonly used Indian laws, keeping key statutes accessible while you work on cases.</p>
                     </div>
                     <div className="lp-ref-chips lp-reveal" ref={r(52)}>
                         {['Indian Penal Code (IPC)', 'Criminal Procedure Code (CrPC)', 'Indian Contract Act', 'Code of Civil Procedure (CPC)', 'Indian Evidence Act', 'Negotiable Instruments Act', 'Transfer of Property Act', 'Specific Relief Act', 'Arbitration & Conciliation Act', 'Consumer Protection Act', 'Information Technology Act'].map(law => (

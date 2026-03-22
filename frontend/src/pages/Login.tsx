@@ -61,7 +61,7 @@ const Login = () => {
       if (result.success) {
         toast({
           title: "Login Successful",
-          description: "Welcome to LegalPro!",
+          description: "Welcome to Juriq!",
         });
       } else {
         // Check for ACCOUNT_DELETED error code
@@ -100,7 +100,7 @@ const Login = () => {
           <div className="flex justify-center mb-4">
             <Scale className="h-12 w-12 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">LegalPro</CardTitle>
+          <CardTitle className="text-2xl font-bold">Juriq</CardTitle>
           <CardDescription>
             Professional Legal Case Management System for Indian Law Firms
           </CardDescription>
@@ -184,7 +184,7 @@ const Login = () => {
           </DialogHeader>
           <div className="bg-muted p-4 rounded-md text-sm">
             <p className="text-muted-foreground">
-              You can create a new account using the same email address if you'd like to continue using LawGPT.
+              You can create a new account using the same email address if you'd like to continue using Juriq.
             </p>
           </div>
           <div className="bg-destructive/10 border border-destructive rounded-md p-4 text-sm flex gap-3">

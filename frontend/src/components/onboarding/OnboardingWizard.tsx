@@ -179,7 +179,7 @@ const OnboardingWizard = () => {
 
             toast({
                 title: '✓ Onboarding Complete',
-                description: 'Welcome to LawGPT! Your profile has been set up successfully.'
+                description: 'Welcome to Juriq! Your profile has been set up successfully.'
             });
 
             // No navigation needed - overlay will disappear automatically when user.onboardingCompleted becomes true
@@ -227,7 +227,7 @@ const OnboardingWizard = () => {
             <CardHeader className="space-y-4">
                 <div className="flex items-center justify-between">
                     <div>
-                        <CardTitle className="text-3xl font-bold">Welcome to LawGPT</CardTitle>
+                        <CardTitle className="text-3xl font-bold">Welcome to Juriq</CardTitle>
                         <CardDescription className="text-base mt-2">Complete your secure profile setup to get started</CardDescription>
                     </div>
                     <Button

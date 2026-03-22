@@ -1093,7 +1093,7 @@ router.get('/export-data', requireAuth, async (req, res) => {
 
     // Set headers for file download
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename="lawgpt-data-export-${Date.now()}.json"`);
+    res.setHeader('Content-Disposition', `attachment; filename="juriq-data-export-${Date.now()}.json"`);
 
     res.json(exportData);
   } catch (error) {

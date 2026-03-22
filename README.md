@@ -1,4 +1,4 @@
-# LawGPT - Legal Practice Management System
+# Juriq - Legal Practice Management System
 
 A comprehensive legal practice management system built with React (frontend) and Node.js + MongoDB (backend).
 
@@ -40,7 +40,7 @@ A comprehensive legal practice management system built with React (frontend) and
 
 ```bash
 git clone <your-repo-url>
-cd LawGPT
+cd Juriq
 ```
 
 ### 2. Backend Setup
@@ -60,7 +60,7 @@ Edit `.env` and configure:
 
 ```env
 # MongoDB Atlas Connection
-MONGODB_URI=mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/lawgpt?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/juriq?retryWrites=true&w=majority
 
 # JWT Secret (generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
 JWT_SECRET=your-random-32-character-secret-key
@@ -106,7 +106,7 @@ The frontend will run on `http://localhost:8080`
 ## Project Structure
 
 ```
-LawGPT/
+Juriq/
 ├── backend/
 │   ├── src/
 │   │   ├── config/         # MongoDB, Cloudinary configuration

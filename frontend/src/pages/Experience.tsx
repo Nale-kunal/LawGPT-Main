@@ -23,7 +23,7 @@ const Experience = () => {
                     <div className="lp-sec-hd-center lp-reveal" ref={r(43)}>
                         <p className="lp-sec-label">Real Legal Workflow</p>
                         <h2 id="lwf-heading" className="lp-sec-title">Built Around Real Legal Workflow</h2>
-                        <p className="lp-sec-sub">LegalPro mirrors how advocates actually manage legal work from client onboarding to final judgment.</p>
+                        <p className="lp-sec-sub">Juriq mirrors how advocates actually manage legal work from client onboarding to final judgment.</p>
                     </div>
                     <div className="lp-wf-timeline lp-reveal" ref={r(44)}>
                         {[
@@ -50,12 +50,12 @@ const Experience = () => {
                 <div className="lp-sec-inner">
                     <div className="lp-sec-hd-center lp-reveal" ref={r(20)}>
                         <p className="lp-sec-label">Product Walkthrough</p>
-                        <h2 id="walk-heading" className="lp-sec-title">How LegalPro Works</h2>
+                        <h2 id="walk-heading" className="lp-sec-title">How Juriq Works</h2>
                         <p className="lp-sec-sub">Get organized in minutes. No training required.</p>
                     </div>
                     <div className="lp-steps-grid lp-reveal" ref={r(21)}>
                         {[
-                            { n: '1', t: 'Create Your Account', d: 'Sign up and set up your LegalPro advocate profile in minutes.' },
+                            { n: '1', t: 'Create Your Account', d: 'Sign up and set up your Juriq advocate profile in minutes.' },
                             { n: '2', t: 'Register Your Clients', d: 'Add client details, contact information, and identification records.' },
                             { n: '3', t: 'Create & Organize Cases', d: 'Build structured case files with court details, parties, and case type.' },
                             { n: '4', t: 'Schedule & Track Hearings', d: 'Add hearing dates, record outcomes, and get a full calendar view.' },
@@ -79,7 +79,7 @@ const Experience = () => {
                 <div className="lp-sec-inner">
                     <div className="lp-sec-hd-center lp-reveal" ref={r(67)}>
                         <p className="lp-sec-label">Interface Preview</p>
-                        <h2 id="ss-heading" className="lp-sec-title">See LegalPro in Action</h2>
+                        <h2 id="ss-heading" className="lp-sec-title">See Juriq in Action</h2>
                         <p className="lp-sec-sub">A preview of the organized, professional interface your practice will run on.</p>
                     </div>
                     <div className="lp-screens-grid lp-reveal" ref={r(68)}>
@@ -87,7 +87,7 @@ const Experience = () => {
                         <div className="lp-screen-card">
                             <div className="lp-app-mock">
                                 <div className="lp-app-sidebar">
-                                    <div className="lp-app-logo-row"><div className="lp-app-logo-icon" /><div className="lp-app-logo-text">LegalPro</div></div>
+                                    <div className="lp-app-logo-row"><div className="lp-app-logo-icon" /><div className="lp-app-logo-text">Juriq</div></div>
                                     <div className="lp-app-nav-label">Navigation</div>
                                     {['Dashboard', 'Cases', 'Calendar', 'Clients', 'Legal Research', 'Billing', 'Documents', 'Notes'].map((item, i) => (
                                         <div key={item} className={`lp-app-nav-item${i === 0 ? ' active' : ''}`}><div className="lp-app-nav-dot" />{item}</div>
@@ -125,7 +125,7 @@ const Experience = () => {
                         <div className="lp-screen-card">
                             <div className="lp-app-mock">
                                 <div className="lp-app-sidebar">
-                                    <div className="lp-app-logo-row"><div className="lp-app-logo-icon" /><div className="lp-app-logo-text">LegalPro</div></div>
+                                    <div className="lp-app-logo-row"><div className="lp-app-logo-icon" /><div className="lp-app-logo-text">Juriq</div></div>
                                     <div className="lp-app-nav-label">Navigation</div>
                                     {['Dashboard', 'Cases', 'Calendar', 'Clients', 'Legal Research', 'Billing', 'Documents', 'Notes'].map((item, i) => (
                                         <div key={item} className={`lp-app-nav-item${i === 2 ? ' active' : ''}`}><div className="lp-app-nav-dot" />{item}</div>

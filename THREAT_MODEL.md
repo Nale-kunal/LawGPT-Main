@@ -1,4 +1,4 @@
-# LawGPT — Threat Model (STRIDE Analysis)
+# Juriq — Threat Model (STRIDE Analysis)
 
 ## Application Overview
 - **Type:** Full-stack SaaS web application (legal case/document management)

@@ -1,7 +1,7 @@
 # JWT Key Rotation Runbook
 
 ## Overview
-LawGPT supports zero-downtime JWT key rotation via the `JWT_KEYS` environment variable.
+Juriq supports zero-downtime JWT key rotation via the `JWT_KEYS` environment variable.
 During rotation, old tokens remain valid until they expire, while new tokens use the new key.
 
 ---
@@ -97,10 +97,10 @@ Check logs for any `JWT verification failed` errors — if none, rotation is com
 # Monthly restore test (run against staging)
 # 1. Download Atlas snapshot
 # 2. Restore to local MongoDB
-mongorestore --uri "mongodb://localhost:27017" --archive=lawgpt-backup.archive
+mongorestore --uri "mongodb://localhost:27017" --archive=juriq-backup.archive
 
 # 3. Verify document count
-mongo localhost/lawgpt --eval "printjson(db.stats())"
+mongo localhost/juriq --eval "printjson(db.stats())"
 
 # 4. Run smoke tests against restored data
 npm run test:db

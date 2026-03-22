@@ -79,10 +79,10 @@ export async function sendVerificationEmail(email, name, token) {
       to: email,
       from: {
         email: process.env.SENDGRID_FROM_EMAIL || 'noreply@example.com',
-        name: process.env.SENDGRID_FROM_NAME || 'LegalPro'
+        name: process.env.SENDGRID_FROM_NAME || 'Juriq'
       },
-      subject: 'Verify Your LegalPro Account',
-      text: `Hi ${name},\n\nThank you for registering with LegalPro. Please verify your email address by clicking the link below:\n\n${verificationUrl}\n\nThis link will expire in 24 hours.\n\nIf you didn't create a LegalPro account, please ignore this email.\n\nBest regards,\nThe LegalPro Team`,
+      subject: 'Verify Your Juriq Account',
+      text: `Hi ${name},\n\nThank you for registering with Juriq. Please verify your email address by clicking the link below:\n\n${verificationUrl}\n\nThis link will expire in 24 hours.\n\nIf you didn't create a Juriq account, please ignore this email.\n\nBest regards,\nThe Juriq Team`,
       html: emailTemplate(name, verificationUrl)
     };
 
@@ -218,12 +218,12 @@ function emailTemplate(name, verificationUrl) {
     <body>
       <div class="container">
         <div class="header">
-          <h1>⚖️ LegalPro</h1>
+          <h1>⚖️ Juriq</h1>
         </div>
         
         <div class="content">
           <h2>Welcome, ${name}!</h2>
-          <p>Thank you for registering with LegalPro. We're excited to have you on board!</p>
+          <p>Thank you for registering with Juriq. We're excited to have you on board!</p>
           
           <p>To complete your registration and access all features, please verify your email address by clicking the button below:</p>
           
@@ -240,10 +240,10 @@ function emailTemplate(name, verificationUrl) {
             <p><strong>⏰ This link expires in 24 hours.</strong></p>
           </div>
           
-          <p>If you didn't create a LegalPro account, please ignore this email and no account will be created.</p>
+          <p>If you didn't create a Juriq account, please ignore this email and no account will be created.</p>
           
           <div class="footer">
-            <p>Best regards,<br><strong>The LegalPro Team</strong></p>
+            <p>Best regards,<br><strong>The Juriq Team</strong></p>
             <p style="margin-top: 16px; font-size: 12px;">
               This is an automated email. Please do not reply to this message.
             </p>

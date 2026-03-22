@@ -139,7 +139,7 @@ const Settings = () => {
     // Load preferences from user data
     // IMPORTANT: for theme, use localStorage as source of truth (reflects navbar toggle)
     // so we never overwrite a theme the user just set via the header toggle.
-    const lsTheme = localStorage.getItem('legal-pro-theme') as 'light' | 'dark' | 'system' | null;
+    const lsTheme = localStorage.getItem('juriq-theme') as 'light' | 'dark' | 'system' | null;
     const userPreferences = {
       ...defaultPreferenceSettings,
       ...(user.preferences || {}),
@@ -384,7 +384,7 @@ const Settings = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `lawgpt-data-export-${Date.now()}.json`;
+      a.download = `juriq-data-export-${Date.now()}.json`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);

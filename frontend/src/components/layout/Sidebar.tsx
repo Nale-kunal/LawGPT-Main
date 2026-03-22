@@ -98,7 +98,7 @@ export const Sidebar = () => {
           </div>
           {state !== "collapsed" && (
             <div className="min-w-0 text-left">
-              <h1 className="text-lg font-bold text-sidebar-foreground truncate leading-tight">LegalPro</h1>
+              <h1 className="text-lg font-bold text-sidebar-foreground truncate leading-tight">Juriq</h1>
               <p className="text-[10px] text-sidebar-foreground/60 truncate">Indian Law Management</p>
             </div>
           )}

@@ -1,5 +1,5 @@
 /* ============================================================
-   LegalPro Landing Page — Elite Professional Design System
+   Juriq Landing Page — Elite Professional Design System
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -2536,7 +2536,7 @@ html.light {
   line-height: 1.55;
 }
 
-/* ── Section 11: Who LegalPro Is For ─────────────────────── */
+/* ── Section 11: Who Juriq Is For ─────────────────────── */
 .lp-audience-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

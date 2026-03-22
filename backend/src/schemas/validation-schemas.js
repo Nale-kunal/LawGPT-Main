@@ -1,5 +1,5 @@
 /**
- * Validation schemas and functions for LawGPT
+ * Validation schemas and functions for Juriq
  * Centralized validation logic for consistency across endpoints
  */
 

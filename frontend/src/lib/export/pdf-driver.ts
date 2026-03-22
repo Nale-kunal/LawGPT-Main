@@ -327,7 +327,7 @@ export const generatePDF = async (data: CaseNoteExportData) => {
         doc.setFontSize(9); doc.setFont('times', 'normal'); doc.setTextColor(100);
         doc.text(`Ref: ${data.caseNumber}`, r.margin.left, fy);
         doc.text(`Page ${i} of ${total}`, cx, fy, { align: 'center' });
-        doc.text('Generated via LawGPT Platform', rx, fy, { align: 'right' });
+        doc.text('Generated via Juriq Platform', rx, fy, { align: 'right' });
         doc.setTextColor(0);
     }
 

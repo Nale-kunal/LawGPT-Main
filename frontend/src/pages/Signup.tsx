@@ -145,7 +145,7 @@ const Signup = () => {
           </div>
           <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
           <CardDescription>
-            Join LegalPro - Professional Legal Case Management
+            Join Juriq - Professional Legal Case Management
           </CardDescription>
         </CardHeader>
         <CardContent>

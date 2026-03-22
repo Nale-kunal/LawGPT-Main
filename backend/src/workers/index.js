@@ -22,7 +22,7 @@ if (!process.env.REDIS_URL) {
     process.exit(1);
 }
 
-logger.info('Starting LawGPT background workers...');
+logger.info('Starting Juriq background workers...');
 
 const emailWorker = startEmailWorker();
 const cleanupWorker = startCleanupWorker();

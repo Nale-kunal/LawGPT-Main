@@ -1,11 +1,11 @@
-# LawGPT — Load Test Results & Autoscaling Strategy
+# Juriq — Load Test Results & Autoscaling Strategy
 
 ## Test Configuration
 
 ```yaml
 # artillery.config.yml
 config:
-  target: "https://api.lawgpt.app"
+  target: "https://api.juriq.app"
   phases:
     - duration: 60
       arrivalRate: 50       # Warm-up: 50 users/sec
@@ -192,7 +192,7 @@ annotations:
 ```
 Monitor 1:
   Type: HTTP
-  URL: https://api.lawgpt.app/api/v1/health
+  URL: https://api.juriq.app/api/v1/health
   Interval: 60s
   Alert: Email + Slack on failure
   Expected status: 200
@@ -200,7 +200,7 @@ Monitor 1:
 
 Monitor 2:
   Type: HTTP
-  URL: https://api.lawgpt.app/api/v1/auth/csrf-token (or public endpoint)
+  URL: https://api.juriq.app/api/v1/auth/csrf-token (or public endpoint)
   Interval: 5m
 
 Alert Policy:

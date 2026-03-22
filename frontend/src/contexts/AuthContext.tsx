@@ -29,6 +29,7 @@ interface User {
   id: string;
   name: string;
   email: string;
+  recoveryEmail?: string;
   role: 'lawyer' | 'assistant' | 'admin';
   emailVerified?: boolean;
   onboardingCompleted?: boolean;
@@ -100,7 +101,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } else {
       setUser(null);
       // Clean up any stale data from previous sessions
-      localStorage.removeItem('legal_pro_user');
+      localStorage.removeItem('juriq_user');
       // Clear cookies (belt-and-suspenders alongside httpOnly cookie cleared by backend)
       document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + window.location.hostname + ';';
       document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
@@ -355,7 +356,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Clear sessionStorage and localStorage completely
       sessionStorage.clear();
-      localStorage.removeItem('legal_pro_user');
+      localStorage.removeItem('juriq_user');
 
       // Use replace instead of href to prevent back button from showing protected pages
       // This removes the current page from browser history

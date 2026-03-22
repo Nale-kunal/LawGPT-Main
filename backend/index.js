@@ -41,6 +41,8 @@ import twoFactorRoutes from './src/routes/twoFactor.js';
 import adminRoutes from './src/routes/admin.js';
 import adminInternalRoutes from './src/routes/adminInternal.js';
 import newsRoutes from './routes/news.js';
+import legalRoutes from './src/routes/legal.routes.js';
+import { startLegalCron } from './src/jobs/legalCron.js';
 import { requestId } from './src/middleware/requestId.js';
 
 // dotenv already loaded at top — do not call again
@@ -263,7 +265,7 @@ app.get('/favicon.ico', (_req, res) => res.status(204).end());
 app.get('/', (_req, res) => {
   res.json({
     ok: true,
-    service: 'lawgpt-api',
+    service: 'juriq-api',
     version: process.env.npm_package_version || '1.0.0',
     docs: '/api/v1/health',
   });
@@ -277,7 +279,7 @@ app.get('/api/v1/health', async (_req, res) => {
 
   res.json({
     ok: true,
-    service: 'lawgpt-api',
+    service: 'juriq-api',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
     redis: { status: redisStatus, ping: redisPing },
@@ -315,6 +317,7 @@ app.use('/api/v1/2fa', twoFactorRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/internal/admin', adminInternalLimiter, adminInternalRoutes);
 app.use('/api/news', newsRoutes);
+app.use('/api/v1/legal', legalRoutes);
 
 // ─── Backward Compatibility /api/* → /api/v1/* (90-day window) ───────────────
 app.use('/api/auth', authRoutes);
@@ -329,6 +332,7 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/hearings', hearingRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/2fa', twoFactorRoutes);
+app.use('/api/legal', legalRoutes);
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 // ─── Static uploads (legacy) ─────────────────────────────────────────────────
@@ -385,8 +389,15 @@ async function startServer() {
     // ── 4. Ensure all performance indexes exist ───────────────────────────────────
     await ensureIndexes();
 
+    // ── 5. Start legal data cron job (non-blocking; also seeds initial data) ────
+    startLegalCron();
+    // Trigger an immediate seed on startup (non-blocking — errors are caught inside)
+    import('./src/services/legalDataService.js')
+      .then(({ runFullRefresh }) => runFullRefresh())
+      .catch(err => logger.warn({ err }, 'Initial legal data seed failed (non-fatal)'));
+
     currentServer = app.listen(PORT, () => {
-      logger.info({ port: PORT, env: process.env.NODE_ENV }, '🚀 LawGPT API started');
+      logger.info({ port: PORT, env: process.env.NODE_ENV }, '🚀 Juriq API started');
     });
 
     currentServer.on('error', (error) => {

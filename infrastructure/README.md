@@ -1,4 +1,4 @@
-# LawGPT — Infrastructure Architecture Guide
+# Juriq — Infrastructure Architecture Guide
 
 ## Cloud Architecture Recommendation
 
@@ -112,7 +112,7 @@ NODE_ENV = "production"
 ### Prometheus Scrape Config
 ```yaml
 scrape_configs:
-  - job_name: 'lawgpt-api'
+  - job_name: 'juriq-api'
     static_configs:
       - targets: ['api:5000']
     metrics_path: '/api/v1/metrics'

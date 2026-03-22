@@ -7,7 +7,7 @@ export const DashMockup = () => (
             <span className="lp-mock-dot lp-mock-dot-r" />
             <span className="lp-mock-dot lp-mock-dot-y" />
             <span className="lp-mock-dot lp-mock-dot-g" />
-            <div className="lp-mock-url">app.legalpro.in / dashboard</div>
+            <div className="lp-mock-url">app.juriq.in / dashboard</div>
         </div>
         <div className="lp-mock-body">
             <div className="lp-mock-sidebar">

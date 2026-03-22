@@ -194,7 +194,7 @@ export const generateWord = async (data: CaseNoteExportData) => {
                                             ]
                                         })]
                                     }),
-                                    new TableCell({ children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: 'Generated via LawGPT Platform', size: 16, font: 'Times New Roman', color: '666666' })] })] }),
+                                    new TableCell({ children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: 'Generated via Juriq Platform', size: 16, font: 'Times New Roman', color: '666666' })] })] }),
                                 ]
                             })],
                         }),

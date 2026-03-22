@@ -12,6 +12,8 @@ export { default as Hearing } from './Hearing.js';
 export { default as Alert } from './Alert.js';
 export { default as TimeEntry } from './TimeEntry.js';
 export { default as LegalSection } from './LegalSection.js';
+export { default as LegalActs } from './LegalActs.js';
+export { default as CaseLaws } from './CaseLaws.js';
 export { default as PasswordReset } from './PasswordReset.js';
 export { default as Activity } from './Activity.js';
 export { default as AuditLog } from './AuditLog.js';

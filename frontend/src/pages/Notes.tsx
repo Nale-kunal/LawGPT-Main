@@ -18,19 +18,14 @@ const NotesPage = () => {
     const hearings = selectedCaseId ? getHearingsByCaseId(selectedCaseId) : [];
 
     return (
-        <div className="h-[calc(100vh-64px)] -m-3 md:-m-6 flex flex-col overflow-hidden bg-background">
+        <div className="space-y-4 flex flex-col h-[calc(100vh-140px)]">
             {/* Dashboard Header */}
-            <div className="flex items-center justify-between px-6 py-3 border-b bg-muted/10">
-                <div className="flex items-center gap-3">
-                    <div className="p-1.5 rounded-md bg-primary/10">
-                        <BookOpen size={16} className="text-primary" />
-                    </div>
-                    <div>
-                        <h1 className="text-sm font-bold tracking-tight text-foreground">Legal Notes Workspace</h1>
-                        <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-widest">
-                            Strategy · Evidence · Internal Drafting
-                        </p>
-                    </div>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-xl md:text-2xl font-bold">Legal Notes Workspace</h1>
+                    <p className="text-xs text-muted-foreground">
+                        Strategy · Evidence · Internal Drafting
+                    </p>
                 </div>
 
                 <div className="flex items-center gap-3">

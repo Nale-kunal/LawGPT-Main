@@ -68,31 +68,31 @@ async function processEmailJob(job) {
     }
 
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    const fromEmail = process.env.FROM_EMAIL || 'noreply@lawgpt.app';
+    const fromEmail = process.env.FROM_EMAIL || 'noreply@juriq.app';
 
     const templates = {
         sendPasswordReset: {
             to: payload.to,
             from: fromEmail,
-            subject: 'Reset Your LawGPT Password',
+            subject: 'Reset Your Juriq Password',
             html: `<p>Click <a href="${payload.resetLink}">here</a> to reset your password. Link expires in 1 hour.</p>`,
         },
         sendVerification: {
             to: payload.to,
             from: fromEmail,
-            subject: 'Verify Your LawGPT Email',
+            subject: 'Verify Your Juriq Email',
             html: `<p>Click <a href="${payload.verifyLink}">here</a> to verify your email address.</p>`,
         },
         sendWelcome: {
             to: payload.to,
             from: fromEmail,
-            subject: 'Welcome to LawGPT!',
-            html: `<p>Hi ${payload.name}, welcome to LawGPT. Your account is ready.</p>`,
+            subject: 'Welcome to Juriq!',
+            html: `<p>Hi ${payload.name}, welcome to Juriq. Your account is ready.</p>`,
         },
         sendInvoice: {
             to: payload.to,
             from: fromEmail,
-            subject: `Invoice #${payload.invoiceId} from LawGPT`,
+            subject: `Invoice #${payload.invoiceId} from Juriq`,
             html: `<p>Your invoice is ready. <a href="${payload.pdfUrl}">View Invoice</a></p>`,
         },
     };

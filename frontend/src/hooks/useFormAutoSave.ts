@@ -25,7 +25,7 @@ export function useFormAutoSave<T extends Record<string, any>>(
 ) {
     const { debounceMs = 500, enabled = true } = options;
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const storageKey = `lawgpt_form_draft_${formKey}`;
+    const storageKey = `juriq_form_draft_${formKey}`;
 
     // Save form data to localStorage with debouncing
     useEffect(() => {

@@ -72,6 +72,29 @@ export async function ensureIndexes() {
                 { fields: { action: 1, createdAt: -1 }, options: { name: 'audit_action_created' } },
             ],
         },
+        {
+            name: 'LegalActs',
+            model: models.LegalActs,
+            indexes: [
+                { fields: { lastUpdated: -1 }, options: { name: 'legal_acts_last_updated' } },
+                {
+                    fields: { actName: 1, section: 1 },
+                    options: { name: 'legal_acts_act_section_unique', unique: true, sparse: true }
+                },
+            ],
+        },
+        {
+            name: 'CaseLaws',
+            model: models.CaseLaws,
+            indexes: [
+                { fields: { date: -1 }, options: { name: 'case_laws_date_desc' } },
+                { fields: { lastUpdated: -1 }, options: { name: 'case_laws_last_updated' } },
+                {
+                    fields: { caseTitle: 1, court: 1 },
+                    options: { name: 'case_laws_title_court_unique', unique: true, sparse: true }
+                },
+            ],
+        },
     ];
 
     let created = 0;

@@ -1,20 +1,20 @@
 # apiVersion: apps/v1
-# deployment.yaml — LawGPT API Server
+# deployment.yaml — Juriq API Server
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: lawgpt-api
-  namespace: lawgpt
+  name: juriq-api
+  namespace: juriq
   labels:
-    app: lawgpt-api
+    app: juriq-api
     version: "1.0.0"
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: lawgpt-api
+      app: juriq-api
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -23,7 +23,7 @@ spec:
   template:
     metadata:
       labels:
-        app: lawgpt-api
+        app: juriq-api
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: "/api/v1/metrics"
@@ -31,8 +31,8 @@ spec:
     spec:
       terminationGracePeriodSeconds: 30
       containers:
-        - name: lawgpt-api
-          image: ghcr.io/your-org/lawgpt-api:latest
+        - name: juriq-api
+          image: ghcr.io/your-org/juriq-api:latest
           ports:
             - containerPort: 5000
           env:
@@ -43,27 +43,27 @@ spec:
             - name: MONGODB_URI
               valueFrom:
                 secretKeyRef:
-                  name: lawgpt-secrets
+                  name: juriq-secrets
                   key: mongodb-uri
             - name: REDIS_URL
               valueFrom:
                 secretKeyRef:
-                  name: lawgpt-secrets
+                  name: juriq-secrets
                   key: redis-url
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: lawgpt-secrets
+                  name: juriq-secrets
                   key: jwt-secret
             - name: JWT_REFRESH_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: lawgpt-secrets
+                  name: juriq-secrets
                   key: jwt-refresh-secret
             - name: CORS_ORIGIN
               valueFrom:
                 configMapKeyRef:
-                  name: lawgpt-config
+                  name: juriq-config
                   key: cors-origin
           resources:
             requests:
@@ -95,23 +95,23 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: lawgpt-workers
-  namespace: lawgpt
+  name: juriq-workers
+  namespace: juriq
   labels:
-    app: lawgpt-workers
+    app: juriq-workers
 spec:
   replicas: 1  # Workers are single-process — BullMQ handles job distribution
   selector:
     matchLabels:
-      app: lawgpt-workers
+      app: juriq-workers
   template:
     metadata:
       labels:
-        app: lawgpt-workers
+        app: juriq-workers
     spec:
       containers:
-        - name: lawgpt-workers
-          image: ghcr.io/your-org/lawgpt-api:latest
+        - name: juriq-workers
+          image: ghcr.io/your-org/juriq-api:latest
           command: ["node", "src/workers/index.js"]
           env:
             - name: NODE_ENV
@@ -119,12 +119,12 @@ spec:
             - name: REDIS_URL
               valueFrom:
                 secretKeyRef:
-                  name: lawgpt-secrets
+                  name: juriq-secrets
                   key: redis-url
             - name: MONGODB_URI
               valueFrom:
                 secretKeyRef:
-                  name: lawgpt-secrets
+                  name: juriq-secrets
                   key: mongodb-uri
           resources:
             requests:

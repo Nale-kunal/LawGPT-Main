@@ -45,16 +45,16 @@ const About = () => {
                     </div>
                     <div className="lp-problem-solution lp-reveal" ref={r(42)}>
                         <div className="lp-problem-solution-icon"><Ic.Scale /></div>
-                        <div className="lp-text-p"><strong>LegalPro</strong> introduces a structured digital system built specifically for legal practice, replacing scattered tools with one organized workspace.</div>
+                        <div className="lp-text-p"><strong>Juriq</strong> introduces a structured digital system built specifically for legal practice, replacing scattered tools with one organized workspace.</div>
                     </div>
                 </div>
             </section>
 
-            {/* ══ WHY LEGALPRO ═══════════════════════════════════════════════════════ */}
+            {/* ══ WHY JURIQ ═══════════════════════════════════════════════════════ */}
             <section className="lp-sec lp-sec-alt" id="why" aria-labelledby="why-heading">
                 <div className="lp-sec-inner">
                     <div className="lp-sec-hd-center lp-reveal" ref={r(22)}>
-                        <p className="lp-sec-label">Why LegalPro</p>
+                        <p className="lp-sec-label">Why Juriq</p>
                         <h2 id="why-heading" className="lp-sec-title">
                             Designed the way lawyers<br />actually think
                         </h2>
@@ -64,13 +64,13 @@ const About = () => {
                             {
                                 Icon: Ic.Layers,
                                 title: 'Organize Complex Legal Work',
-                                desc: 'Cases have moving parts — hearings, deadlines, clients, documents, notes. LegalPro gives every piece a structured home so nothing falls through the cracks.',
+                                desc: 'Cases have moving parts — hearings, deadlines, clients, documents, notes. Juriq gives every piece a structured home so nothing falls through the cracks.',
                                 bullets: ['Linked documents & evidence', 'Hearing timeline tracking', 'Multi-party case support'],
                             },
                             {
                                 Icon: Ic.Zap,
                                 title: 'AI Assisted Legal Thinking',
-                                desc: 'From Indian statute lookup to note structuring and case summarization, LegalPro\'s AI layer reduces research time and helps you build stronger arguments, faster.',
+                                desc: 'From Indian statute lookup to note structuring and case summarization, Juriq\'s AI layer reduces research time and helps you build stronger arguments, faster.',
                                 bullets: ['Indian case law references', 'Instant legal summaries', 'AI-powered note drafting'],
                             },
                             {
@@ -111,7 +111,7 @@ const About = () => {
                             <div className="lp-audience-icon"><Ic.UserCheck /></div>
                             <div className="lp-audience-role">Primary Audience</div>
                             <div className="lp-title-md" style={{ marginBottom: 8 }}>Solo Advocates</div>
-                            <div className="lp-text-sm">Individual advocates managing multiple cases across different courts. LegalPro gives you a single organized system for your entire practice.</div>
+                            <div className="lp-text-sm">Individual advocates managing multiple cases across different courts. Juriq gives you a single organized system for your entire practice.</div>
                         </div>
                         <div className="lp-audience-card">
                             <div className="lp-audience-icon"><Ic.Briefcase /></div>
@@ -123,7 +123,7 @@ const About = () => {
                             <div className="lp-audience-icon"><Ic.Star /></div>
                             <div className="lp-audience-role">New Practitioners</div>
                             <div className="lp-title-md" style={{ marginBottom: 8 }}>Young Lawyers Starting Practice</div>
-                            <div className="lp-text-sm">Build professional legal workflows from day one. LegalPro gives you the structure to run a disciplined practice from the start.</div>
+                            <div className="lp-text-sm">Build professional legal workflows from day one. Juriq gives you the structure to run a disciplined practice from the start.</div>
                         </div>
                     </div>
                 </div>
@@ -135,7 +135,7 @@ const About = () => {
                     <div className="lp-sec-hd-center lp-reveal" ref={r(60)}>
                         <p className="lp-sec-label">Design Philosophy</p>
                         <h2 id="phil-heading" className="lp-sec-title">Designed for Legal Precision</h2>
-                        <p className="lp-sec-sub">LegalPro is not a generic productivity tool repurposed for law. It is built specifically for legal workflows, with every feature designed around how advocates actually work.</p>
+                        <p className="lp-sec-sub">Juriq is not a generic productivity tool repurposed for law. It is built specifically for legal workflows, with every feature designed around how advocates actually work.</p>
                     </div>
                     <div className="lp-philosophy-list lp-reveal" ref={r(61)}>
                         {[
@@ -163,7 +163,7 @@ const About = () => {
                     <div className="lp-reveal" ref={r(31)} style={{ display: 'flex', justifyContent: 'center' }}>
                         <div className="lp-proof-card" style={{ maxWidth: 680, width: '100%', textAlign: 'center', borderRadius: 'var(--lp-r)' }}>
                             <div className="lp-text-p" style={{ lineHeight: 1.8, marginBottom: 0 }}>
-                                LegalPro is currently evolving with feedback from legal professionals to build a modern case management system tailored for Indian advocates.
+                                Juriq is currently evolving with feedback from legal professionals to build a modern case management system tailored for Indian advocates.
                                 <br /><br />
                                 Real user testimonials will appear here as the platform grows.
                             </div>
@@ -178,7 +178,7 @@ const About = () => {
                     <div className="lp-transparency-box lp-reveal" ref={r(66)}>
                         <div>
                             <h2 id="trans-heading" className="lp-sec-title" style={{ color: 'var(--lp-primary)' }}>Transparent Product Development</h2>
-                            <p className="lp-text-p">LegalPro focuses on building practical tools that help advocates manage legal work reliably. Artificial intelligence capabilities are currently under development and will be released in future updates. All AI features require your professional review before use.</p>
+                            <p className="lp-text-p">Juriq focuses on building practical tools that help advocates manage legal work reliably. Artificial intelligence capabilities are currently under development and will be released in future updates. All AI features require your professional review before use.</p>
                         </div>
                         <div className="lp-transparency-tags">
                             {['Production-grade authentication', 'No fabricated statistics', 'AI features clearly labeled', 'Honest capability descriptions'].map(tag => (
@@ -195,7 +195,7 @@ const About = () => {
                     <div className="lp-sec-hd-center lp-reveal" ref={r(64)}>
                         <p className="lp-sec-label">Roadmap</p>
                         <h2 id="road-heading" className="lp-sec-title">What is Coming Next</h2>
-                        <p className="lp-sec-sub">LegalPro will continue expanding with new capabilities. The following features are currently in development and will be released in future updates.</p>
+                        <p className="lp-sec-sub">Juriq will continue expanding with new capabilities. The following features are currently in development and will be released in future updates.</p>
                     </div>
                     <div className="lp-roadmap-items lp-reveal" ref={r(65)}>
                         {[

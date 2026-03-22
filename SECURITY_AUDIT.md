@@ -1,4 +1,4 @@
-# LawGPT — Security Headers & Maturity Audit
+# Juriq — Security Headers & Maturity Audit
 
 ## HTTP Security Headers
 

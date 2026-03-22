@@ -28,7 +28,7 @@ const Security = () => {
                                 Your clients trust you.<br />We protect that trust.
                             </h2>
                             <p className="lp-sec-sub" style={{ marginBottom: 28 }}>
-                                Lawyers handle the most sensitive personal and business information. LegalPro is built with security-first architecture — not bolted on later.
+                                Lawyers handle the most sensitive personal and business information. Juriq is built with security-first architecture — not bolted on later.
                             </p>
                             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                                 {['DPDP Ready', 'AES-256 Encrypted', 'Audit Logged'].map(tag => (
@@ -62,7 +62,7 @@ const Security = () => {
                     <div className="lp-sec-hd-center lp-reveal" ref={r(56)}>
                         <p className="lp-sec-label">Technology</p>
                         <h2 id="tech-heading" className="lp-sec-title">Built on Modern Technology</h2>
-                        <p className="lp-sec-sub">LegalPro uses a modern web stack designed for reliability, security, and performance.</p>
+                        <p className="lp-sec-sub">Juriq uses a modern web stack designed for reliability, security, and performance.</p>
                     </div>
                     <div className="lp-tech-grid lp-reveal" ref={r(57)}>
                         {[

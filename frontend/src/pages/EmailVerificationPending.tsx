@@ -85,7 +85,7 @@ const EmailVerificationPending = () => {
                 </CardHeader>
                 <CardContent className="space-y-4 text-center">
                     <p className="text-sm text-muted-foreground">
-                        Click the link in the email to verify your account and access all features of LegalPro.
+                        Click the link in the email to verify your account and access all features of Juriq.
                     </p>
                     <p className="text-xs text-muted-foreground">
                         The link will expire in 24 hours.

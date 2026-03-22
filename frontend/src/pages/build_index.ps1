@@ -131,7 +131,7 @@ $problemSection = @'
           </div>
           <div className="lp-problem-solution lp-reveal" ref={r(42)}>
             <div className="lp-problem-solution-icon"><Ic.Scale /></div>
-            <div className="lp-problem-solution-text"><strong>LegalPro</strong> introduces a structured digital system built specifically for legal practice, replacing scattered tools with one organized workspace.</div>
+            <div className="lp-problem-solution-text"><strong>Juriq</strong> introduces a structured digital system built specifically for legal practice, replacing scattered tools with one organized workspace.</div>
           </div>
         </div>
       </section>
@@ -142,7 +142,7 @@ $problemSection = @'
           <div className="lp-sec-hd lp-reveal" ref={r(43)} style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <p className="lp-sec-label">Real Legal Workflow</p>
             <h2 id="lwf-heading" className="lp-sec-title" style={{ textAlign: 'center' }}>Built Around Real Legal Workflow</h2>
-            <p className="lp-sec-sub" style={{ textAlign: 'center' }}>LegalPro mirrors how advocates actually manage legal work from client onboarding to final judgment.</p>
+            <p className="lp-sec-sub" style={{ textAlign: 'center' }}>Juriq mirrors how advocates actually manage legal work from client onboarding to final judgment.</p>
           </div>
           <div className="lp-wf-timeline lp-reveal" ref={r(44)}>
             {[
@@ -178,7 +178,7 @@ $middleSections = @'
           <div className="lp-sec-hd lp-reveal" ref={r(45)}>
             <p className="lp-sec-label">Case Pipeline</p>
             <h2 id="pipe-heading" className="lp-sec-title">Track Case Progress Clearly</h2>
-            <p className="lp-pipeline-desc">Every legal matter progresses through multiple stages. LegalPro lets you track these stages through a structured case pipeline so nothing falls through the cracks.</p>
+            <p className="lp-pipeline-desc">Every legal matter progresses through multiple stages. Juriq lets you track these stages through a structured case pipeline so nothing falls through the cracks.</p>
           </div>
           <div className="lp-pipeline-row lp-reveal" ref={r(46)}>
             {[
@@ -211,7 +211,7 @@ $middleSections = @'
             <div>
               <p className="lp-sec-label">Hearing Management</p>
               <h2 id="hear-heading" className="lp-sec-title">Never Miss a Hearing</h2>
-              <p className="lp-hearing-desc">LegalPro provides a calendar-based system to track every hearing and identify scheduling overlaps across multiple courts.</p>
+              <p className="lp-hearing-desc">Juriq provides a calendar-based system to track every hearing and identify scheduling overlaps across multiple courts.</p>
               <div className="lp-hearing-features">
                 {[
                   { Icon: Ic.Calendar, t: 'Hearing Timeline Tracking', d: 'Every hearing date logged against its case with full context.' },
@@ -252,7 +252,7 @@ $middleSections = @'
           <div className="lp-sec-hd lp-reveal" ref={r(49)}>
             <p className="lp-sec-label">Document Management</p>
             <h2 id="vault-heading" className="lp-sec-title">Secure Case Document Vault</h2>
-            <p className="lp-sec-sub">LegalPro organizes every document directly within the case where it belongs.</p>
+            <p className="lp-sec-sub">Juriq organizes every document directly within the case where it belongs.</p>
           </div>
           <div className="lp-vault-grid lp-reveal" ref={r(50)}>
             {[
@@ -276,7 +276,7 @@ $middleSections = @'
           <div className="lp-sec-hd lp-reveal" ref={r(51)}>
             <p className="lp-sec-label">Legal Reference</p>
             <h2 id="ref-heading" className="lp-sec-title">Quick Legal Reference</h2>
-            <p className="lp-ref-desc">LegalPro includes an integrated reference system containing commonly used Indian laws, keeping key statutes accessible while you work on cases.</p>
+            <p className="lp-ref-desc">Juriq includes an integrated reference system containing commonly used Indian laws, keeping key statutes accessible while you work on cases.</p>
           </div>
           <div className="lp-ref-chips lp-reveal" ref={r(52)}>
             {['Indian Penal Code (IPC)','Criminal Procedure Code (CrPC)','Indian Contract Act','Code of Civil Procedure (CPC)','Indian Evidence Act','Negotiable Instruments Act','Transfer of Property Act','Specific Relief Act','Arbitration & Conciliation Act','Consumer Protection Act','Information Technology Act'].map(law => (
@@ -293,7 +293,7 @@ $middleSections = @'
           <div className="lp-sec-hd lp-reveal" ref={r(54)} style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <p className="lp-sec-label">All-in-One</p>
             <h2 id="hub-heading" className="lp-sec-title" style={{ textAlign: 'center' }}>Your Entire Legal Practice in One Workspace</h2>
-            <p className="lp-sec-sub" style={{ textAlign: 'center' }}>LegalPro centralizes every essential component of legal practice management.</p>
+            <p className="lp-sec-sub" style={{ textAlign: 'center' }}>Juriq centralizes every essential component of legal practice management.</p>
           </div>
           <div className="lp-hub-grid lp-reveal" ref={r(55)}>
             {[
@@ -323,12 +323,12 @@ $walkthrough = @'
         <div className="lp-sec-inner">
           <div className="lp-sec-hd lp-reveal" ref={r(20)} style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <p className="lp-sec-label">Product Walkthrough</p>
-            <h2 id="walk-heading" className="lp-sec-title" style={{ textAlign: 'center' }}>How LegalPro Works</h2>
+            <h2 id="walk-heading" className="lp-sec-title" style={{ textAlign: 'center' }}>How Juriq Works</h2>
             <p className="lp-sec-sub" style={{ textAlign: 'center' }}>Get organized in minutes. No training required.</p>
           </div>
           <div className="lp-steps-grid lp-reveal" ref={r(21)}>
             {[
-              { n: '1', t: 'Create Your Account', d: 'Sign up and set up your LegalPro advocate profile in minutes.' },
+              { n: '1', t: 'Create Your Account', d: 'Sign up and set up your Juriq advocate profile in minutes.' },
               { n: '2', t: 'Register Your Clients', d: 'Add client details, contact information, and identification records.' },
               { n: '3', t: 'Create & Organize Cases', d: 'Build structured case files with court details, parties, and case type.' },
               { n: '4', t: 'Schedule & Track Hearings', d: 'Add hearing dates, record outcomes, and get a full calendar view.' },
@@ -361,7 +361,7 @@ $techSections = @'
           <div className="lp-sec-hd lp-reveal" ref={r(56)} style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <p className="lp-sec-label">Technology</p>
             <h2 id="tech-heading" className="lp-sec-title" style={{ textAlign: 'center' }}>Built on Modern Technology</h2>
-            <p className="lp-sec-sub" style={{ textAlign: 'center' }}>LegalPro uses a modern web stack designed for reliability, security, and performance.</p>
+            <p className="lp-sec-sub" style={{ textAlign: 'center' }}>Juriq uses a modern web stack designed for reliability, security, and performance.</p>
           </div>
           <div className="lp-tech-grid lp-reveal" ref={r(57)}>
             {[
@@ -394,7 +394,7 @@ $techSections = @'
               <div className="lp-audience-icon"><Ic.UserCheck /></div>
               <div className="lp-audience-role">Primary Audience</div>
               <div className="lp-audience-title">Solo Advocates</div>
-              <div className="lp-audience-desc">Individual advocates managing multiple cases across different courts. LegalPro gives you a single organized system for your entire practice.</div>
+              <div className="lp-audience-desc">Individual advocates managing multiple cases across different courts. Juriq gives you a single organized system for your entire practice.</div>
             </div>
             <div className="lp-audience-card">
               <div className="lp-audience-icon"><Ic.Briefcase /></div>
@@ -406,7 +406,7 @@ $techSections = @'
               <div className="lp-audience-icon"><Ic.Star /></div>
               <div className="lp-audience-role">New Practitioners</div>
               <div className="lp-audience-title">Young Lawyers Starting Practice</div>
-              <div className="lp-audience-desc">Build professional legal workflows from day one. LegalPro gives you the structure to run a disciplined practice from the start.</div>
+              <div className="lp-audience-desc">Build professional legal workflows from day one. Juriq gives you the structure to run a disciplined practice from the start.</div>
             </div>
           </div>
         </div>
@@ -418,7 +418,7 @@ $techSections = @'
           <div className="lp-sec-hd lp-reveal" ref={r(60)}>
             <p className="lp-sec-label">Design Philosophy</p>
             <h2 id="phil-heading" className="lp-sec-title">Designed for Legal Precision</h2>
-            <p className="lp-philosophy-intro">LegalPro is not a generic productivity tool repurposed for law. It is built specifically for legal workflows, with every feature designed around how advocates actually work.</p>
+            <p className="lp-philosophy-intro">Juriq is not a generic productivity tool repurposed for law. It is built specifically for legal workflows, with every feature designed around how advocates actually work.</p>
           </div>
           <div className="lp-philosophy-list lp-reveal" ref={r(61)}>
             {[
@@ -474,7 +474,7 @@ $finalSections = @'
           <div className="lp-reveal" ref={r(31)} style={{ display: 'flex', justifyContent: 'center' }}>
             <div className="lp-proof-card" style={{ maxWidth: 680, width: '100%', textAlign: 'center', borderRadius: 'var(--lp-r)' }}>
               <p className="lp-proof-quote" style={{ fontSize: '1.05rem', lineHeight: 1.8, marginBottom: 0 }}>
-                LegalPro is currently evolving with feedback from legal professionals to build a modern case management system tailored for Indian advocates.
+                Juriq is currently evolving with feedback from legal professionals to build a modern case management system tailored for Indian advocates.
                 <br /><br />
                 Real user testimonials will appear here as the platform grows.
               </p>
@@ -489,7 +489,7 @@ $finalSections = @'
           <div className="lp-sec-hd lp-reveal" ref={r(64)}>
             <p className="lp-sec-label">Roadmap</p>
             <h2 id="road-heading" className="lp-sec-title">What is Coming Next</h2>
-            <p className="lp-roadmap-intro">LegalPro will continue expanding with new capabilities. The following features are currently in development and will be released in future updates.</p>
+            <p className="lp-roadmap-intro">Juriq will continue expanding with new capabilities. The following features are currently in development and will be released in future updates.</p>
           </div>
           <div className="lp-roadmap-items lp-reveal" ref={r(65)}>
             {[
@@ -517,7 +517,7 @@ $finalSections = @'
           <div className="lp-transparency-box lp-reveal" ref={r(66)}>
             <div>
               <h2 id="trans-heading" className="lp-transparency-title">Transparent Product Development</h2>
-              <p className="lp-transparency-text">LegalPro focuses on building practical tools that help advocates manage legal work reliably. Artificial intelligence capabilities are currently under development and will be released in future updates. All AI features require your professional review before use.</p>
+              <p className="lp-transparency-text">Juriq focuses on building practical tools that help advocates manage legal work reliably. Artificial intelligence capabilities are currently under development and will be released in future updates. All AI features require your professional review before use.</p>
             </div>
             <div className="lp-transparency-tags">
               {['Production-grade authentication','No fabricated statistics','AI features clearly labeled','Honest capability descriptions'].map(tag => (
@@ -533,7 +533,7 @@ $finalSections = @'
         <div className="lp-sec-inner">
           <div className="lp-sec-hd lp-reveal" ref={r(67)} style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <p className="lp-sec-label">Interface Preview</p>
-            <h2 id="ss-heading" className="lp-sec-title" style={{ textAlign: 'center' }}>See LegalPro in Action</h2>
+            <h2 id="ss-heading" className="lp-sec-title" style={{ textAlign: 'center' }}>See Juriq in Action</h2>
             <p className="lp-sec-sub" style={{ textAlign: 'center' }}>A preview of the organized, professional interface your practice will run on.</p>
           </div>
           <div className="lp-screens-grid lp-reveal" ref={r(68)}>
@@ -542,7 +542,7 @@ $finalSections = @'
             <div className="lp-screen-card">
               <div className="lp-app-mock">
                 <div className="lp-app-sidebar">
-                  <div className="lp-app-logo-row"><div className="lp-app-logo-icon" /><div className="lp-app-logo-text">LegalPro</div></div>
+                  <div className="lp-app-logo-row"><div className="lp-app-logo-icon" /><div className="lp-app-logo-text">Juriq</div></div>
                   <div className="lp-app-nav-label">Navigation</div>
                   {['Dashboard','Cases','Calendar','Clients','Legal Research','Billing','Documents','Notes'].map((item, i) => (
                     <div key={item} className={`lp-app-nav-item${i === 0 ? ' active' : ''}`}><div className="lp-app-nav-dot" />{item}</div>
@@ -580,7 +580,7 @@ $finalSections = @'
             <div className="lp-screen-card">
               <div className="lp-app-mock">
                 <div className="lp-app-sidebar">
-                  <div className="lp-app-logo-row"><div className="lp-app-logo-icon" /><div className="lp-app-logo-text">LegalPro</div></div>
+                  <div className="lp-app-logo-row"><div className="lp-app-logo-icon" /><div className="lp-app-logo-text">Juriq</div></div>
                   <div className="lp-app-nav-label">Navigation</div>
                   {['Dashboard','Cases','Calendar','Clients','Legal Research','Billing','Documents','Notes'].map((item, i) => (
                     <div key={item} className={`lp-app-nav-item${i === 2 ? ' active' : ''}`}><div className="lp-app-nav-dot" />{item}</div>
@@ -621,7 +621,7 @@ $finalSections = @'
             <div className="lp-screen-card">
               <div className="lp-app-mock">
                 <div className="lp-app-sidebar">
-                  <div className="lp-app-logo-row"><div className="lp-app-logo-icon" /><div className="lp-app-logo-text">LegalPro</div></div>
+                  <div className="lp-app-logo-row"><div className="lp-app-logo-icon" /><div className="lp-app-logo-text">Juriq</div></div>
                   <div className="lp-app-nav-label">Navigation</div>
                   {['Dashboard','Cases','Calendar','Clients','Legal Research','Billing','Documents','Notes'].map((item, i) => (
                     <div key={item} className={`lp-app-nav-item${i === 6 ? ' active' : ''}`}><div className="lp-app-nav-dot" />{item}</div>
@@ -654,7 +654,7 @@ $finalSections = @'
             <div className="lp-screen-card">
               <div className="lp-app-mock">
                 <div className="lp-app-sidebar">
-                  <div className="lp-app-logo-row"><div className="lp-app-logo-icon" /><div className="lp-app-logo-text">LegalPro</div></div>
+                  <div className="lp-app-logo-row"><div className="lp-app-logo-icon" /><div className="lp-app-logo-text">Juriq</div></div>
                   <div className="lp-app-nav-label">Navigation</div>
                   {['Dashboard','Cases','Calendar','Clients','Legal Research','Billing','Documents','Notes'].map((item, i) => (
                     <div key={item} className={`lp-app-nav-item${i === 3 ? ' active' : ''}`}><div className="lp-app-nav-dot" />{item}</div>
@@ -708,7 +708,7 @@ $finalSections = @'
               Free to start, no credit card required
             </div>
             <h2 className="lp-cta-title">Start Organizing Your<br />Legal Practice</h2>
-            <p className="lp-cta-sub">LegalPro provides a structured digital system for managing cases, documents, and hearings. Join advocates who have moved from scattered folders to a professional legal workspace.</p>
+            <p className="lp-cta-sub">Juriq provides a structured digital system for managing cases, documents, and hearings. Join advocates who have moved from scattered folders to a professional legal workspace.</p>
             <div className="lp-cta-actions">
               <button id="cta-signup" className="lp-btn lp-btn-gold-lg" onClick={() => go('/signup')}>Create Account <Ic.Arrow /></button>
               <button id="cta-login" className="lp-btn lp-btn-outline-lg" onClick={() => go('/login')}>Login</button>
@@ -724,7 +724,7 @@ $finalSections = @'
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <div className="lp-nav-logo-icon" style={{ width: 28, height: 28 }}><Scale className="lp-logo-icon" /></div>
-              <div><span className="lp-footer-brand-name">LegalPro</span><span className="lp-footer-sub">Indian Law Management</span></div>
+              <div><span className="lp-footer-brand-name">Juriq</span><span className="lp-footer-sub">Indian Law Management</span></div>
             </div>
             <p className="lp-footer-brand-tag">Professional case management for Indian advocates and legal professionals.</p>
           </div>
@@ -754,7 +754,7 @@ $finalSections = @'
           </div>
         </div>
         <div className="lp-footer-bottom">
-          <span className="lp-footer-copy">2026 LegalPro. All Rights Reserved.</span>
+          <span className="lp-footer-copy">2026 Juriq. All Rights Reserved.</span>
           <span className="lp-footer-badge"><span style={{ color: '#22c55e' }}>*</span> Systems Operational</span>
         </div>
       </footer>

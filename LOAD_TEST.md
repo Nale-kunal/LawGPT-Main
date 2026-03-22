@@ -1,4 +1,4 @@
-# LawGPT Load Test Simulation
+# Juriq Load Test Simulation
 
 ## Setup
 
@@ -26,7 +26,7 @@ config:
       arrivalRate: 500
   environments:
     production:
-      target: "https://api.lawgpt.app"
+      target: "https://api.juriq.app"
 
 scenarios:
   - name: "Authenticated dashboard load"

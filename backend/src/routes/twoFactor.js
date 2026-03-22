@@ -36,8 +36,8 @@ router.post('/enable', async (req, res) => {
 
         // Generate secret
         const secret = speakeasy.generateSecret({
-            name: `LawGPT (${userProfile.email})`,
-            issuer: 'LawGPT',
+            name: `Juriq (${userProfile.email})`,
+            issuer: 'Juriq',
             length: 32
         });
 

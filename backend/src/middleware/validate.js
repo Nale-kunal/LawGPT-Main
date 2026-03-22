@@ -1,4 +1,4 @@
-import { z } from 'zod';
+
 
 /**
  * Zod-based request validation middleware factory.
@@ -59,6 +59,6 @@ export function validate({ body, params, query } = {}) {
             });
         }
 
-        next();
+        return next();
     };
 }

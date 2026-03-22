@@ -11,7 +11,7 @@ class ActivityEmitter {
      * @returns {string} - The hex-encoded hash.
      */
     hash(data) {
-        if (!data) return 'unknown';
+        if (!data) {return 'unknown';}
         return crypto.createHash('sha256').update(data).digest('hex');
     }
 

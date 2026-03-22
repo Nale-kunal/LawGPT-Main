@@ -1,5 +1,6 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth-jwt.js';
+import logger from '../utils/logger.js';
 import { logActivity } from '../middleware/activityLogger.js';
 import {
   createDocument,
@@ -23,14 +24,10 @@ router.get('/', async (req, res) => {
       [{ field: 'owner', operator: '==', value: req.user.userId }],
       { field: 'createdAt', direction: 'desc' }
     );
-    res.json(clients);
+    return res.json(clients);
   } catch (error) {
-    console.error('Get clients error:', error);
-    console.error('Error details:', {
-      code: error.code,
-      message: error.message
-    });
-    res.status(500).json({
+    logger.error({ err: error }, 'Get clients error');
+    return res.status(500).json({
       error: 'Failed to fetch clients',
       ...(process.env.NODE_ENV === 'development' && {
         details: error.message,
@@ -120,7 +117,7 @@ router.post('/', async (req, res) => {
       const existing = await queryDocuments(COLLECTIONS.CLIENTS, [
         { field: 'clientCode', operator: '==', value: clientCode }
       ]);
-      if (existing.length === 0) break;
+      if (existing.length === 0) { break; }
       counter++;
       clientCode = generateClientCode(req.body.name, new Date(), counter);
     }
@@ -149,10 +146,10 @@ router.post('/', async (req, res) => {
       }
     );
 
-    res.status(201).json(client);
+    return res.status(201).json(client);
   } catch (error) {
-    console.error('Create client error:', error);
-    res.status(500).json({ error: 'Failed to create client' });
+    logger.error({ err: error }, 'Create client error');
+    return res.status(500).json({ error: 'Failed to create client' });
   }
 });
 
@@ -261,10 +258,10 @@ router.put('/:id', async (req, res) => {
       }
     );
 
-    res.json(client);
+    return res.json(client);
   } catch (error) {
-    console.error('Update client error:', error);
-    res.status(500).json({ error: 'Failed to update client' });
+    logger.error({ err: error }, 'Update client error');
+    return res.status(500).json({ error: 'Failed to update client' });
   }
 });
 
@@ -276,10 +273,10 @@ router.delete('/:id', async (req, res) => {
     }
 
     await deleteDocument(COLLECTIONS.CLIENTS, req.params.id);
-    res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (error) {
-    console.error('Delete client error:', error);
-    res.status(500).json({ error: 'Failed to delete client' });
+    logger.error({ err: error }, 'Delete client error');
+    return res.status(500).json({ error: 'Failed to delete client' });
   }
 });
 
@@ -331,7 +328,7 @@ router.get('/:id/cases', requireAuth, async (req, res) => {
     const total = cases.length;
     const paginatedCases = cases.slice(parseInt(offset), parseInt(offset) + parseInt(limit));
 
-    res.json({
+    return res.json({
       cases: paginatedCases,
       pagination: {
         total,
@@ -341,8 +338,8 @@ router.get('/:id/cases', requireAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get client cases error:', error);
-    res.status(500).json({ error: 'Failed to fetch client cases' });
+    logger.error({ err: error }, 'Get client cases error');
+    return res.status(500).json({ error: 'Failed to fetch client cases' });
   }
 });
 

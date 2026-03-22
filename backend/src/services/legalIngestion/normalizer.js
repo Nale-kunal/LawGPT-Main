@@ -33,7 +33,7 @@ export function normalizeAct(raw) {
     const section = (raw.section || '').trim().slice(0, 50);
     const description = (raw.description || '').trim().slice(0, MAX_DESCRIPTION_LENGTH);
 
-    if (!title || !actName || !description) return null;
+    if (!title || !actName || !description) {return null;}
 
     const keywords = mergeKeywords(
         (raw.keywords || []).map(k => String(k).trim()).filter(Boolean),
@@ -74,7 +74,7 @@ export function normalizeCase(raw) {
     const court = (raw.court || 'Supreme Court of India').trim().slice(0, 200);
     const summary = (raw.summary || '').trim().slice(0, MAX_DESCRIPTION_LENGTH);
 
-    if (!caseTitle || !summary) return null;
+    if (!caseTitle || !summary) {return null;}
 
     // Parse date safely
     let date = null;

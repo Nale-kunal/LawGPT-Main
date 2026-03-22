@@ -1,4 +1,4 @@
-import { jest, describe, test, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import mongoose from 'mongoose';
 import { User, Case, Document } from '../models/index.js';
 import userDeletionService from '../services/userDeletionService.js';
@@ -38,13 +38,13 @@ describe('Hard Data Deletion Verification', () => {
         userId = testUser._id.toString();
 
         // 2. Create associated data
-        const testCase = await Case.create({
+        await Case.create({
             caseNumber: 'CASE-123',
             clientName: 'Test Client',
             owner: userId
         });
 
-        const testDoc = await Document.create({
+        await Document.create({
             name: 'test-doc.pdf',
             mimetype: 'application/pdf',
             size: 1024,

@@ -69,7 +69,7 @@ export const cache = {
         }
         try {
             const rawClient = redis.raw();
-            if (!rawClient) return;
+            if (!rawClient) {return;}
             let cursor = '0';
             do {
                 const [nextCursor, keys] = await rawClient.scan(cursor, 'MATCH', `${prefix}*`, 'COUNT', 100);

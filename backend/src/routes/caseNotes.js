@@ -1,5 +1,6 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth-jwt.js';
+import logger from '../utils/logger.js';
 import { logActivity } from '../middleware/activityLogger.js';
 import CaseNote from '../models/CaseNote.js';
 import Case from '../models/Case.js';
@@ -16,11 +17,11 @@ router.use(requireAuth);
 const verifyCaseAccess = async (req, res, next) => {
     try {
         const caseId = req.params.caseId;
-        console.log(`[CaseNotes] Verifying access for caseId: ${caseId}`);
+        logger.debug({ caseId }, '[CaseNotes] Verifying access');
         // Assuming we have Case model or use getDocumentById
         const caseDoc = await Case.findById(caseId);
         if (!caseDoc) {
-            console.log(`[CaseNotes] Case not found: ${caseId}`);
+            logger.debug({ caseId }, '[CaseNotes] Case not found');
             return res.status(404).json({ error: 'Case not found' });
         }
 
@@ -31,10 +32,10 @@ const verifyCaseAccess = async (req, res, next) => {
         }
 
         req.caseDoc = caseDoc;
-        next();
+        return next();
     } catch (error) {
-        console.error('Verify case access error:', error);
-        res.status(500).json({ error: 'Server error' });
+        logger.error({ err: error }, 'Verify case access error');
+        return res.status(500).json({ error: 'Server error' });
     }
 };
 
@@ -44,7 +45,8 @@ router.use(verifyCaseAccess);
 router.post('/', async (req, res) => {
     try {
         const { caseId } = req.params;
-        let { title, content, noteType, hearingId, evidenceTags, parentNoteId, attachments, isPinned, isPrivate } = req.body;
+        let { title, content, evidenceTags } = req.body;
+        const { noteType, hearingId, parentNoteId, attachments, isPinned, isPrivate } = req.body;
 
         if (!content || !content.trim()) {
             return res.status(400).json({ error: 'Note content is required' });
@@ -107,10 +109,10 @@ router.post('/', async (req, res) => {
 
         // Return populated author for frontend
         const populatedNote = await CaseNote.findById(savedNote._id).populate('authorId', 'name email');
-        res.status(201).json(populatedNote);
+        return res.status(201).json(populatedNote);
     } catch (error) {
-        console.error('Create note error:', error);
-        res.status(500).json({ error: 'Failed to create note' });
+        logger.error({ err: error }, 'Create note error');
+        return res.status(500).json({ error: 'Failed to create note' });
     }
 });
 
@@ -160,10 +162,10 @@ router.get('/', async (req, res) => {
             }
         });
 
-        res.json(rootNotes);
+        return res.json(rootNotes);
     } catch (error) {
-        console.error('Get notes error:', error);
-        res.status(500).json({ error: 'Failed to fetch notes' });
+        logger.error({ err: error }, 'Get notes error');
+        return res.status(500).json({ error: 'Failed to fetch notes' });
     }
 });
 
@@ -183,36 +185,36 @@ router.put('/:noteId', async (req, res) => {
             return res.status(403).json({ error: 'Unauthorized to edit this note' });
         }
 
-        let { title, content, evidenceTags, isPinned, noteType, hearingId, isPrivate } = req.body;
-        console.log(`[CaseNotes] Updating note ${noteId}. Incoming data:`, { title, noteType, hearingId, isPrivate });
+        const { title, content, evidenceTags, isPinned, noteType, hearingId, isPrivate } = req.body;
+        logger.debug({ noteId, title, noteType, hearingId, isPrivate }, '[CaseNotes] Updating note');
 
         if (content !== undefined) {
-            if (!content.trim()) return res.status(400).json({ error: 'Content cannot be empty' });
-            if (content.length > 10000) return res.status(400).json({ error: 'Content exceeds maximum length' });
+            if (!content.trim()) { return res.status(400).json({ error: 'Content cannot be empty' }); }
+            if (content.length > 10000) { return res.status(400).json({ error: 'Content exceeds maximum length' }); }
             note.content = xss(content.trim());
         }
 
-        if (title !== undefined) note.title = xss(title.trim()).substring(0, 150);
+        if (title !== undefined) { note.title = xss(title.trim()).substring(0, 150); }
 
         if (evidenceTags && Array.isArray(evidenceTags)) {
             note.evidenceTags = evidenceTags.map(tag => xss(tag.trim())).filter(tag => tag && tag.length <= 50);
         }
 
-        if (isPinned !== undefined) note.isPinned = !!isPinned;
+        if (isPinned !== undefined) { note.isPinned = !!isPinned; }
 
         if (noteType !== undefined) {
-            console.log(`[CaseNotes] Updating noteType. Received: "${noteType}"`);
+            logger.debug({ noteType }, '[CaseNotes] Updating noteType');
             note.noteType = noteType || 'general';
         }
 
-        if (hearingId !== undefined) note.hearingId = hearingId === 'none' ? null : hearingId;
+        if (hearingId !== undefined) { note.hearingId = hearingId === 'none' ? null : hearingId; }
 
-        if (isPrivate !== undefined) note.isPrivate = !!isPrivate;
+        if (isPrivate !== undefined) { note.isPrivate = !!isPrivate; }
 
         note.editedAt = Date.now();
 
         const updatedNote = await note.save();
-        console.log(`[CaseNotes] Note ${noteId} saved successfully. New type: ${updatedNote.noteType}`);
+        logger.debug({ noteId, newType: updatedNote.noteType }, '[CaseNotes] Note saved successfully');
 
         await logActivity(
             req.user.userId,
@@ -224,10 +226,10 @@ router.put('/:noteId', async (req, res) => {
         );
 
         const populatedNote = await CaseNote.findById(updatedNote._id).populate('authorId', 'name email');
-        res.json(populatedNote);
+        return res.json(populatedNote);
     } catch (error) {
-        console.error('Update note error:', error);
-        res.status(500).json({ error: 'Failed to update note' });
+        logger.error({ err: error }, 'Update note error');
+        return res.status(500).json({ error: 'Failed to update note' });
     }
 });
 
@@ -257,10 +259,10 @@ router.delete('/:noteId', async (req, res) => {
             { noteId: note._id }
         );
 
-        res.json({ success: true, message: 'Note deleted' });
+        return res.json({ success: true, message: 'Note deleted' });
     } catch (error) {
-        console.error('Delete note error:', error);
-        res.status(500).json({ error: 'Failed to delete note' });
+        logger.error({ err: error }, 'Delete note error');
+        return res.status(500).json({ error: 'Failed to delete note' });
     }
 });
 

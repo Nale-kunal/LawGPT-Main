@@ -1,5 +1,6 @@
 import express from 'express';
 import multer from 'multer';
+import logger from '../utils/logger.js';
 import { requireAuth } from '../middleware/auth-jwt.js';
 import {
   createDocument,
@@ -88,10 +89,10 @@ router.get('/folders', requireAuth, async (req, res) => {
       createdAt: folder.createdAt?.toDate ? folder.createdAt.toDate().toISOString() : folder.createdAt
     }));
 
-    res.json({ folders: transformedFolders });
+    return res.json({ folders: transformedFolders });
   } catch (error) {
-    console.error('Get folders error:', error);
-    res.status(500).json({ error: 'Failed to fetch folders' });
+    logger.error({ err: error }, 'Get folders error');
+    return res.status(500).json({ error: 'Failed to fetch folders' });
   }
 });
 
@@ -148,10 +149,10 @@ router.post('/folders', requireAuth, async (req, res) => {
       createdAt: folder.createdAt?.toDate ? folder.createdAt.toDate().toISOString() : folder.createdAt
     };
 
-    res.status(201).json({ folder: transformedFolder });
+    return res.status(201).json({ folder: transformedFolder });
   } catch (error) {
-    console.error('Create folder error:', error);
-    res.status(500).json({ error: 'Failed to create folder' });
+    logger.error({ err: error }, 'Create folder error');
+    return res.status(500).json({ error: 'Failed to create folder' });
   }
 });
 
@@ -217,10 +218,10 @@ router.put('/folders/:id', requireAuth, async (req, res) => {
       createdAt: folder.createdAt?.toDate ? folder.createdAt.toDate().toISOString() : folder.createdAt
     };
 
-    res.json({ folder: transformedFolder });
+    return res.json({ folder: transformedFolder });
   } catch (error) {
-    console.error('Update folder error:', error);
-    res.status(500).json({ error: 'Failed to update folder' });
+    logger.error({ err: error }, 'Update folder error');
+    return res.status(500).json({ error: 'Failed to update folder' });
   }
 });
 
@@ -251,9 +252,9 @@ router.delete('/folders/:id', requireAuth, async (req, res) => {
       .map(async (doc) => {
         try {
           const publicId = doc.cloudinaryPublicId || extractPublicIdFromUrl(doc.url);
-          if (publicId) await deleteFromCloudinary(publicId, doc.resourceType || 'auto');
+          if (publicId) { await deleteFromCloudinary(publicId, doc.resourceType || 'auto'); }
         } catch (e) {
-          console.error('Failed to delete Cloudinary asset:', e);
+          logger.error({ err: e, docId: doc.id }, 'Failed to delete Cloudinary asset');
         }
       });
     await Promise.allSettled(cloudinaryDeletions);
@@ -271,10 +272,10 @@ router.delete('/folders/:id', requireAuth, async (req, res) => {
     }
 
     await deleteDocument(COLLECTIONS.FOLDERS, folderId);
-    res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (error) {
-    console.error('Delete folder error:', error);
-    res.status(500).json({ error: 'Failed to delete folder' });
+    logger.error({ err: error }, 'Delete folder error');
+    return res.status(500).json({ error: 'Failed to delete folder' });
   }
 });
 
@@ -292,7 +293,7 @@ router.get('/files', requireAuth, async (req, res) => {
 
     // If 'all=true' is specified, return ALL files for this user (for statistics)
     if (all === 'true') {
-      console.log('📊 Fetching ALL files for statistics');
+      logger.info({ ownerId }, '📊 Fetching ALL files for statistics');
       const files = await queryDocuments(
         COLLECTIONS.DOCUMENTS,
         filters,
@@ -311,7 +312,7 @@ router.get('/files', requireAuth, async (req, res) => {
         return transformed;
       });
 
-      console.log(`📋 Returning ${transformedFiles.length} total files for statistics`);
+      logger.info({ count: transformedFiles.length }, '📋 Returning total files for statistics');
       return res.json({ files: transformedFiles });
     }
 
@@ -344,15 +345,11 @@ router.get('/files', requireAuth, async (req, res) => {
       return transformed;
     });
 
-    console.log(`📋 Returning ${transformedFiles.length} files for folderId: ${folderId || 'null'}`);
-    res.json({ files: transformedFiles });
+    logger.debug({ count: transformedFiles.length, folderId: folderId || 'null' }, '📋 Returning files for folder');
+    return res.json({ files: transformedFiles });
   } catch (error) {
-    console.error('Get files error:', error);
-    console.error('Error details:', {
-      code: error.code,
-      message: error.message
-    });
-    res.status(500).json({ error: 'Failed to fetch files' });
+    logger.error({ err: error }, 'Get files error');
+    return res.status(500).json({ error: 'Failed to fetch files' });
   }
 });
 
@@ -372,7 +369,7 @@ router.get('/files/:id/view', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Document not found or access denied' });
     }
 
-    console.log(`👁️  View requested: ${doc.name}`);
+    logger.debug({ name: doc.name }, '👁️ View requested');
 
     // Fetch from Cloudinary and serve with inline disposition
     if (doc.url && (doc.url.startsWith('http://') || doc.url.startsWith('https://'))) {
@@ -392,19 +389,17 @@ router.get('/files/:id/view', requireAuth, async (req, res) => {
 
         // Pipe the file data to response
         const buffer = await response.arrayBuffer();
-        res.send(Buffer.from(buffer));
-
-        console.log(`✅ View served: ${doc.name}`);
+        return res.send(Buffer.from(buffer));
       } catch (fetchError) {
-        console.error('Error fetching file from storage:', fetchError);
+        logger.error({ err: fetchError }, 'Error fetching file from storage');
         return res.status(500).json({ error: 'Failed to fetch file from storage' });
       }
     } else {
       return res.status(400).json({ error: 'File URL not found or invalid' });
     }
   } catch (error) {
-    console.error('View document error:', error);
-    res.status(500).json({ error: 'Failed to retrieve document' });
+    logger.error({ err: error }, 'View document error');
+    return res.status(500).json({ error: 'Failed to retrieve document' });
   }
 });
 
@@ -420,11 +415,7 @@ router.get('/files/:id/download', requireAuth, async (req, res) => {
     const doc = await getDocumentById(COLLECTIONS.DOCUMENTS, req.params.id);
 
     // Compare as strings to handle ObjectId vs string inconsistencies
-    if (!doc || String(doc.ownerId) !== String(ownerId)) {
-      return res.status(404).json({ error: 'Document not found or access denied' });
-    }
-
-    console.log(`📥 Download requested: ${doc.name}`);
+    logger.debug({ name: doc.name }, '📥 Download requested');
 
     // If the URL is a Cloudinary URL, fetch it and pipe it to the response
     if (doc.url && (doc.url.startsWith('http://') || doc.url.startsWith('https://'))) {
@@ -446,11 +437,9 @@ router.get('/files/:id/download', requireAuth, async (req, res) => {
 
         // Pipe the file data to response
         const buffer = await response.arrayBuffer();
-        res.send(Buffer.from(buffer));
-
-        console.log(`✅ Download completed: ${sanitizedName}`);
+        return res.send(Buffer.from(buffer));
       } catch (fetchError) {
-        console.error('Error fetching file from storage:', fetchError);
+        logger.error({ err: fetchError }, 'Error fetching file from storage');
         return res.status(500).json({ error: 'Failed to fetch file from storage' });
       }
     } else {
@@ -458,8 +447,8 @@ router.get('/files/:id/download', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'File URL not found or invalid' });
     }
   } catch (error) {
-    console.error('Download document error:', error);
-    res.status(500).json({ error: 'Failed to retrieve document' });
+    logger.error({ err: error }, 'Download document error');
+    return res.status(500).json({ error: 'Failed to retrieve document' });
   }
 });
 
@@ -475,19 +464,19 @@ router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array(
 
     const ownerId = req.user.userId;
 
-    console.log('📤 Upload request:', {
+    logger.info({
       ownerId,
       folderId,
       fileCount: req.files?.length || 0,
       hasFiles: !!req.files
-    });
+    }, '📤 Upload request');
 
     if (!ownerId) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
     if (!req.files || req.files.length === 0) {
-      console.error('❌ No files in request');
+      logger.error('❌ No files in request');
       return res.status(400).json({ error: 'No files provided' });
     }
 
@@ -497,12 +486,12 @@ router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array(
         const folder = await getDocumentById(COLLECTIONS.FOLDERS, folderId);
         // Compare as strings to handle ObjectId vs string inconsistencies
         if (!folder || String(folder.ownerId) !== String(ownerId)) {
-          console.error(`❌ Folder not found or access denied: ${folderId}`);
+          logger.error({ folderId }, '❌ Folder not found or access denied');
           return res.status(404).json({ error: 'Folder not found or access denied' });
         }
-        console.log(`✅ Folder verified: ${folder.name}`);
+        logger.debug({ folderName: folder.name }, '✅ Folder verified');
       } catch (folderError) {
-        console.error('❌ Error verifying folder:', folderError);
+        logger.error({ err: folderError }, '❌ Error verifying folder');
         return res.status(500).json({ error: 'Failed to verify folder' });
       }
     }
@@ -513,11 +502,11 @@ router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array(
     for (let i = 0; i < req.files.length; i++) {
       const file = req.files[i];
       try {
-        console.log(`📁 Uploading file ${i + 1}/${req.files.length}: ${file.originalname} (${file.size} bytes)`);
+        logger.info({ index: i + 1, total: req.files.length, filename: file.originalname, size: file.size }, '📁 Uploading file');
 
         // Upload to Cloudinary
         const cloudinaryFolder = `lawyer-zen/user-${ownerId}${folderId ? `/folder-${folderId}` : ''}`;
-        console.log(`☁️  Cloudinary folder: ${cloudinaryFolder}`);
+        logger.debug({ cloudinaryFolder }, '☁️ Cloudinary folder');
 
         // Determine resource type based on mimetype
         // PDFs and other documents should be 'raw', images/videos use 'auto'
@@ -528,7 +517,7 @@ router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array(
           file.mimetype.includes('spreadsheet');
 
         const resourceType = isDocument ? 'raw' : 'auto';
-        console.log(`📄 File type: ${file.mimetype}, Resource type: ${resourceType}`);
+        logger.debug({ mimetype: file.mimetype, resourceType }, '📄 File type determined');
 
         const uploadResult = await uploadToCloudinary(
           file.buffer,
@@ -540,11 +529,11 @@ router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array(
           }
         );
 
-        console.log(`✅ Cloudinary upload successful:`, {
+        logger.debug({
           public_id: uploadResult.public_id,
           url: uploadResult.secure_url,
           resource_type: uploadResult.resource_type
-        });
+        }, '✅ Cloudinary upload successful');
 
         // Create document record in MongoDB
         const docData = {
@@ -559,10 +548,10 @@ router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array(
           tags: [],
         };
 
-        console.log(`💾 Saving to MongoDB:`, docData);
+        logger.debug({ docData }, '💾 Saving to MongoDB');
         const doc = await createDocument(COLLECTIONS.DOCUMENTS, docData);
 
-        console.log(`✅ File saved successfully:`, doc.id);
+        logger.info({ docId: doc.id }, '✅ File saved successfully');
         saved.push(doc);
 
         await activityEmitter.emit({
@@ -578,12 +567,7 @@ router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array(
           }
         });
       } catch (uploadError) {
-        console.error(`❌ Error uploading file ${file.originalname}:`, uploadError);
-        console.error('Error details:', {
-          message: uploadError.message,
-          code: uploadError.code,
-          stack: uploadError.stack
-        });
+        logger.error({ err: uploadError, filename: file.originalname }, '❌ Error uploading file');
 
         // Extract the most helpful error message
         let errorMessage = uploadError.message || 'Upload failed';
@@ -602,7 +586,7 @@ router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array(
     }
 
     if (saved.length === 0) {
-      console.error('❌ All uploads failed');
+      logger.error('❌ All uploads failed');
 
       // Get the most common error message
       const commonError = errors.length > 0 ? errors[0].error : 'Unknown error';
@@ -618,7 +602,7 @@ router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array(
       });
     }
 
-    console.log(`✅ Upload complete: ${saved.length}/${req.files.length} files uploaded successfully`);
+    logger.info({ savedCount: saved.length, totalCount: req.files.length }, '✅ Upload complete');
 
     // Transform saved files to match frontend expectations (_id instead of id)
     const transformedFiles = saved.map(file => {
@@ -631,16 +615,16 @@ router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array(
       if (file.folderId !== undefined) {
         transformed.folderId = file.folderId;
       }
-      console.log(`📋 Transformed file for response:`, {
+      logger.debug({
         _id: transformed._id,
         name: transformed.name,
         folderId: transformed.folderId,
         url: transformed.url
-      });
+      }, '📋 Transformed file for response');
       return transformed;
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       files: transformedFiles,
       ...(errors.length > 0 && {
         warnings: `${errors.length} file(s) failed to upload`,
@@ -648,13 +632,8 @@ router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array(
       })
     });
   } catch (error) {
-    console.error('❌ Upload files error:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      stack: error.stack
-    });
-    res.status(500).json({
+    logger.error({ err: error }, '❌ Upload files error');
+    return res.status(500).json({
       error: 'Failed to upload files',
       ...(process.env.NODE_ENV === 'development' && {
         details: error.message,
@@ -680,9 +659,9 @@ router.put('/files/:id', requireAuth, async (req, res) => {
     }
 
     const updates = {};
-    if (name) updates.name = name.trim();
-    if (tags !== undefined) updates.tags = tags;
-    if (folderId !== undefined) updates.folderId = folderId || null;
+    if (name) { updates.name = name.trim(); }
+    if (tags !== undefined) { updates.tags = tags; }
+    if (folderId !== undefined) { updates.folderId = folderId || null; }
 
     const doc = await updateDocument(COLLECTIONS.DOCUMENTS, req.params.id, updates);
 
@@ -693,10 +672,10 @@ router.put('/files/:id', requireAuth, async (req, res) => {
       createdAt: doc.createdAt?.toDate ? doc.createdAt.toDate().toISOString() : doc.createdAt
     };
 
-    res.json({ file: transformedFile });
+    return res.json({ file: transformedFile });
   } catch (error) {
-    console.error('Update file error:', error);
-    res.status(500).json({ error: 'Failed to update file' });
+    logger.error({ err: error }, 'Update file error');
+    return res.status(500).json({ error: 'Failed to update file' });
   }
 });
 
@@ -723,15 +702,15 @@ router.delete('/files/:id', requireAuth, async (req, res) => {
         }
       }
     } catch (e) {
-      console.error('Failed to delete file from Cloudinary:', e);
+      logger.error({ err: e }, 'Failed to delete file from Cloudinary');
       // Continue with database deletion even if Cloudinary deletion fails
     }
 
     await deleteDocument(COLLECTIONS.DOCUMENTS, req.params.id);
-    res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (error) {
-    console.error('Delete file error:', error);
-    res.status(500).json({ error: 'Failed to delete file' });
+    logger.error({ err: error }, 'Delete file error');
+    return res.status(500).json({ error: 'Failed to delete file' });
   }
 });
 

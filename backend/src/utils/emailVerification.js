@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import crypto from 'crypto';
 import sgMail from '@sendgrid/mail';
 
@@ -30,7 +31,7 @@ export function hashToken(token) {
  * @returns {boolean} True if expired
  */
 export function isTokenExpired(sentAt, expiryHours = 24) {
-  if (!sentAt) return true;
+  if (!sentAt) { return true; }
 
   const sentDate = sentAt instanceof Date ? sentAt : new Date(sentAt);
   const expiryTime = sentDate.getTime() + (expiryHours * 60 * 60 * 1000);
@@ -45,7 +46,7 @@ export function isTokenExpired(sentAt, expiryHours = 24) {
  * @returns {boolean} True if can send another email
  */
 export function canResendVerification(lastSentAt, cooldownMinutes = 1) {
-  if (!lastSentAt) return true;
+  if (!lastSentAt) { return true; }
 
   const lastSent = lastSentAt instanceof Date ? lastSentAt : new Date(lastSentAt);
   const cooldownTime = lastSent.getTime() + (cooldownMinutes * 60 * 1000);

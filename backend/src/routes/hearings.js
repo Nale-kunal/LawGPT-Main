@@ -7,22 +7,21 @@ import {
   updateDocument,
   deleteDocument,
   queryDocuments,
-  MODELS,
   COLLECTIONS
 } from '../services/mongodb.js';
 import {
   checkHearingConflicts,
-  computeHearingTimes,
-  validateHearingData
+  computeHearingTimes
 } from '../utils/conflictDetection.js';
-import activityEmitter from '../utils/eventEmitter.js';
+
+import { logger } from '../utils/logger.js';
 
 const router = express.Router();
 
 router.use(requireAuth);
 
 const normalizeDateInput = (value) => {
-  if (!value) return null;
+  if (!value) { return null; }
   const parsed = new Date(value);
   return isNaN(parsed.getTime()) ? null : parsed;
 };
@@ -36,7 +35,7 @@ const isBeforeToday = (date) => {
 // Check for hearing conflicts
 router.post('/check-conflict', async (req, res) => {
   try {
-    const { startAt, endAt, timezone, resourceScope, excludeHearingId } = req.body;
+    const { startAt, endAt, resourceScope, excludeHearingId } = req.body;
 
     // Validate required fields
     if (!startAt || !endAt) {
@@ -73,13 +72,13 @@ router.post('/check-conflict', async (req, res) => {
       excludeHearingId
     );
 
-    res.json({
+    return res.json({
       hasConflict: conflicts.length > 0,
       conflicts
     });
   } catch (error) {
-    console.error('Check conflict error:', error);
-    res.status(500).json({
+    logger.error({ err: error }, 'Check conflict error');
+    return res.status(500).json({
       error: 'INTERNAL_ERROR',
       message: 'Failed to check conflicts'
     });
@@ -97,10 +96,10 @@ router.get('/case/:caseId', async (req, res) => {
       ],
       { field: 'hearingDate', direction: 'desc' }
     );
-    res.json(hearings);
+    return res.json(hearings);
   } catch (error) {
-    console.error('Get hearings error:', error);
-    res.status(500).json({ error: 'Failed to fetch hearings' });
+    logger.error({ err: error }, 'Get hearings error');
+    return res.status(500).json({ error: 'Failed to fetch hearings' });
   }
 });
 
@@ -125,7 +124,7 @@ router.get('/', async (req, res) => {
               clientName: case_.clientName
             } : hearing.caseId
           };
-        } catch (err) {
+        } catch (_err) {
           // If case not found, return hearing without populated case
           return hearing;
         }
@@ -133,14 +132,10 @@ router.get('/', async (req, res) => {
       return hearing;
     }));
 
-    res.json(hearingsWithCases);
+    return res.json(hearingsWithCases);
   } catch (error) {
-    console.error('Get all hearings error:', error);
-    console.error('Error details:', {
-      code: error.code,
-      message: error.message
-    });
-    res.status(500).json({
+    logger.error({ err: error }, 'Get all hearings error');
+    return res.status(500).json({
       error: 'Failed to fetch hearings',
       ...(process.env.NODE_ENV === 'development' && {
         details: error.message,
@@ -155,8 +150,8 @@ router.get('/:id', async (req, res) => {
   try {
     const hearing = await getDocumentById(COLLECTIONS.HEARINGS, req.params.id);
 
-    if (!hearing) return res.status(404).json({ error: 'Hearing not found' });
-    if (hearing.owner?.toString() !== req.user.userId.toString()) return res.status(403).json({ error: 'Forbidden' });
+    if (!hearing) { return res.status(404).json({ error: 'Hearing not found' }); }
+    if (hearing.owner?.toString() !== req.user.userId.toString()) { return res.status(403).json({ error: 'Forbidden' }); }
 
     // Populate case info
     if (hearing.caseId) {
@@ -167,10 +162,10 @@ router.get('/:id', async (req, res) => {
       } : hearing.caseId;
     }
 
-    res.json(hearing);
+    return res.json(hearing);
   } catch (error) {
-    console.error('Get hearing error:', error);
-    res.status(500).json({ error: 'Failed to fetch hearing' });
+    logger.error({ err: error }, 'Get hearing error');
+    return res.status(500).json({ error: 'Failed to fetch hearing' });
   }
 });
 
@@ -344,7 +339,7 @@ router.post('/', async (req, res) => {
           nextHearing: nextHearingDate
         });
       } catch (caseUpdateError) {
-        console.error('Failed to update case nextHearing:', caseUpdateError);
+        logger.error({ err: caseUpdateError }, 'Failed to update case nextHearing');
         // Don't fail the hearing creation if case update fails
       }
     }
@@ -366,24 +361,10 @@ router.post('/', async (req, res) => {
       }
     );
 
-    res.status(201).json(hearing);
-
-    await activityEmitter.emit({
-      userId: req.user.userId,
-      eventType: 'hearing_created',
-      req,
-      metadata: {
-        hearingId: hearing.id,
-        caseId: hearing.caseId,
-        hearingDate: hearingDate,
-        hearingType: hearing.hearingType
-      }
-    });
+    return res.status(201).json(hearing);
   } catch (error) {
-    console.error('Create hearing error:', error);
-    console.error('Error stack:', error.stack);
-    console.error('Request body:', req.body);
-    res.status(500).json({ error: 'Failed to create hearing', details: error.message });
+    logger.error({ err: error, body: req.body }, 'Create hearing error');
+    return res.status(500).json({ error: 'Failed to create hearing', details: error.message });
   }
 });
 
@@ -391,7 +372,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const original = await getDocumentById(COLLECTIONS.HEARINGS, req.params.id);
-    if (!original) return res.status(404).json({ error: 'Hearing not found' });
+    if (!original) { return res.status(404).json({ error: 'Hearing not found' }); }
 
     if (String(original.owner) !== String(req.user.userId)) {
       return res.status(403).json({ error: 'Forbidden' });
@@ -556,7 +537,7 @@ router.put('/:id', async (req, res) => {
           nextHearing: nextHearingDate
         });
       } catch (caseUpdateError) {
-        console.error('Failed to update case nextHearing:', caseUpdateError);
+        logger.error({ err: caseUpdateError }, 'Failed to update case nextHearing');
         // Don't fail the hearing update if case update fails
       }
     }
@@ -587,10 +568,10 @@ router.put('/:id', async (req, res) => {
       }
     );
 
-    res.json(hearing);
+    return res.json(hearing);
   } catch (error) {
-    console.error('Update hearing error:', error);
-    res.status(500).json({ error: 'Failed to update hearing', details: error.message });
+    logger.error({ err: error }, 'Update hearing error');
+    return res.status(500).json({ error: 'Failed to update hearing', details: error.message });
   }
 });
 
@@ -655,7 +636,7 @@ router.delete('/:id', async (req, res) => {
           nextHearing: nextHearingDate
         });
       } catch (caseUpdateError) {
-        console.error('Failed to update case nextHearing after deletion:', caseUpdateError);
+        logger.error({ err: caseUpdateError }, 'Failed to update case nextHearing after deletion');
         // Don't fail the hearing deletion if case update fails
       }
     }
@@ -675,10 +656,10 @@ router.delete('/:id', async (req, res) => {
       }
     );
 
-    res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (error) {
-    console.error('Delete hearing error:', error);
-    res.status(500).json({ error: 'Failed to delete hearing', details: error.message });
+    logger.error({ err: error }, 'Delete hearing error');
+    return res.status(500).json({ error: 'Failed to delete hearing', details: error.message });
   }
 });
 
@@ -696,7 +677,7 @@ router.get('/today/list', async (req, res) => {
     );
 
     const todaysHearings = allHearings.filter(hearing => {
-      if (!hearing.hearingDate) return false;
+      if (!hearing.hearingDate) { return false; }
       const hearingDate = hearing.hearingDate.toDate ? hearing.hearingDate.toDate() : new Date(hearing.hearingDate);
       return hearingDate >= today && hearingDate < tomorrow;
     }).sort((a, b) => {
@@ -720,10 +701,10 @@ router.get('/today/list', async (req, res) => {
       return hearing;
     }));
 
-    res.json(hearingsWithCases);
+    return res.json(hearingsWithCases);
   } catch (error) {
-    console.error('Get today hearings error:', error);
-    res.status(500).json({ error: 'Failed to fetch today\'s hearings' });
+    logger.error({ err: error }, 'Get today hearings error');
+    return res.status(500).json({ error: 'Failed to fetch today\'s hearings' });
   }
 });
 

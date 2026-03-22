@@ -26,12 +26,12 @@ router.use(requireAuth);
 
 // ─── Input sanitiser ──────────────────────────────────────────────────────────
 function sanitizeQuery(raw) {
-    if (!raw || typeof raw !== 'string') return '';
+    if (!raw || typeof raw !== 'string') { return ''; }
     return raw.replace(/[<>{}[\]\\^`]/g, '').slice(0, 200).trim();
 }
 
 function sanitizeBody(raw) {
-    if (!raw || typeof raw !== 'object') return {};
+    if (!raw || typeof raw !== 'object') { return {}; }
     return Object.fromEntries(
         Object.entries(raw).map(([k, v]) => [
             k,
@@ -90,7 +90,7 @@ router.get('/search', async (req, res) => {
 router.get('/semantic-search', async (req, res) => {
     try {
         const q = sanitizeQuery(req.query.q);
-        if (!q) return res.status(400).json({ error: 'Query parameter "q" is required' });
+        if (!q) { return res.status(400).json({ error: 'Query parameter "q" is required' }); }
 
         const results = await searchLegalSemantic(q);
 
@@ -111,7 +111,7 @@ router.get('/semantic-search', async (req, res) => {
  * Generate an AI-powered plain-language explanation for a legal result.
  * Body: { type, title, subtitle, description, keywords, date, judges }
  */
-router.post('/explain', async (req, res) => {
+router.post('/explain', (req, res) => {
     try {
         const body = sanitizeBody(req.body);
 

@@ -1,6 +1,4 @@
 import { jest, describe, test, expect, beforeAll } from '@jest/globals';
-import request from 'supertest';
-import express from 'express';
 
 /**
  * Auth route smoke tests
@@ -9,10 +7,9 @@ import express from 'express';
  */
 
 // Minimal express app for unit-level route tests
-let app;
-let router;
+// Minimal express app for unit-level route tests (placeholders removed)
 
-beforeAll(async () => {
+beforeAll(() => {
     // Minimal env setup
     process.env.JWT_SECRET = 'test-jwt-secret-minimum-32-chars-for-test';
     process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-minimum-32-chars-for-test';

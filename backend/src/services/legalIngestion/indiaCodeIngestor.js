@@ -8,8 +8,7 @@ import LegalActs from '../../models/LegalActs.js';
 import logger from '../../utils/logger.js';
 import { normalizeAct } from './normalizer.js';
 
-const DELAY_MS = 1200; // 1.2s between requests
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
 
 async function safeFetch(url) {
     const controller = new AbortController();
@@ -29,7 +28,7 @@ async function safeFetch(url) {
 
 async function upsertAct(data) {
     const norm = normalizeAct(data);
-    if (!norm) return;
+    if (!norm) { return; }
     await LegalActs.updateOne(
         { actName: norm.actName, section: norm.section },
         { $set: norm, $setOnInsert: { actName: norm.actName, section: norm.section } },

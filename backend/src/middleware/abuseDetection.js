@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import AbuseSignalLog from '../models/AbuseSignalLog.js';
 import activityEmitter from '../utils/eventEmitter.js';
+import logger from '../utils/logger.js';
 
 const SIGNAL_SCORES = {
     failed_login: 10,
@@ -17,11 +18,11 @@ const DECAY_INTERVAL_HOURS = 5;
  * Middleware to detect and handle abuse signals.
  */
 export const abuseDetection = async (req, res, next) => {
-    if (!req.user || !req.user.userId) return next();
+    if (!req.user || !req.user.userId) { return next(); }
 
     try {
         const user = await User.findById(req.user.userId);
-        if (!user) return next();
+        if (!user) { return next(); }
 
         // Check for temporary suspension
         if (user.securityFlags?.temporarySuspensionUntil && user.securityFlags.temporarySuspensionUntil > new Date()) {
@@ -86,10 +87,10 @@ export const abuseDetection = async (req, res, next) => {
         }
 
         await user.save();
-        next();
+        return next();
     } catch (error) {
-        console.error('Abuse detection error:', error);
-        next();
+        logger.error({ err: error }, 'Abuse detection error');
+        return next();
     }
 };
 
@@ -151,6 +152,6 @@ export const recordAbuseSignal = async (user, signalType, metadata = {}, req) =>
 
         await user.save();
     } catch (error) {
-        console.error('Failed to record abuse signal:', error);
+        logger.error({ err: error }, 'Failed to record abuse signal');
     }
 };

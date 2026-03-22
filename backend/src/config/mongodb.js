@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import logger from '../utils/logger.js';
 
 /**
  * MongoDB Atlas Connection Configuration
@@ -26,7 +27,7 @@ let isConnected = false;
  */
 export async function connectMongoDB() {
     if (isConnected) {
-        console.log('MongoDB: Already connected');
+        logger.debug('MongoDB: Already connected');
         return;
     }
 
@@ -40,10 +41,10 @@ export async function connectMongoDB() {
     try {
         await mongoose.connect(MONGODB_URI, options);
         isConnected = true;
-        console.log('✅ MongoDB Atlas connected successfully');
-        console.log(`   Database: ${mongoose.connection.name}`);
+        logger.info('✅ MongoDB Atlas connected successfully');
+        logger.info('   Database: %s', mongoose.connection.name);
     } catch (error) {
-        console.error('❌ MongoDB connection error:', error.message);
+        logger.error({ err: error.message }, '❌ MongoDB connection error');
         throw error;
     }
 }
@@ -60,25 +61,25 @@ export async function disconnectMongoDB() {
     try {
         await mongoose.disconnect();
         isConnected = false;
-        console.log('MongoDB disconnected');
+        logger.info('MongoDB disconnected');
     } catch (error) {
-        console.error('Error disconnecting from MongoDB:', error);
+        logger.error({ err: error }, 'Error disconnecting from MongoDB');
         throw error;
     }
 }
 
 // Handle connection events
 mongoose.connection.on('connected', () => {
-    console.log('Mongoose connected to MongoDB Atlas');
+    logger.info('Mongoose connected to MongoDB Atlas');
 });
 
 mongoose.connection.on('error', (err) => {
-    console.error('Mongoose connection error:', err);
+    logger.error({ err }, 'Mongoose connection error');
     isConnected = false;
 });
 
 mongoose.connection.on('disconnected', () => {
-    console.log('Mongoose disconnected from MongoDB Atlas');
+    logger.info('Mongoose disconnected from MongoDB Atlas');
     isConnected = false;
 });
 

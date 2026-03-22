@@ -1,11 +1,7 @@
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-import AdminAuditLog from '../models/AdminAuditLog.js';
 import AbuseSignalLog from '../models/AbuseSignalLog.js';
 import UserUsageSnapshot from '../models/UserUsageSnapshot.js';
-import { blacklistToken } from '../services/tokenService.js';
-import { updateDocument, MODELS } from '../services/mongodb.js';
 
 const router = express.Router();
 
@@ -22,7 +18,7 @@ const internalSecretAuth = (req, res, next) => {
         return res.status(403).json({ error: 'Invalid internal admin secret' });
     }
 
-    next();
+    return next();
 };
 
 const internalSourceCheck = (req, res, next) => {
@@ -30,7 +26,7 @@ const internalSourceCheck = (req, res, next) => {
     if (source !== 'admin-control-plane') {
         return res.status(403).json({ error: 'Unrecognized admin source' });
     }
-    next();
+    return next();
 };
 
 // Use the new internal secret architecture
@@ -41,43 +37,43 @@ router.use(internalSecretAuth, internalSourceCheck);
 router.post('/suspend-user', async (req, res) => {
     const { userId, reason } = req.body;
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) { return res.status(404).json({ error: 'User not found' }); }
 
     user.accountStatus.isSuspended = true;
     user.accountStatus.suspensionReason = reason;
     await user.save();
 
-    res.json({ success: true, message: 'User suspended' });
+    return res.json({ success: true, message: 'User suspended' });
 });
 
 router.post('/unsuspend-user', async (req, res) => {
     const { userId } = req.body;
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) { return res.status(404).json({ error: 'User not found' }); }
 
     user.accountStatus.isSuspended = false;
     user.securityFlags.abuseScore = 0; // Reset abuse score on manual unsuspend
     await user.save();
 
-    res.json({ success: true, message: 'User unsuspended' });
+    return res.json({ success: true, message: 'User unsuspended' });
 });
 
 router.post('/upgrade-plan', async (req, res) => {
     const { userId, planType, limits } = req.body;
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) { return res.status(404).json({ error: 'User not found' }); }
 
     user.plan.type = planType;
-    if (limits) user.plan.limits = { ...user.plan.limits, ...limits };
+    if (limits) { user.plan.limits = { ...user.plan.limits, ...limits }; }
     await user.save();
 
-    res.json({ success: true, plan: user.plan });
+    return res.json({ success: true, plan: user.plan });
 });
 
 router.post('/reset-password', async (req, res) => {
     const { userId } = req.body;
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) { return res.status(404).json({ error: 'User not found' }); }
 
     try {
         const crypto = await import('crypto');
@@ -108,10 +104,10 @@ router.post('/reset-password', async (req, res) => {
             console.warn('Admin reset-password: email delivery failed (SMTP may not be configured):', emailErr.message);
         }
 
-        res.json({ success: true, message: 'Password reset link generated successfully', resetUrl });
+        return res.json({ success: true, message: 'Password reset link generated successfully', resetUrl });
     } catch (err) {
         console.error('Failed to trigger reset email from admin:', err);
-        res.status(500).json({ error: 'Failed to process password reset request' });
+        return res.status(500).json({ error: 'Failed to process password reset request' });
     }
 });
 
@@ -121,28 +117,28 @@ router.post('/revoke-all-sessions', async (req, res) => {
     // or incrementing a session version on the user model.
     // For now, we'll mark this as successful if the user exists.
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) { return res.status(404).json({ error: 'User not found' }); }
 
-    res.json({ success: true, message: 'All sessions revoked (mock)' });
+    return res.json({ success: true, message: 'All sessions revoked (mock)' });
 });
 
 router.get('/get-user-metadata', async (req, res) => {
     const { userId } = req.query;
     const user = await User.findById(userId).select('-passwordHash');
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
+    if (!user) { return res.status(404).json({ error: 'User not found' }); }
+    return res.json(user);
 });
 
 router.get('/get-user-usage', async (req, res) => {
     const { userId } = req.query;
     const usage = await UserUsageSnapshot.find({ userId }).sort({ snapshotDate: -1 }).limit(30);
-    res.json(usage);
+    return res.json(usage);
 });
 
 router.get('/get-user-abuse-log', async (req, res) => {
     const { userId } = req.query;
     const logs = await AbuseSignalLog.find({ userId }).sort({ timestamp: -1 }).limit(50);
-    res.json(logs);
+    return res.json(logs);
 });
 
 export default router;

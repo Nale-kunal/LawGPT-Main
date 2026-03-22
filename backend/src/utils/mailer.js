@@ -4,7 +4,7 @@ let cachedTransport = null;
 let cachedIsEthereal = false;
 
 async function getTransport() {
-  if (cachedTransport) return cachedTransport;
+  if (cachedTransport) { return cachedTransport; }
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT || 587);
   const user = process.env.SMTP_USER;
@@ -40,7 +40,7 @@ async function getTransport() {
 
 export async function sendPasswordResetEmail({ to, resetUrl }) {
   const transport = await getTransport();
-  if (!transport) throw new Error('SMTP transport not configured');
+  if (!transport) { throw new Error('SMTP transport not configured'); }
 
   const from = process.env.MAIL_FROM || 'no-reply@juriq.local';
   const info = await transport.sendMail({
@@ -55,9 +55,9 @@ export async function sendPasswordResetEmail({ to, resetUrl }) {
 }
 
 
-export async function sendInvoiceEmail({ to, subject, message, invoice, client }) {
+export async function sendInvoiceEmail({ to, subject, message: _message, invoice, client }) {
   const transport = await getTransport();
-  if (!transport) throw new Error('SMTP transport not configured');
+  if (!transport) { throw new Error('SMTP transport not configured'); }
 
   const from = process.env.MAIL_FROM || 'no-reply@juriq.local';
 
@@ -204,7 +204,7 @@ export async function sendInvoiceEmail({ to, subject, message, invoice, client }
   return { ok: true, previewUrl };
 }
 
-function generateInvoiceEmailContent(invoice, client) {
+function generateInvoiceEmailContent(invoice, _client) {
   const daysUntilDue = Math.ceil((new Date(invoice.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
   const isOverdue = daysUntilDue < 0;
   const isDueSoon = daysUntilDue <= 7 && daysUntilDue >= 0;

@@ -15,7 +15,7 @@ const QUEUE_NAME = 'admin-tasks';
 
 function getRedisConnection() {
     const redisUrl = process.env.REDIS_URL;
-    if (!redisUrl) return null;
+    if (!redisUrl) {return null;}
     return new IORedis(redisUrl, { maxRetriesPerRequest: null, enableReadyCheck: false });
 }
 
@@ -64,7 +64,7 @@ async function aggregateDailyAnalytics() {
     let totalAi = 0;
     eventStats.forEach(stat => {
         stat.users.forEach(u => dau.add(u.toString()));
-        if (stat._id === 'ai_query') totalAi = stat.count;
+        if (stat._id === 'ai_query') {totalAi = stat.count;}
     });
 
     await AnalyticsDaily.findOneAndUpdate(
@@ -102,9 +102,9 @@ async function runCleanup() {
 async function processAdminJob(job) {
     const { type } = job.data;
     try {
-        if (type === 'aggregate-usage') await aggregateUsage();
-        else if (type === 'aggregate-daily') await aggregateDailyAnalytics();
-        else if (type === 'cleanup') await runCleanup();
+        if (type === 'aggregate-usage') {await aggregateUsage();}
+        else if (type === 'aggregate-daily') {await aggregateDailyAnalytics();}
+        else if (type === 'cleanup') {await runCleanup();}
     } catch (error) {
         logger.error({ type, error }, 'Admin job failed');
         throw error;
@@ -113,7 +113,7 @@ async function processAdminJob(job) {
 
 export function startAdminWorker() {
     const connection = getRedisConnection();
-    if (!connection) return null;
+    if (!connection) {return null;}
 
     const worker = new Worker(QUEUE_NAME, processAdminJob, { connection });
 

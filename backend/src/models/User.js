@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema({
     trim: true,
     validate: {
       validator: function (value) {
-        if (!value) return true; // sparse index implies optional
+        if (!value) { return true; } // sparse index implies optional
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
       },
       message: "Invalid email format"
@@ -194,7 +194,7 @@ userSchema.methods.verifyPassword = async function (password) {
   }
 };
 
-userSchema.statics.hashPassword = async function (password) {
+userSchema.statics.hashPassword = function (password) {
   return bcrypt.hash(password, 10);
 };
 

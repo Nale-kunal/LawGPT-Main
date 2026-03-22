@@ -36,9 +36,9 @@ function getRedisConnection() {
 let emailQueue = null;
 
 export function getEmailQueue() {
-    if (emailQueue) return emailQueue;
+    if (emailQueue) {return emailQueue;}
     const connection = getRedisConnection();
-    if (!connection) return null;
+    if (!connection) {return null;}
 
     emailQueue = new Queue(QUEUE_NAME, {
         connection,
@@ -110,7 +110,7 @@ async function processEmailJob(job) {
 // ── Worker ────────────────────────────────────────────────────────────────────
 export function startEmailWorker() {
     const connection = getRedisConnection();
-    if (!connection) return null;
+    if (!connection) {return null;}
 
     const worker = new Worker(QUEUE_NAME, processEmailJob, {
         connection,

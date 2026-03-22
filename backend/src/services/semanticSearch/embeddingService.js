@@ -41,9 +41,9 @@ function tokenise(text) {
 
 function termFrequency(tokens) {
     const tf = new Map();
-    for (const t of tokens) tf.set(t, (tf.get(t) || 0) + 1);
+    for (const t of tokens) {tf.set(t, (tf.get(t) || 0) + 1);}
     const total = tokens.length || 1;
-    for (const [t, c] of tf) tf.set(t, c / total);
+    for (const [t, c] of tf) {tf.set(t, c / total);}
     return tf;
 }
 
@@ -75,7 +75,7 @@ export async function buildVocabulary() {
 
     for (const text of docTexts) {
         const unique = new Set(tokenise(text));
-        for (const t of unique) dfMap.set(t, (dfMap.get(t) || 0) + 1);
+        for (const t of unique) {dfMap.set(t, (dfMap.get(t) || 0) + 1);}
     }
 
     // Build vocab (top MAX_VOCAB terms by df)
@@ -116,10 +116,10 @@ async function ensureVocab() {
 export async function generateEmbedding(text) {
     await ensureVocab();
 
-    if (!vocabSize) return [];
+    if (!vocabSize) {return [];}
 
     const tokens = tokenise(text);
-    if (!tokens.length) return Array(vocabSize).fill(0);
+    if (!tokens.length) {return Array(vocabSize).fill(0);}
 
     const tf = termFrequency(tokens);
     const vec = new Float64Array(vocabSize);
@@ -133,9 +133,9 @@ export async function generateEmbedding(text) {
 
     // L2 normalise
     let norm = 0;
-    for (let i = 0; i < vocabSize; i++) norm += vec[i] * vec[i];
+    for (let i = 0; i < vocabSize; i++) {norm += vec[i] * vec[i];}
     norm = Math.sqrt(norm);
-    if (norm > 0) for (let i = 0; i < vocabSize; i++) vec[i] /= norm;
+    if (norm > 0) {for (let i = 0; i < vocabSize; i++) {vec[i] /= norm;}}
 
     return Array.from(vec);
 }
@@ -151,8 +151,8 @@ export async function generateEmbedding(text) {
  * @returns {number} 0–1
  */
 export function cosineSimilarity(a, b) {
-    if (!a || !b || a.length !== b.length) return 0;
+    if (!a || !b || a.length !== b.length) {return 0;}
     let dot = 0;
-    for (let i = 0; i < a.length; i++) dot += a[i] * b[i];
+    for (let i = 0; i < a.length; i++) {dot += a[i] * b[i];}
     return Math.max(0, Math.min(1, dot)); // already normalised → dot = cosine
 }

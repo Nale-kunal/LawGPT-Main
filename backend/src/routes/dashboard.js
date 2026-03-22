@@ -1,9 +1,9 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth-jwt.js';
+import logger from '../utils/logger.js';
 import {
   queryDocuments,
   getDocumentById,
-  MODELS,
   COLLECTIONS
 } from '../services/mongodb.js';
 
@@ -28,7 +28,7 @@ router.get('/stats', async (req, res) => {
     const totalCases = allCases.length;
     const activeCases = allCases.filter(c => c.status === 'active').length;
     const todaysCases = allCases.filter(c => {
-      if (!c.hearingDate) return false;
+      if (!c.hearingDate) { return false; }
       const hearingDate = c.hearingDate.toDate ? c.hearingDate.toDate() : new Date(c.hearingDate);
       return hearingDate >= today && hearingDate < tomorrow;
     }).length;
@@ -48,15 +48,15 @@ router.get('/stats', async (req, res) => {
     );
 
     const allInvoicesThisMonth = allInvoices.filter(inv => {
-      if (!inv.createdAt) return false;
+      if (!inv.createdAt) { return false; }
       const created = inv.createdAt.toDate ? inv.createdAt.toDate() : new Date(inv.createdAt);
       return created >= startOfMonth && created <= endOfMonth;
     });
 
     // Also get paid invoices specifically
     const paidInvoicesThisMonth = allInvoices.filter(inv => {
-      if (inv.status !== 'paid') return false;
-      if (!inv.paidAt) return false;
+      if (inv.status !== 'paid') { return false; }
+      if (!inv.paidAt) { return false; }
       const paid = inv.paidAt.toDate ? inv.paidAt.toDate() : new Date(inv.paidAt);
       return paid >= startOfMonth && paid <= endOfMonth;
     });
@@ -69,7 +69,7 @@ router.get('/stats', async (req, res) => {
     const endOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
     const allInvoicesPrevMonth = allInvoices.filter(inv => {
-      if (!inv.createdAt) return false;
+      if (!inv.createdAt) { return false; }
       const created = inv.createdAt.toDate ? inv.createdAt.toDate() : new Date(inv.createdAt);
       return created >= startOfPrevMonth && created <= endOfPrevMonth;
     });
@@ -87,7 +87,7 @@ router.get('/stats', async (req, res) => {
     );
 
     const billableTimeEntries = allTimeEntries.filter(entry => {
-      if (!entry.date) return false;
+      if (!entry.date) { return false; }
       const entryDate = entry.date.toDate ? entry.date.toDate() : new Date(entry.date);
       return entryDate >= startOfMonth && entryDate <= endOfMonth;
     });
@@ -96,7 +96,7 @@ router.get('/stats', async (req, res) => {
     const monthlyBillableHours = monthlyBillableMinutes / 60;
     const monthlyBillableAmount = billableTimeEntries.reduce((total, entry) => total + ((entry.duration || 0) * (entry.hourlyRate || 0)), 0);
 
-    res.json({
+    return res.json({
       totalCases,
       activeCases,
       todaysCases,
@@ -112,8 +112,8 @@ router.get('/stats', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Dashboard stats error:', error);
-    res.status(500).json({ error: 'Failed to fetch dashboard statistics' });
+    logger.error({ err: error }, 'Dashboard stats error');
+    return res.status(500).json({ error: 'Failed to fetch dashboard statistics' });
   }
 });
 
@@ -153,7 +153,7 @@ router.get('/activity', async (req, res) => {
 
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const recentCases = allCases.filter(c => {
-      if (!c.createdAt) return false;
+      if (!c.createdAt) { return false; }
       const created = c.createdAt.toDate ? c.createdAt.toDate() : new Date(c.createdAt);
       return created >= sevenDaysAgo;
     }).slice(0, 3);
@@ -181,7 +181,7 @@ router.get('/activity', async (req, res) => {
     );
 
     const recentClients = allClients.filter(c => {
-      if (!c.createdAt) return false;
+      if (!c.createdAt) { return false; }
       const created = c.createdAt.toDate ? c.createdAt.toDate() : new Date(c.createdAt);
       return created >= sevenDaysAgo;
     }).slice(0, 2);
@@ -208,7 +208,7 @@ router.get('/activity', async (req, res) => {
     );
 
     const recentInvoices = allInvoices.filter(inv => {
-      if (!inv.createdAt) return false;
+      if (!inv.createdAt) { return false; }
       const created = inv.createdAt.toDate ? inv.createdAt.toDate() : new Date(inv.createdAt);
       return created >= sevenDaysAgo;
     }).slice(0, 2);
@@ -239,7 +239,7 @@ router.get('/activity', async (req, res) => {
     );
 
     const recentTimeEntries = allTimeEntries.filter(te => {
-      if (!te.createdAt) return false;
+      if (!te.createdAt) { return false; }
       const created = te.createdAt.toDate ? te.createdAt.toDate() : new Date(te.createdAt);
       return created >= threeDaysAgo;
     }).slice(0, 2);
@@ -269,10 +269,10 @@ router.get('/activity', async (req, res) => {
     // Sort all activities by timestamp
     activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    res.json(activities.slice(0, 10));
+    return res.json(activities.slice(0, 10));
   } catch (error) {
-    console.error('Dashboard activity error:', error);
-    res.status(500).json({ error: 'Failed to fetch recent activity' });
+    logger.error({ err: error }, 'Dashboard activity error');
+    return res.status(500).json({ error: 'Failed to fetch recent activity' });
   }
 });
 
@@ -292,7 +292,7 @@ router.get('/notifications', async (req, res) => {
     );
 
     const upcomingAlerts = allAlerts.filter(alert => {
-      if (!alert.alertTime) return false;
+      if (!alert.alertTime) { return false; }
       const alertTime = alert.alertTime.toDate ? alert.alertTime.toDate() : new Date(alert.alertTime);
       return alertTime >= today && alertTime < dayAfterTomorrow;
     }).sort((a, b) => {
@@ -308,7 +308,7 @@ router.get('/notifications', async (req, res) => {
     );
 
     const todaysHearings = allCases.filter(c => {
-      if (!c.hearingDate) return false;
+      if (!c.hearingDate) { return false; }
       const hearingDate = c.hearingDate.toDate ? c.hearingDate.toDate() : new Date(c.hearingDate);
       return hearingDate >= today && hearingDate < tomorrow;
     }).sort((a, b) => {
@@ -319,7 +319,7 @@ router.get('/notifications', async (req, res) => {
 
     // Get cases with hearings tomorrow
     const tomorrowsHearings = allCases.filter(c => {
-      if (!c.hearingDate) return false;
+      if (!c.hearingDate) { return false; }
       const hearingDate = c.hearingDate.toDate ? c.hearingDate.toDate() : new Date(c.hearingDate);
       return hearingDate >= tomorrow && hearingDate < dayAfterTomorrow;
     }).sort((a, b) => {
@@ -331,8 +331,8 @@ router.get('/notifications', async (req, res) => {
     // Get urgent cases with hearings in next 7 days (exclude today and tomorrow to avoid duplicates)
     const sevenDaysLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const urgentCases = allCases.filter(c => {
-      if (c.priority !== 'urgent') return false;
-      if (!c.hearingDate) return false;
+      if (c.priority !== 'urgent') { return false; }
+      if (!c.hearingDate) { return false; }
       const hearingDate = c.hearingDate.toDate ? c.hearingDate.toDate() : new Date(c.hearingDate);
       return hearingDate >= dayAfterTomorrow && hearingDate <= sevenDaysLater;
     }).sort((a, b) => {
@@ -348,8 +348,8 @@ router.get('/notifications', async (req, res) => {
     );
 
     const overdueInvoices = allInvoices.filter(inv => {
-      if (!['sent', 'overdue'].includes(inv.status)) return false;
-      if (!inv.dueDate) return false;
+      if (!['sent', 'overdue'].includes(inv.status)) { return false; }
+      if (!inv.dueDate) { return false; }
       const dueDate = inv.dueDate.toDate ? inv.dueDate.toDate() : new Date(inv.dueDate);
       return dueDate < today;
     }).sort((a, b) => {
@@ -373,10 +373,10 @@ router.get('/notifications', async (req, res) => {
       }
     };
 
-    res.json(notifications);
+    return res.json(notifications);
   } catch (error) {
-    console.error('Dashboard notifications error:', error);
-    res.status(500).json({ error: 'Failed to fetch notifications' });
+    logger.error({ err: error }, 'Dashboard notifications error');
+    return res.status(500).json({ error: 'Failed to fetch notifications' });
   }
 });
 

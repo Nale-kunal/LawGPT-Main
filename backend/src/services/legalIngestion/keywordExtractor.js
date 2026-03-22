@@ -44,7 +44,7 @@ const STOPWORDS = new Set([
  * @returns {string[]} Extracted keywords, lowercase, deduped
  */
 export function extractKeywords(text, maxKeywords = 10) {
-    if (!text || typeof text !== 'string') return [];
+    if (!text || typeof text !== 'string') {return [];}
 
     // Tokenise: split on whitespace + punctuation, lowercase
     const tokens = text

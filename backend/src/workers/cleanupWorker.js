@@ -3,7 +3,7 @@
  * Runs on a scheduled basis (every 6 hours).
  */
 
-import { Worker, Queue, QueueScheduler } from 'bullmq';
+import { Worker, Queue } from 'bullmq';
 import IORedis from 'ioredis';
 import logger from '../utils/logger.js';
 
@@ -11,7 +11,7 @@ const QUEUE_NAME = 'cleanup';
 
 function getRedisConnection() {
     const redisUrl = process.env.REDIS_URL;
-    if (!redisUrl) return null;
+    if (!redisUrl) { return null; }
     return new IORedis(redisUrl, { maxRetriesPerRequest: null, enableReadyCheck: false });
 }
 
@@ -34,7 +34,7 @@ async function processCleanupJob(job) {
 
 export function startCleanupWorker() {
     const connection = getRedisConnection();
-    if (!connection) return null;
+    if (!connection) { return null; }
 
     const worker = new Worker(QUEUE_NAME, processCleanupJob, {
         connection,
@@ -51,6 +51,6 @@ export function startCleanupWorker() {
 
 export function getCleanupQueue() {
     const connection = getRedisConnection();
-    if (!connection) return null;
+    if (!connection) { return null; }
     return new Queue(QUEUE_NAME, { connection });
 }

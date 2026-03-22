@@ -6,7 +6,6 @@ import { requireAuth } from '../middleware/auth-jwt.js';
 import {
     getDocumentById,
     updateDocument,
-    MODELS,
     COLLECTIONS
 } from '../services/mongodb.js';
 
@@ -51,14 +50,14 @@ router.post('/enable', async (req, res) => {
             'security.twoFactorTempSecret': secret.base32 // Temp until verified
         });
 
-        res.json({
+        return res.json({
             secret: secret.base32,
             qrCode: qrCodeDataURL,
             manualEntryKey: secret.base32
         });
     } catch (error) {
         console.error('Enable 2FA error:', error);
-        res.status(500).json({ error: 'Failed to enable 2FA' });
+        return res.status(500).json({ error: 'Failed to enable 2FA' });
     }
 });
 
@@ -119,14 +118,14 @@ router.post('/verify', async (req, res) => {
             'security.twoFactorEnabledAt': new Date().toISOString()
         });
 
-        res.json({
+        return res.json({
             success: true,
             message: '2FA enabled successfully',
             backupCodes // Return unhashed codes to user (only time they'll see them)
         });
     } catch (error) {
         console.error('Verify 2FA error:', error);
-        res.status(500).json({ error: 'Failed to verify 2FA' });
+        return res.status(500).json({ error: 'Failed to verify 2FA' });
     }
 });
 
@@ -188,7 +187,7 @@ router.post('/validate', async (req, res) => {
         return res.status(400).json({ error: 'Invalid OTP or backup code' });
     } catch (error) {
         console.error('Validate 2FA error:', error);
-        res.status(500).json({ error: 'Failed to validate 2FA' });
+        return res.status(500).json({ error: 'Failed to validate 2FA' });
     }
 });
 
@@ -224,13 +223,13 @@ router.post('/disable', async (req, res) => {
             'security.twoFactorDisabledAt': new Date().toISOString()
         });
 
-        res.json({
+        return res.json({
             success: true,
             message: '2FA disabled successfully'
         });
     } catch (error) {
         console.error('Disable 2FA error:', error);
-        res.status(500).json({ error: 'Failed to disable 2FA' });
+        return res.status(500).json({ error: 'Failed to disable 2FA' });
     }
 });
 
@@ -286,13 +285,13 @@ router.post('/backup-codes', async (req, res) => {
             'security.backupCodesRegeneratedAt': new Date().toISOString()
         });
 
-        res.json({
+        return res.json({
             success: true,
             backupCodes
         });
     } catch (error) {
         console.error('Regenerate backup codes error:', error);
-        res.status(500).json({ error: 'Failed to regenerate backup codes' });
+        return res.status(500).json({ error: 'Failed to regenerate backup codes' });
     }
 });
 
@@ -310,14 +309,14 @@ router.get('/status', async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        res.json({
+        return res.json({
             enabled: userProfile.security?.twoFactorEnabled || false,
             enabledAt: userProfile.security?.twoFactorEnabledAt || null,
             backupCodesCount: userProfile.security?.backupCodes?.length || 0
         });
     } catch (error) {
         console.error('Get 2FA status error:', error);
-        res.status(500).json({ error: 'Failed to get 2FA status' });
+        return res.status(500).json({ error: 'Failed to get 2FA status' });
     }
 });
 

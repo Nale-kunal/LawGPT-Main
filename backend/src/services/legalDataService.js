@@ -19,23 +19,6 @@ import { ingestECourts } from './legalIngestion/ecourtsIngestor.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Sleep for ms milliseconds (to throttle external requests). */
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/** Safe fetch with timeout & error handling. */
-async function safeFetch(url, options = {}) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000); // 15-second timeout
-    try {
-        const res = await fetch(url, { ...options, signal: controller.signal });
-        clearTimeout(timeout);
-        return res;
-    } catch (err) {
-        clearTimeout(timeout);
-        throw err;
-    }
-}
-
 // ─── Seed data (initial dataset used when external sources are unavailable) ───
 
 /**

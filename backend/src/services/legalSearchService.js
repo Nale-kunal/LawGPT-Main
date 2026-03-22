@@ -159,7 +159,7 @@ async function searchSections(q) {
  * Normalise a raw keyword text score to 0-1 range (MongoDB text scores can be >10).
  */
 function normKeywordScore(score) {
-    if (!score) return 0;
+    if (!score) {return 0;}
     return Math.min(1, score / 10); // cap at 1
 }
 

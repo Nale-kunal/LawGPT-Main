@@ -10,15 +10,14 @@ export const logActivity = async (userId, type, message, entityType, entityId, m
       entityId,
       metadata
     });
-  } catch (error) {
-    console.error('Activity logging error:', error);
-    // Don't throw error to avoid disrupting main operations
+  } catch (_error) {
+    // Activity logging error intentionally silented to avoid disrupting main operations
   }
 };
 
 export const createActivityLogger = (type, entityType) => {
   return (message, entityId, metadata = {}) => {
-    return async (req, res, next) => {
+    return (req, res, next) => {
       try {
         // Store activity data in request for post-processing
         req.activityData = {
@@ -28,16 +27,15 @@ export const createActivityLogger = (type, entityType) => {
           entityId: entityId || req.body.id || req.params.id,
           metadata
         };
-        next();
-      } catch (error) {
-        console.error('Activity logger middleware error:', error);
-        next();
+        return next();
+      } catch (_error) {
+        return next();
       }
     };
   };
 };
 
-export const logActivityAfterResponse = async (req, res, next) => {
+export const logActivityAfterResponse = (req, res, next) => {
   const originalSend = res.send;
 
   res.send = function (data) {

@@ -29,7 +29,7 @@ function failKey(identifier) { return `lockout:fail:${identifier}`; }
 export function checkAccountLockout(getIdentifier = (req) => req.body?.email?.toLowerCase()) {
     return async (req, res, next) => {
         const identifier = getIdentifier(req);
-        if (!identifier) return next();
+        if (!identifier) { return next(); }
 
         const lockUntil = await redis.get(lockKey(identifier));
         if (lockUntil) {
@@ -46,7 +46,7 @@ export function checkAccountLockout(getIdentifier = (req) => req.body?.email?.to
             });
         }
 
-        next();
+        return next();
     };
 }
 
@@ -54,7 +54,7 @@ export function checkAccountLockout(getIdentifier = (req) => req.body?.email?.to
  * Record a failed login attempt. Locks account if threshold reached.
  */
 export async function trackFailedLogin(req, identifier) {
-    if (!identifier) return;
+    if (!identifier) { return; }
 
     const fKey = failKey(identifier);
     const count = await redis.incr(fKey);
@@ -79,14 +79,12 @@ export async function trackFailedLogin(req, identifier) {
             failureCount: count,
         });
     }
-
-    return count;
 }
 
 /**
  * Clear failed login counter on successful authentication.
  */
 export async function clearFailedLogins(identifier) {
-    if (!identifier) return;
+    if (!identifier) { return; }
     await redis.del(failKey(identifier));
 }

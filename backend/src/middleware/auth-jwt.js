@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { getDocumentById, MODELS } from '../services/mongodb.js';
 import { isTokenBlacklisted } from '../services/tokenService.js';
+import logger from '../utils/logger.js';
 
 /**
  * JWT-based authentication middleware
@@ -13,17 +14,17 @@ export async function requireAuth(req, res, next) {
 
         // Log for debugging in development
         if (process.env.NODE_ENV === 'development') {
-            console.log('Auth check:', {
+            logger.debug({
                 hasCookie: !!req.cookies?.token,
                 hasAuthHeader: !!req.headers.authorization,
                 path: req.path,
                 method: req.method
-            });
+            }, 'Auth check');
         }
 
         if (!token) {
             if (process.env.NODE_ENV === 'development') {
-                console.log('No token found in request');
+                logger.debug('No token found in request');
             }
             res.clearCookie('token', {
                 httpOnly: true,
@@ -43,7 +44,7 @@ export async function requireAuth(req, res, next) {
 
         // Check if token is blacklisted in Redis
         if (await isTokenBlacklisted(token)) {
-            console.error('Blacklisted token used:', token.substring(0, 20));
+            logger.error('Blacklisted token used: %s', token.substring(0, 20));
             res.clearCookie('token', {
                 httpOnly: true,
                 sameSite: 'lax',
@@ -63,18 +64,18 @@ export async function requireAuth(req, res, next) {
             decodedToken = jwt.verify(token, process.env.JWT_SECRET);
 
             if (process.env.NODE_ENV === 'development') {
-                console.log('Verified JWT token for user:', decodedToken.email);
+                logger.debug('Verified JWT token for user: %s', decodedToken.email);
             }
         } catch (jwtError) {
-            console.error('JWT verification failed:', jwtError.message);
+            logger.error({ err: jwtError.message }, 'JWT verification failed');
 
             if (process.env.NODE_ENV === 'development') {
-                console.error('JWT verification error details:', {
+                logger.error({
                     name: jwtError.name,
                     message: jwtError.message,
                     tokenLength: token.length,
                     tokenPrefix: token.substring(0, 20)
-                });
+                }, 'JWT verification error details');
             }
 
             res.clearCookie('token', {
@@ -97,7 +98,7 @@ export async function requireAuth(req, res, next) {
         const userProfile = await getDocumentById(MODELS.USERS, decodedToken.userId);
 
         if (!userProfile) {
-            console.error('User profile not found for userId:', decodedToken.userId, '- returning 401');
+            logger.error({ userId: decodedToken.userId }, 'User profile not found - returning 401');
             res.clearCookie('token', {
                 httpOnly: true,
                 sameSite: 'lax',
@@ -115,7 +116,7 @@ export async function requireAuth(req, res, next) {
         // because reactivated users retain a deletedAt timestamp from their prior deletion.
         const isDeleted = userProfile.status === 'deleted' || userProfile.deleted === true;
         if (isDeleted) {
-            console.error('Deleted user attempted to access protected route:', decodedToken.userId);
+            logger.error({ userId: decodedToken.userId }, 'Deleted user attempted to access protected route');
             res.clearCookie('token', {
                 httpOnly: true,
                 sameSite: 'lax',
@@ -139,16 +140,16 @@ export async function requireAuth(req, res, next) {
         };
 
         if (process.env.NODE_ENV === 'development') {
-            console.log('Auth successful for user:', req.user.email);
+            logger.debug('Auth successful for user: %s', req.user.email);
         }
 
         // Apply abuse detection after successful authentication
         // Note: we import it inside to avoid circular dependency if any
-        const { abuseDetection } = await import('./abuseDetection.js');
-        await abuseDetection(req, res, next);
+        const { abuseDetection: detectAbuse } = await import('./abuseDetection.js');
+        return await detectAbuse(req, res, next);
     } catch (error) {
-        console.error('Auth middleware error:', error.message);
-        console.error('Auth middleware stack:', error.stack);
+        logger.error({ err: error.message }, 'Auth middleware error');
+        logger.error({ stack: error.stack }, 'Auth middleware stack');
 
         // Clear invalid cookies
         res.clearCookie('token', {

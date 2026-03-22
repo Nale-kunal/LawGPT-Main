@@ -18,6 +18,6 @@ export function requireRole(...roles) {
                 message: `This action requires one of the following roles: ${roles.join(', ')}`,
             });
         }
-        next();
+        return next();
     };
 }

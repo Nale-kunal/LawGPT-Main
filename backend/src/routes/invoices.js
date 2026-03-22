@@ -2,6 +2,7 @@ import express from 'express';
 import { requireAuth } from '../middleware/auth-jwt.js';
 import { sendInvoiceEmail } from '../utils/mailer.js';
 import { logActivity } from '../middleware/activityLogger.js';
+import { logger } from '../utils/logger.js';
 import {
   createDocument,
   getDocumentById,
@@ -13,7 +14,7 @@ import {
 } from '../services/mongodb.js';
 
 // Helper function to generate email content
-function generateInvoiceEmailContent(invoice, client) {
+function generateInvoiceEmailContent(invoice, _client) {
   const daysUntilDue = Math.ceil((new Date(invoice.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
   const isOverdue = daysUntilDue < 0;
   const isDueSoon = daysUntilDue <= 7 && daysUntilDue >= 0;
@@ -41,14 +42,10 @@ router.get('/', async (req, res) => {
       [{ field: 'owner', operator: '==', value: req.user.userId }],
       { field: 'createdAt', direction: 'desc' }
     );
-    res.json(items);
+    return res.json(items);
   } catch (error) {
-    console.error('Get invoices error:', error);
-    console.error('Error details:', {
-      code: error.code,
-      message: error.message
-    });
-    res.status(500).json({
+    logger.error({ err: error }, 'Get invoices error');
+    return res.status(500).json({
       error: 'Failed to fetch invoices',
       ...(process.env.NODE_ENV === 'development' && {
         details: error.message,
@@ -61,12 +58,12 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const item = await getDocumentById(COLLECTIONS.INVOICES, req.params.id);
-    if (!item) return res.status(404).json({ error: 'Not found' });
-    if (item.owner?.toString() !== req.user.userId.toString()) return res.status(403).json({ error: 'Forbidden' });
-    res.json(item);
+    if (!item) { return res.status(404).json({ error: 'Not found' }); }
+    if (item.owner?.toString() !== req.user.userId.toString()) { return res.status(403).json({ error: 'Forbidden' }); }
+    return res.json(item);
   } catch (error) {
-    console.error('Get invoice error:', error);
-    res.status(500).json({ error: 'Failed to fetch invoice' });
+    logger.error({ err: error }, 'Get invoice error');
+    return res.status(500).json({ error: 'Failed to fetch invoice' });
   }
 });
 
@@ -94,18 +91,18 @@ router.post('/', async (req, res) => {
       }
     );
 
-    res.status(201).json(created);
+    return res.status(201).json(created);
   } catch (error) {
-    console.error('Create invoice error:', error);
-    res.status(500).json({ error: 'Failed to create invoice' });
+    logger.error({ err: error }, 'Create invoice error');
+    return res.status(500).json({ error: 'Failed to create invoice' });
   }
 });
 
 router.put('/:id', async (req, res) => {
   try {
     const original = await getDocumentById(COLLECTIONS.INVOICES, req.params.id);
-    if (!original) return res.status(404).json({ error: 'Not found' });
-    if (original.owner?.toString() !== req.user.userId.toString()) return res.status(403).json({ error: 'Forbidden' });
+    if (!original) { return res.status(404).json({ error: 'Not found' }); }
+    if (original.owner?.toString() !== req.user.userId.toString()) { return res.status(403).json({ error: 'Forbidden' }); }
 
     const updated = await updateDocument(COLLECTIONS.INVOICES, req.params.id, req.body);
 
@@ -144,24 +141,24 @@ router.put('/:id', async (req, res) => {
       );
     }
 
-    res.json(updated);
+    return res.json(updated);
   } catch (error) {
-    console.error('Update invoice error:', error);
-    res.status(500).json({ error: 'Failed to update invoice' });
+    logger.error({ err: error }, 'Update invoice error');
+    return res.status(500).json({ error: 'Failed to update invoice' });
   }
 });
 
 router.delete('/:id', async (req, res) => {
   try {
     const item = await getDocumentById(COLLECTIONS.INVOICES, req.params.id);
-    if (!item) return res.status(404).json({ error: 'Not found' });
-    if (item.owner?.toString() !== req.user.userId.toString()) return res.status(403).json({ error: 'Forbidden' });
+    if (!item) { return res.status(404).json({ error: 'Not found' }); }
+    if (item.owner?.toString() !== req.user.userId.toString()) { return res.status(403).json({ error: 'Forbidden' }); }
 
     await deleteDocument(COLLECTIONS.INVOICES, req.params.id);
-    res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (error) {
-    console.error('Delete invoice error:', error);
-    res.status(500).json({ error: 'Failed to delete invoice' });
+    logger.error({ err: error }, 'Delete invoice error');
+    return res.status(500).json({ error: 'Failed to delete invoice' });
   }
 });
 
@@ -169,13 +166,13 @@ router.post('/:id/send', async (req, res) => {
   try {
     const { to, subject, message } = req.body;
     const invoice = await getDocumentById(COLLECTIONS.INVOICES, req.params.id);
-    if (!invoice) return res.status(404).json({ error: 'Not found' });
-    if (invoice.owner?.toString() !== req.user.userId.toString()) return res.status(403).json({ error: 'Forbidden' });
+    if (!invoice) { return res.status(404).json({ error: 'Not found' }); }
+    if (invoice.owner?.toString() !== req.user.userId.toString()) { return res.status(403).json({ error: 'Forbidden' }); }
 
     // Get client information for personalized email
     const client = invoice.clientId ? await getDocumentById(COLLECTIONS.CLIENTS, invoice.clientId) : null;
-    if (!client) return res.status(400).json({ error: 'Client not found for invoice' });
-    if (client.owner?.toString() !== req.user.userId.toString()) return res.status(403).json({ error: 'Forbidden' });
+    if (!client) { return res.status(400).json({ error: 'Client not found for invoice' }); }
+    if (client.owner?.toString() !== req.user.userId.toString()) { return res.status(403).json({ error: 'Forbidden' }); }
 
     let recipient = to;
     if (!recipient) {
@@ -206,10 +203,10 @@ router.post('/:id/send', async (req, res) => {
       }
     );
 
-    res.json(result);
+    return res.json(result);
   } catch (error) {
-    console.error('Send invoice error:', error);
-    res.status(500).json({ error: error.message || 'Failed to send invoice' });
+    logger.error({ err: error }, 'Send invoice error');
+    return res.status(500).json({ error: error.message || 'Failed to send invoice' });
   }
 });
 

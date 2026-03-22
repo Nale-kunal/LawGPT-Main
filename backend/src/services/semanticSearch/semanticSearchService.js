@@ -18,7 +18,7 @@ const TOP_N = 10;
  * @returns {Promise<{ acts: object[], cases: object[] }>}
  */
 export async function semanticSearch(query, topN = TOP_N) {
-    if (!query || !query.trim()) return { acts: [], cases: [] };
+    if (!query || !query.trim()) {return { acts: [], cases: [] };}
 
     try {
         const queryVec = await generateEmbedding(query.trim());

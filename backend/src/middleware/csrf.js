@@ -42,7 +42,7 @@ function generateToken() {
 }
 
 // ── Middleware: issue CSRF token ───────────────────────────────────────────────
-export function setCsrfToken(req, res, next) {
+export function setCsrfToken(req, res) {
     let token = req.cookies?.['csrf-token'];
     if (!token) {
         token = generateToken();
@@ -63,9 +63,9 @@ export function setCsrfToken(req, res, next) {
 // ── Middleware: validate CSRF token ───────────────────────────────────────────
 export function csrfProtection(req, res, next) {
     // Only enforce on mutating methods
-    if (!MUTATING_METHODS.has(req.method)) return next();
+    if (!MUTATING_METHODS.has(req.method)) { return next(); }
     // Exempt public auth routes (login, register, refresh, reactivate, etc.)
-    if (isExempt(req)) return next();
+    if (isExempt(req)) { return next(); }
 
 
     const cookieToken = req.cookies?.['csrf-token'];
@@ -94,5 +94,5 @@ export function csrfProtection(req, res, next) {
         });
     }
 
-    next();
+    return next();
 }

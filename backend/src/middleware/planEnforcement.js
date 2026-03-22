@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import Case from '../models/Case.js';
 import Document from '../models/Document.js';
 import redis from '../utils/redis.js';
+import logger from '../utils/logger.js';
 
 /**
  * Middleware to enforce plan limits.
@@ -10,10 +11,10 @@ import redis from '../utils/redis.js';
 export const enforcePlanLimits = (resourceType) => {
     return async (req, res, next) => {
         try {
-            if (!req.user || !req.user.userId) return next();
+            if (!req.user || !req.user.userId) { return next(); }
 
             const user = await User.findById(req.user.userId);
-            if (!user) return next();
+            if (!user) { return next(); }
 
             // Skip limits for free tier until manually configured as per rules
             // (Prompt: "Do not affect free tier until manually configured")
@@ -74,10 +75,10 @@ export const enforcePlanLimits = (resourceType) => {
                 }
             }
 
-            next();
+            return next();
         } catch (error) {
-            console.error('Plan enforcement error:', error);
-            next();
+            logger.error({ err: error }, 'Plan enforcement error');
+            return next();
         }
     };
 };
@@ -92,6 +93,6 @@ export const trackAiUsage = async (userId) => {
         await redis.incr(redisKey);
         await redis.expire(redisKey, 86400); // 24 hours TTL
     } catch (error) {
-        console.error('Failed to track AI usage:', error);
+        logger.error({ err: error }, 'Failed to track AI usage');
     }
 };

@@ -10,7 +10,7 @@ import { normalizeCase } from './normalizer.js';
 
 async function upsertCase(data) {
     const norm = normalizeCase(data);
-    if (!norm) return;
+    if (!norm) {return;}
     await CaseLaws.updateOne(
         { caseTitle: norm.caseTitle, court: norm.court },
         { $set: norm, $setOnInsert: { caseTitle: norm.caseTitle, court: norm.court } },

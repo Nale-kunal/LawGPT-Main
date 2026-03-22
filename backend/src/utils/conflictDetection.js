@@ -5,7 +5,7 @@
  * Checks for overlapping hearings based on configurable resource scopes.
  */
 
-import { queryDocuments, getDocumentById, MODELS, COLLECTIONS } from '../services/mongodb.js';
+import { queryDocuments, getDocumentById, COLLECTIONS } from '../services/mongodb.js';
 
 /**
  * Get active conflict scopes from environment configuration

@@ -1,5 +1,6 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth-jwt.js';
+import logger from '../utils/logger.js';
 import {
   createDocument,
   getDocumentById,
@@ -20,14 +21,10 @@ router.get('/', async (req, res) => {
       [{ field: 'owner', operator: '==', value: req.user.userId }],
       { field: 'createdAt', direction: 'desc' }
     );
-    res.json(items);
+    return res.json(items);
   } catch (error) {
-    console.error('Get alerts error:', error);
-    console.error('Error details:', {
-      code: error.code,
-      message: error.message
-    });
-    res.status(500).json({
+    logger.error({ err: error }, 'Get alerts error');
+    return res.status(500).json({
       error: 'Failed to fetch alerts',
       ...(process.env.NODE_ENV === 'development' && {
         details: error.message,
@@ -45,10 +42,10 @@ router.post('/', async (req, res) => {
       isRead: false
     };
     const item = await createDocument(COLLECTIONS.ALERTS, data);
-    res.status(201).json(item);
+    return res.status(201).json(item);
   } catch (error) {
-    console.error('Create alert error:', error);
-    res.status(500).json({ error: 'Failed to create alert' });
+    logger.error({ err: error }, 'Create alert error');
+    return res.status(500).json({ error: 'Failed to create alert' });
   }
 });
 
@@ -66,10 +63,10 @@ router.patch('/:id/read', async (req, res) => {
     }
 
     const updated = await updateDocument(COLLECTIONS.ALERTS, req.params.id, { isRead: true });
-    res.json(updated);
+    return res.json(updated);
   } catch (error) {
-    console.error('Update alert error:', error);
-    res.status(500).json({ error: 'Failed to update alert' });
+    logger.error({ err: error }, 'Update alert error');
+    return res.status(500).json({ error: 'Failed to update alert' });
   }
 });
 
@@ -98,10 +95,10 @@ router.patch('/mark-all-read', async (req, res) => {
       { field: 'createdAt', direction: 'desc' }
     );
 
-    res.json(items);
+    return res.json(items);
   } catch (error) {
-    console.error('Mark all read error:', error);
-    res.status(500).json({ error: 'Failed to mark alerts as read' });
+    logger.error({ err: error }, 'Mark all read error');
+    return res.status(500).json({ error: 'Failed to mark alerts as read' });
   }
 });
 
@@ -119,10 +116,10 @@ router.delete('/:id', async (req, res) => {
     }
 
     await deleteDocument(COLLECTIONS.ALERTS, req.params.id);
-    res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (error) {
-    console.error('Delete alert error:', error);
-    res.status(500).json({ error: 'Failed to delete alert' });
+    logger.error({ err: error }, 'Delete alert error');
+    return res.status(500).json({ error: 'Failed to delete alert' });
   }
 });
 

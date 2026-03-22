@@ -38,12 +38,12 @@ function buildKeyRegistry() {
                 }
                 registry.set(key.kid, key);
                 if (key.active) {
-                    if (activeKey) throw new Error('JWT_KEYS: only one key may be "active": true');
+                    if (activeKey) {throw new Error('JWT_KEYS: only one key may be "active": true');}
                     activeKey = key;
                 }
             }
 
-            if (!activeKey) throw new Error('JWT_KEYS: exactly one key must have "active": true');
+            if (!activeKey) {throw new Error('JWT_KEYS: exactly one key must have "active": true');}
             logger.info({ keyCount: registry.size, activeKid: activeKey.kid }, 'JWT keyStore: multi-key mode');
         } catch (err) {
             logger.error({ err }, 'JWT_KEYS parse failed — falling back to JWT_SECRET');
@@ -55,7 +55,7 @@ function buildKeyRegistry() {
     // Fallback to single-key mode
     if (registry.size === 0) {
         const secret = process.env.JWT_SECRET;
-        if (!secret) throw new Error('JWT_SECRET is required');
+        if (!secret) {throw new Error('JWT_SECRET is required');}
         const singleKey = { kid: 'default', secret, active: true };
         registry.set('default', singleKey);
         activeKey = singleKey;
@@ -89,7 +89,7 @@ export function verifyToken(token) {
     let kid = 'default';
     try {
         const decoded = jwt.decode(token, { complete: true });
-        if (decoded?.header?.kid) kid = decoded.header.kid;
+        if (decoded?.header?.kid) {kid = decoded.header.kid;}
     } catch {
         // Malformed token — let jwt.verify throw the proper error below
     }

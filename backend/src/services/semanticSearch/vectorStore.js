@@ -98,7 +98,7 @@ export async function generateAndStoreEmbeddings() {
  * @returns {Promise<Array<{doc, score}>>}
  */
 export async function findSimilarActs(queryVec, topN = TOP_N_DEFAULT) {
-    if (!queryVec || !queryVec.length) return [];
+    if (!queryVec || !queryVec.length) {return [];}
 
     // Fetch docs that have embeddings
     const docs = await LegalActs.find(
@@ -121,7 +121,7 @@ export async function findSimilarActs(queryVec, topN = TOP_N_DEFAULT) {
  * @returns {Promise<Array<{doc, score}>>}
  */
 export async function findSimilarCases(queryVec, topN = TOP_N_DEFAULT) {
-    if (!queryVec || !queryVec.length) return [];
+    if (!queryVec || !queryVec.length) {return [];}
 
     const docs = await CaseLaws.find(
         { embedding: { $exists: true, $not: { $size: 0 } } },

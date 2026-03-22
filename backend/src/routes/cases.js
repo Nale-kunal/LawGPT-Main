@@ -1,5 +1,6 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth-jwt.js';
+import logger from '../utils/logger.js';
 import { logActivity } from '../middleware/activityLogger.js';
 import {
   createDocument,
@@ -28,15 +29,10 @@ router.get('/', async (req, res) => {
       [{ field: 'owner', operator: '==', value: req.user.userId }],
       { field: 'createdAt', direction: 'desc' }
     );
-    res.json(cases);
+    return res.json(cases);
   } catch (error) {
-    console.error('Get cases error:', error);
-    console.error('Error details:', {
-      code: error.code,
-      message: error.message,
-      stack: error.stack
-    });
-    res.status(500).json({
+    logger.error({ err: error }, 'Get cases error');
+    return res.status(500).json({
       error: 'Failed to fetch cases',
       ...(process.env.NODE_ENV === 'development' && {
         details: error.message,
@@ -116,17 +112,17 @@ router.post('/', enforcePlanLimits('case'), async (req, res) => {
       }
     );
 
-    res.status(201).json(item);
-
     await activityEmitter.emit({
       userId: req.user.userId,
       eventType: 'case_created',
       req,
       metadata: { caseId: item.id, caseNumber: item.caseNumber }
     });
+
+    return res.status(201).json(item);
   } catch (error) {
-    console.error('Create case error:', error);
-    res.status(500).json({ error: 'Failed to create case' });
+    logger.error({ err: error }, 'Create case error');
+    return res.status(500).json({ error: 'Failed to create case' });
   }
 });
 
@@ -137,10 +133,10 @@ router.get('/:id', async (req, res) => {
     if (!item || String(item.owner) !== String(req.user.userId)) {
       return res.status(404).json({ error: 'Not found' });
     }
-    res.json(item);
+    return res.json(item);
   } catch (error) {
-    console.error('Get case error:', error);
-    res.status(500).json({ error: 'Failed to fetch case' });
+    logger.error({ err: error }, 'Get case error');
+    return res.status(500).json({ error: 'Failed to fetch case' });
   }
 });
 
@@ -200,10 +196,10 @@ router.put('/:id', async (req, res) => {
       }
     );
 
-    res.json(item);
+    return res.json(item);
   } catch (error) {
     console.error('Update case error:', error);
-    res.status(500).json({ error: 'Failed to update case' });
+    return res.status(500).json({ error: 'Failed to update case' });
   }
 });
 
@@ -215,10 +211,10 @@ router.delete('/:id', async (req, res) => {
     }
 
     await deleteDocument(COLLECTIONS.CASES, req.params.id);
-    res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (error) {
     console.error('Delete case error:', error);
-    res.status(500).json({ error: 'Failed to delete case' });
+    return res.status(500).json({ error: 'Failed to delete case' });
   }
 });
 
@@ -307,14 +303,14 @@ router.get('/:id/pipeline', async (req, res) => {
       orderedNodes = SYSTEM_PIPELINE_NODES.map(n => ({ ...n }));
     }
 
-    res.json({
+    return res.json({
       nodes: orderedNodes,
       systemNodes: SYSTEM_PIPELINE_NODES,
       customNodes,
     });
   } catch (error) {
-    console.error('Get pipeline error:', error);
-    res.status(500).json({ error: 'Failed to fetch pipeline' });
+    logger.error({ err: error }, 'Get pipeline error');
+    return res.status(500).json({ error: 'Failed to fetch pipeline' });
   }
 });
 
@@ -376,14 +372,14 @@ router.post('/:id/pipeline', async (req, res) => {
     const savedOrder = updated.pipelineOrder || [];
     const orderedNodes = savedOrder.map(id => allNodesMap[id]).filter(Boolean);
 
-    res.json({
+    return res.json({
       nodes: orderedNodes,
       systemNodes: SYSTEM_PIPELINE_NODES,
       customNodes: updatedCustom,
     });
   } catch (error) {
-    console.error('Save pipeline error:', error);
-    res.status(500).json({ error: 'Failed to save pipeline' });
+    logger.error({ err: error }, 'Save pipeline error');
+    return res.status(500).json({ error: 'Failed to save pipeline' });
   }
 });
 

@@ -227,7 +227,7 @@ export async function queryDocuments(collection, filters = [], orderBy = null, l
  * @param {Object} orderBy - {field, direction} for sorting
  * @returns {Promise<Array>} Array of documents
  */
-export async function getAllDocuments(collection, orderBy = null) {
+export function getAllDocuments(collection, orderBy = null) {
     return queryDocuments(collection, [], orderBy, null);
 }
 

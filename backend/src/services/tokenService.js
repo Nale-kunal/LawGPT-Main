@@ -12,7 +12,7 @@ const TOKEN_BLACKLIST_PREFIX = 'bl:';
  * @param {number} expiryInSeconds - Time until the token expires
  */
 export async function blacklistToken(token, expiryInSeconds) {
-    if (!token || expiryInSeconds <= 0) return;
+    if (!token || expiryInSeconds <= 0) {return;}
 
     try {
         const key = `${TOKEN_BLACKLIST_PREFIX}${token}`;
@@ -30,7 +30,7 @@ export async function blacklistToken(token, expiryInSeconds) {
  * @returns {Promise<boolean>}
  */
 export async function isTokenBlacklisted(token) {
-    if (!token) return false;
+    if (!token) {return false;}
 
     try {
         const key = `${TOKEN_BLACKLIST_PREFIX}${token}`;

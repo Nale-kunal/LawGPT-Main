@@ -29,14 +29,14 @@ router.get('/audit/verify', async (req, res) => {
         const result = await AuditLog.verifyChain();
 
         if (result.valid) {
-            res.json({
+            return res.json({
                 ok: true,
                 message: 'Audit log chain integrity verified — no tampering detected',
                 checked: result.checked,
             });
         } else {
             logger.error({ firstTamperedId: result.firstTamperedId }, '🚨 Audit log tampering detected');
-            res.status(200).json({
+            return res.status(200).json({
                 ok: false,
                 alert: 'CHAIN_INTEGRITY_VIOLATION',
                 message: 'Audit log tampering detected — chain broken at entry below',
@@ -46,7 +46,7 @@ router.get('/audit/verify', async (req, res) => {
         }
     } catch (err) {
         logger.error({ err }, 'Audit chain verification failed');
-        res.status(500).json({ error: 'Verification failed', message: err.message });
+        return res.status(500).json({ error: 'Verification failed', message: err.message });
     }
 });
 
@@ -58,8 +58,8 @@ router.get('/audit', async (req, res) => {
         const skip = (page - 1) * limit;
 
         const filter = {};
-        if (req.query.userId) filter.userId = req.query.userId;
-        if (req.query.action) filter.action = req.query.action;
+        if (req.query.userId) { filter.userId = req.query.userId; }
+        if (req.query.action) { filter.action = req.query.action; }
 
         const [entries, total] = await Promise.all([
             AuditLog.find(filter)
@@ -71,14 +71,14 @@ router.get('/audit', async (req, res) => {
             AuditLog.countDocuments(filter),
         ]);
 
-        res.json({
+        return res.json({
             ok: true,
             data: entries,
             pagination: { page, limit, total, pages: Math.ceil(total / limit) },
         });
     } catch (err) {
         logger.error({ err }, 'Audit log query failed');
-        res.status(500).json({ error: 'Query failed' });
+        return res.status(500).json({ error: 'Query failed' });
     }
 });
 
@@ -132,10 +132,10 @@ router.get('/queues', async (req, res) => {
             queues.push({ name: 'cleanup', waiting, active, failed });
         }
 
-        res.json({ ok: true, queues });
+        return res.json({ ok: true, queues });
     } catch (err) {
         logger.error({ err }, 'Queue dashboard error');
-        res.status(500).json({ error: 'Queue dashboard error', message: err.message });
+        return res.status(500).json({ error: 'Queue dashboard error', message: err.message });
     }
 });
 

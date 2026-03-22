@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from 'cloudinary';
 import { Readable } from 'stream';
+import logger from '../utils/logger.js';
 
 // Validate Cloudinary configuration
 function validateCloudinaryConfig() {
@@ -57,7 +58,6 @@ function validateCloudinaryConfig() {
 
 // Configure Cloudinary with validation
 // Note: We validate but don't block server startup - actual validation happens on upload
-let cloudinaryConfigured = false;
 try {
   const config = validateCloudinaryConfig();
   cloudinary.config({
@@ -65,12 +65,11 @@ try {
     api_key: config.apiKey,
     api_secret: config.apiSecret,
   });
-  cloudinaryConfigured = true;
-  console.log('✅ Cloudinary configured successfully');
+  logger.info('✅ Cloudinary configured successfully');
 } catch (error) {
-  console.warn('⚠️  Cloudinary configuration warning:', error.message);
-  console.warn('⚠️  File uploads will fail until credentials are corrected.');
-  console.warn('⚠️  Get your credentials from: https://cloudinary.com/console');
+  logger.warn({ err: error.message }, '⚠️  Cloudinary configuration warning');
+  logger.warn('⚠️  File uploads will fail until credentials are corrected.');
+  logger.warn('⚠️  Get your credentials from: https://cloudinary.com/console');
   // Don't throw here - let it fail when trying to upload, so we can provide better error messages
   // We'll validate again on upload attempt
 }
@@ -83,17 +82,18 @@ try {
  * @param {Object} options - Additional Cloudinary options
  * @returns {Promise<Object>} Cloudinary upload result
  */
-export async function uploadToCloudinary(fileBuffer, fileName, folder = 'lawyer-zen', options = {}) {
+export function uploadToCloudinary(fileBuffer, fileName, folder = 'lawyer-zen', options = {}) {
   // Validate configuration before attempting upload
   try {
     validateCloudinaryConfig();
   } catch (configError) {
-    throw new Error(`Cloudinary not configured: ${configError.message}. Please check your .env file.`, { cause: configError });
+    return Promise.reject(new Error(`Cloudinary not configured: ${configError.message}. Please check your .env file.`, { cause: configError }));
   }
 
   return new Promise((resolve, reject) => {
     if (!fileBuffer || fileBuffer.length === 0) {
-      return reject(new Error('File buffer is empty'));
+      reject(new Error('File buffer is empty'));
+      return;
     }
 
     const uploadOptions = {
@@ -112,7 +112,7 @@ export async function uploadToCloudinary(fileBuffer, fileName, folder = 'lawyer-
       uploadOptions,
       (error, result) => {
         if (error) {
-          console.error('❌ Cloudinary upload error:', error);
+          logger.error({ err: error }, '❌ Cloudinary upload error');
           // Provide more helpful error messages
           if (error.message?.includes('Invalid API Key') || error.http_code === 401) {
             const errorMsg = error.message?.includes('Invalid cloud_name')
@@ -123,23 +123,27 @@ export async function uploadToCloudinary(fileBuffer, fileName, folder = 'lawyer-
               `CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET. ` +
               `Get them from: https://cloudinary.com/console`;
             reject(new Error(errorMsg));
+            return;
           } else if (error.message?.includes('Invalid signature')) {
             reject(new Error('Invalid Cloudinary API Secret. Please check your CLOUDINARY_API_SECRET in .env file.'));
+            return;
           } else if (error.message?.includes('Invalid cloud_name')) {
             reject(new Error(
               `Invalid Cloudinary Cloud Name: "${process.env.CLOUDINARY_CLOUD_NAME}". ` +
               `Please get your correct cloud name from: https://cloudinary.com/console ` +
               `and update CLOUDINARY_CLOUD_NAME in your .env file.`
             ));
+            return;
           } else {
             reject(new Error(`Cloudinary upload failed: ${error.message || 'Unknown error'}`));
+            return;
           }
         } else {
-          console.log('✅ Cloudinary upload successful:', {
+          logger.info({
             public_id: result.public_id,
             url: result.secure_url,
             resource_type: result.resource_type
-          });
+          }, '✅ Cloudinary upload successful');
           resolve(result);
         }
       }
@@ -177,7 +181,7 @@ export async function uploadFileToCloudinary(filePath, folder = 'lawyer-zen', op
     const result = await cloudinary.uploader.upload(filePath, uploadOptions);
     return result;
   } catch (error) {
-    console.error('Cloudinary upload error:', error);
+    logger.error({ err: error }, 'Cloudinary upload error');
     throw error;
   }
 }
@@ -195,7 +199,7 @@ export async function deleteFromCloudinary(publicId, resourceType = 'auto') {
     });
     return result;
   } catch (error) {
-    console.error('Cloudinary delete error:', error);
+    logger.error({ err: error }, 'Cloudinary delete error');
     throw error;
   }
 }
@@ -215,7 +219,7 @@ export function extractPublicIdFromUrl(url) {
     }
     return null;
   } catch (error) {
-    console.error('Error extracting public ID:', error);
+    logger.error({ err: error }, 'Error extracting public ID');
     return null;
   }
 }

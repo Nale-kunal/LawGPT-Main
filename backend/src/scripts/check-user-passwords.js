@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import mongoose from 'mongoose';
 import User from '../models/User.js';
 import dotenv from 'dotenv';
@@ -22,7 +23,7 @@ async function checkUserPasswords() {
 
     for (const user of users) {
       console.log(`Checking user: ${user.email} (ID: ${user._id})`);
-      
+
       if (!user.passwordHash) {
         console.log('  ❌ User has NO password hash');
         usersWithoutHash++;
@@ -42,7 +43,7 @@ async function checkUserPasswords() {
     console.log(`Valid password hashes: ${validUsers}`);
     console.log(`Invalid password hashes: ${invalidUsers}`);
     console.log(`Users without password hash: ${usersWithoutHash}`);
-    
+
     if (invalidUsers > 0 || usersWithoutHash > 0) {
       console.log('\n⚠️  WARNING: Some users have invalid or missing password hashes.');
       console.log('These users will not be able to log in until they reset their passwords.');

@@ -18,7 +18,7 @@ let isInitialized = false;
  * Safe to call multiple times — only initialises once.
  */
 export function startLegalCron() {
-    if (isInitialized) return;
+    if (isInitialized) {return;}
     isInitialized = true;
 
     // Schedule: every day at 02:00 AM

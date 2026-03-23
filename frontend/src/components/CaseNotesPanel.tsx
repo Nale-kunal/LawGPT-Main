@@ -1,13 +1,14 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Draggable from 'react-draggable';
 import { useNavigate } from 'react-router-dom';
-import { generateCaseNoteDocument, CaseNoteExportData } from '@/lib/export/export-engine';
-import { getApiUrl, apiFetch, apiRequest } from '@/lib/api';
+import { generateCaseNoteDocument, type CaseNoteExportData } from '@/lib/export/export-engine';
+
+import { getApiUrl, apiRequest } from '@/lib/api';
 import { formatDistanceToNow, format } from 'date-fns';
 import {
     X, Filter, Plus, MessageSquare, Edit2, Trash2,
     Pin, Lock, FileText, Paperclip, ChevronRight, ChevronDown,
-    Maximize2, Minimize2, Minus, Download, FileSpreadsheet, FileJson,
+    Maximize2, Minus, Download, FileSpreadsheet,
     Hash, Clock, User, Bookmark, Shield, CornerDownRight, Bold, Italic,
     List, Heading1, Link2, Send
 } from 'lucide-react';
@@ -23,11 +24,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Hearing, useLegalData } from '@/contexts/LegalDataContext';
+import { useLegalData, type Hearing } from '@/contexts/LegalDataContext';
 
-// ─────────────────────────────────────────────────────────────────
+
+// -----------------------------------------------------------------
 // Types
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 export interface Note {
     _id: string;
     caseId: string;
@@ -47,9 +49,9 @@ export interface Note {
     replies?: Note[];
 }
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 // Type colour config (rich, dark-mode-friendly)
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 const TYPE_CONFIG: Record<string, { label: string; className: string; dotColor: string }> = {
     general: { label: 'General', className: 'bg-slate-500/15 text-slate-400 border-slate-500/30', dotColor: 'bg-slate-400' },
     hearing: { label: 'Hearing', className: 'bg-blue-500/15 text-blue-400 border-blue-500/30', dotColor: 'bg-blue-400' },
@@ -58,9 +60,9 @@ const TYPE_CONFIG: Record<string, { label: string; className: string; dotColor: 
     internal: { label: 'Internal', className: 'bg-rose-500/15 text-rose-400 border-rose-500/30', dotColor: 'bg-rose-400' },
 };
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 // Helpers
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 const findNoteByIdRecursive = (items: Note[], id: string): Note | undefined => {
     for (const item of items) {
         if (item._id === id) return item;
@@ -89,10 +91,10 @@ const authorName = (authorId: Note['authorId']): string =>
 
 const noteRefId = (id: string) => `NR-${id.slice(-8).toUpperCase()}`;
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 // Structured content renderer
 // Converts plain text into legal-document-style structured HTML
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 const LegalContentRenderer = ({ content }: { content: string }) => {
     const lines = content.split('\n');
     const elements: React.ReactNode[] = [];
@@ -139,12 +141,12 @@ const LegalContentRenderer = ({ content }: { content: string }) => {
             return;
         }
 
-        // Risk flag (lines containing ⚠ or "[RISK]" or "Risk:")
-        if (/(\[RISK\]|⚠|Risk:|WARNING:)/i.test(trimmed)) {
+        // Risk flag (lines containing ⚠️ or "[RISK]" or "Risk:")
+        if (/(\[RISK\]|⚠️|Risk:|WARNING:)/i.test(trimmed)) {
             elements.push(
                 <div key={idx} className="legal-risk-flag">
-                    <span className="text-amber-400 font-bold text-xs mr-1">⚠</span>
-                    <span>{trimmed.replace(/(\[RISK\]|⚠)/g, '').trim()}</span>
+                    <span className="text-amber-400 font-bold text-xs mr-1">⚠️</span>
+                    <span>{trimmed.replace(/(\[RISK\]|⚠️)/g, '').trim()}</span>
                 </div>
             );
             return;
@@ -159,9 +161,9 @@ const LegalContentRenderer = ({ content }: { content: string }) => {
     return <div className="legal-content-body">{elements}</div>;
 };
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 // Left-panel NoteCard (compact list item)
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 const NoteListItem = ({
     note,
     isActive,
@@ -222,9 +224,9 @@ const NoteListItem = ({
     );
 };
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 // Reply Card (threaded, structured)
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 const ReplyCard = ({
     note,
     depth = 0,
@@ -309,9 +311,9 @@ const ReplyCard = ({
     );
 };
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 // Legacy NoteCard (still used in the floating panel mode)
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 const NoteCard = ({
     note,
     depth = 0,
@@ -420,9 +422,9 @@ const NoteCard = ({
     );
 };
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 // NoteDetailModal (used in floating panel mode)
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 const NoteDetailModal = ({
     note,
     isOpen,
@@ -559,22 +561,22 @@ const NoteDetailModal = ({
     );
 };
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 // Add / Edit Note Modal (legal drafting editor)
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 const AddNoteModal = ({
     isOpen,
     onClose,
     onSubmit,
-    caseId,
+    _caseId,
     hearings,
     initialData,
     parentNote
 }: {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (data: any) => Promise<void>;
-    caseId: string;
+    onSubmit: (data: unknown) => Promise<void>;
+    _caseId: string;
     hearings: Hearing[];
     initialData?: Note | null;
     parentNote?: Note | null;
@@ -629,11 +631,11 @@ const AddNoteModal = ({
         e.preventDefault();
         if (!content.trim()) return;
         setIsSubmitting(true);
-        console.log('[AddNoteModal] Submitting note data:', {
+        /* console.log('[AddNoteModal] Submitting note data:', {
             title: title.trim(),
             noteType,
             hearingId
-        });
+        }); */
         try {
             await onSubmit({
                 title: title.trim(),
@@ -646,8 +648,8 @@ const AddNoteModal = ({
                 parentNoteId: parentNote?._id
             });
             onClose();
-        } catch (error) {
-            console.error('[AddNoteModal] Save error:', error);
+        } catch (_error) {
+            console.error('[AddNoteModal] Save error:', _error);
             toast({ title: 'Error', description: 'Failed to save note', variant: 'destructive' });
         } finally {
             setIsSubmitting(false);
@@ -784,9 +786,9 @@ const AddNoteModal = ({
     );
 };
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 // Main Panel Props
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 export interface CaseNotesPanelProps {
     isOpen: boolean;
     onClose?: () => void;
@@ -796,14 +798,14 @@ export interface CaseNotesPanelProps {
     inline?: boolean;
 }
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 // CaseNotesPanel — Main Export
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 export const CaseNotesPanel = ({
     isOpen,
     onClose,
     caseId,
-    hearings,
+    hearings = [],
     defaultHearingId,
     inline = false
 }: CaseNotesPanelProps) => {
@@ -817,7 +819,7 @@ export const CaseNotesPanel = ({
     const [replyingTo, setReplyingTo] = useState<Note | null>(null);
     const [detailNote, setDetailNote] = useState<Note | null>(null);
     const [detailOpen, setDetailOpen] = useState(false);
-    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isFullscreen] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [directReplyText, setDirectReplyText] = useState('');
@@ -830,8 +832,8 @@ export const CaseNotesPanel = ({
     const navigate = useNavigate();
     const nodeRef = React.useRef<HTMLDivElement>(null);
 
-    // ── Data Fetching ──────────────────────────────────────────────
-    const fetchNotes = async () => {
+    // -- Data Fetching ----------------------------------------------
+    const fetchNotes = useCallback(async () => {
         try {
             setLoading(true);
             const baseUrl = getApiUrl(`/api/v1/cases/${caseId}/notes`);
@@ -848,18 +850,18 @@ export const CaseNotesPanel = ({
             setNotes(data);
         } catch (error) {
             console.error('Failed to fetch case notes', error);
-            toast({ title: 'Error', description: error instanceof Error ? error.message : 'Could not load notes', variant: 'destructive' });
+            toast({ title: 'Error Loading Notes', description: 'Failed to load case notes.', variant: 'destructive' });
         } finally {
             setLoading(false);
         }
-    };
+    }, [caseId, filterType, filterHearing, toast]);
 
     useEffect(() => {
         if (isOpen && caseId) {
             fetchNotes();
             if (defaultHearingId) setFilterHearing(defaultHearingId);
         }
-    }, [isOpen, caseId, filterType, filterHearing, defaultHearingId]);
+    }, [isOpen, caseId, filterType, filterHearing, defaultHearingId, fetchNotes]);
 
     // Sync detail note when notes array changes (after pin/reply/edit)
     useEffect(() => {
@@ -867,37 +869,40 @@ export const CaseNotesPanel = ({
             const updated = findNoteByIdRecursive(notes, detailNote._id);
             if (updated) setDetailNote(updated);
         }
-    }, [notes, detailNote?._id]);
+    }, [notes, detailNote, detailNote?._id]);
 
-    // ── CRUD Handlers ──────────────────────────────────────────────
-    const handleSaveNote = async (data: any) => {
+    // -- CRUD Handlers ----------------------------------------------
+    const handleSaveNote = async (data: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
         let method = 'POST';
         let url = getApiUrl(`/api/v1/cases/${caseId}/notes`);
         if (editingNote) { method = 'PUT'; url += `/${editingNote._id}`; }
 
-        console.log(`[CaseNotesPanel] Saving note. Method: ${method}, Type: ${data.noteType}`);
+        // console.log(`[CaseNotesPanel] Saving note. Method: ${method}, Type: ${data.noteType}`);
+        try {
+            const response = await apiRequest(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(data)
+            });
 
-        const response = await apiRequest(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify(data)
-        });
+            toast({ title: 'Success', description: `Note ${editingNote ? 'updated' : 'created'} successfully` });
+            setEditingNote(null);
+            setReplyingTo(null);
 
-        toast({ title: 'Success', description: `Note ${editingNote ? 'updated' : 'created'} successfully` });
-        setEditingNote(null);
-        setReplyingTo(null);
+            // Optimistically update the list and detail view immediately
+            if (editingNote) {
+                setNotes(prev => updateNoteInList(prev, response));
+            }
 
-        // Optimistically update the list and detail view immediately
-        if (editingNote) {
-            setNotes(prev => updateNoteInList(prev, response));
+            if (editingNote && detailNote && editingNote._id === detailNote._id) {
+                setDetailNote(response);
+            }
+
+            fetchNotes();
+        } catch {
+            toast({ title: 'Error Saving Note', description: 'Failed to save case note.', variant: 'destructive' });
         }
-
-        if (editingNote && detailNote && editingNote._id === detailNote._id) {
-            setDetailNote(response);
-        }
-
-        fetchNotes();
     };
 
     const handleDirectReply = async () => {
@@ -911,10 +916,9 @@ export const CaseNotesPanel = ({
                 body: JSON.stringify({ content: directReplyText.trim(), noteType: 'internal', parentNoteId: detailNote._id })
             });
             setDirectReplyText('');
-            await fetchNotes();
             const updated = findNoteByIdRecursive(notes, detailNote._id);
             if (updated) setDetailNote(updated);
-        } catch (error) {
+        } catch {
             toast({ title: 'Error', description: 'Failed to send reply', variant: 'destructive' });
         } finally {
             setIsSendingReply(false);
@@ -949,7 +953,7 @@ export const CaseNotesPanel = ({
         }
     };
 
-    // ── Export ─────────────────────────────────────────────────────
+    // -- Export -----------------------------------------------------
     const prepareExportData = (): CaseNoteExportData | null => {
         if (!detailNote) return null;
         const linkedHearing = hearings?.find(h => h.id === detailNote.hearingId);
@@ -1006,15 +1010,15 @@ export const CaseNotesPanel = ({
         }
     };
 
-    // ── Helpers ────────────────────────────────────────────────────
+    // -- Helpers ----------------------------------------------------
     const openAddNote = () => { setEditingNote(null); setReplyingTo(null); setModalOpen(true); };
     const openDetail = (note: Note) => {
         setDetailNote(note);
         if (!isFullscreen && !inline) setDetailOpen(true);
     };
 
-    const onDrag = (_e: any, data: { x: number; y: number }) => setPosition({ x: data.x, y: data.y });
-    const onStop = (_e: any, data: { x: number; y: number }) => {
+    const onDrag = (_e: unknown, data: { x: number; y: number }) => setPosition({ x: data.x, y: data.y });
+    const onStop = useCallback((_e: unknown, data: { x: number; y: number }) => {
         let { x, y } = data;
         const width = isMinimized ? 280 : 380;
         const height = isMinimized ? 40 : 520;
@@ -1022,15 +1026,15 @@ export const CaseNotesPanel = ({
         if (x + width > window.innerWidth) x = window.innerWidth - width;
         if (y + height > window.innerHeight) y = window.innerHeight - height;
         setPosition({ x, y });
-    };
+    }, [isMinimized]);
 
     useEffect(() => {
         if (isFullscreen || inline) setPosition({ x: 0, y: 0 });
         else onStop(null, position);
-    }, [isFullscreen, isMinimized, inline]);
+    }, [isFullscreen, isMinimized, inline, onStop, position]);
 
     const sortedNotes = useMemo(() => {
-        let sorted = [...notes];
+        const sorted = [...notes];
         if (sortOrder === 'oldest') sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
         else sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         sorted.sort((a, b) => (a.isPinned === b.isPinned ? 0 : a.isPinned ? -1 : 1));
@@ -1049,7 +1053,7 @@ export const CaseNotesPanel = ({
                 isOpen={modalOpen}
                 onClose={() => setModalOpen(false)}
                 onSubmit={handleSaveNote}
-                caseId={caseId}
+                _caseId={caseId}
                 hearings={hearings}
                 initialData={editingNote}
                 parentNote={replyingTo}
@@ -1057,19 +1061,19 @@ export const CaseNotesPanel = ({
         );
     }
 
-    // ── Linked hearing name ────────────────────────────────────────
+    // -- Linked hearing name ----------------------------------------
     const linkedHearingName = detailNote?.hearingId
         ? hearings?.find(h => h.id === detailNote.hearingId)
         : null;
 
-    // ── Panel content ──────────────────────────────────────────────
+    // -- Panel content ----------------------------------------------
     const panelContent = (
         <div
             ref={nodeRef}
             id="case-notes-panel"
             className={inline ? 'flex-1 w-full flex flex-col h-full min-h-[400px] relative max-w-none' : panelSizeClass}
         >
-            {/* ── Floating panel header ─────────────────────────── */}
+            {/* -- Floating panel header --------------------------- */}
             {!inline && onClose && (
                 <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/40 cursor-grab active:cursor-grabbing handle transition-colors hover:bg-muted/60">
                     <h2 className="text-xs font-semibold flex items-center gap-1.5">
@@ -1086,7 +1090,7 @@ export const CaseNotesPanel = ({
                 </div>
             )}
 
-            {/* ── Floating panel compact controls ──────────────── */}
+            {/* -- Floating panel compact controls ---------------- */}
             {!isMinimized && !isFullscreen && !inline && (
                 <>
                     <div className="px-3 py-2 border-b bg-muted/20 space-y-1.5">
@@ -1143,7 +1147,7 @@ export const CaseNotesPanel = ({
                 </>
             )}
 
-            {/* ── INLINE / FULLSCREEN: Two-panel layout ──────────── */}
+            {/* -- INLINE / FULLSCREEN: Two-panel layout ------------ */}
             {!isMinimized && (isFullscreen || inline) && (
                 <div className="flex flex-1 w-full overflow-hidden border-t">
 
@@ -1213,7 +1217,7 @@ export const CaseNotesPanel = ({
                                     <div className="px-6 py-6 w-full">
                                         <div className="max-w-[900px] mx-auto">
 
-                                            {/* ── In-reply-to context ───────────────── */}
+                                            {/* -- In-reply-to context ----------------- */}
                                             {detailNote.parentNoteId && (
                                                 <div
                                                     className="mb-4 bg-muted/20 border border-dashed border-border/50 rounded-md p-3 cursor-pointer hover:bg-muted/30 transition-colors"
@@ -1231,7 +1235,7 @@ export const CaseNotesPanel = ({
                                                 </div>
                                             )}
 
-                                            {/* ── Legal Document Header ─────────────── */}
+                                            {/* -- Legal Document Header --------------- */}
                                             <div
                                                 className="rounded-lg border"
                                                 style={{
@@ -1345,10 +1349,10 @@ export const CaseNotesPanel = ({
                                                     )}
                                                 </div>
 
-                                                {/* ── Note Body ─────────────────────── */}
+                                                {/* -- Note Body ----------------------- */}
                                                 <LegalContentRenderer content={detailNote.content} />
 
-                                                {/* ── Evidence Tags Block ────────────── */}
+                                                {/* -- Evidence Tags Block -------------- */}
                                                 {detailNote.evidenceTags?.length > 0 && (
                                                     <div className="mt-6 pt-4 border-t border-border/30">
                                                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2.5">
@@ -1365,7 +1369,7 @@ export const CaseNotesPanel = ({
                                                     </div>
                                                 )}
 
-                                                {/* ── Attachments ───────────────────── */}
+                                                {/* -- Attachments --------------------- */}
                                                 {detailNote.attachments && detailNote.attachments.length > 0 && (
                                                     <div className="mt-4 pt-4 border-t border-border/30">
                                                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2.5">Attachments</p>
@@ -1382,7 +1386,7 @@ export const CaseNotesPanel = ({
                                                 )}
                                             </div>
 
-                                            {/* ── Reply Thread Section ───────────────── */}
+                                            {/* -- Reply Thread Section ----------------- */}
                                             <div className="mt-6 max-w-[900px]">
                                                 <div className="flex items-center gap-3 mb-4">
                                                     <div className="flex-1 h-px bg-border/40" />
@@ -1422,7 +1426,7 @@ export const CaseNotesPanel = ({
                                     </div>
                                 </ScrollArea>
 
-                                {/* ── Inline Reply Editor (sticky bottom) ───────── */}
+                                {/* -- Inline Reply Editor (sticky bottom) --------- */}
                                 <div className="border-t border-border/10 bg-background/95 backdrop-blur sticky bottom-0 z-10">
                                     <div className="max-w-[900px] mx-auto px-6 py-3">
                                         <div className="flex items-end gap-2 bg-muted/20 border border-border/40 rounded-2xl px-4 py-2 min-h-[48px] focus-within:border-primary/40 transition-colors shadow-sm">
@@ -1514,7 +1518,7 @@ export const CaseNotesPanel = ({
                 isOpen={modalOpen}
                 onClose={() => setModalOpen(false)}
                 onSubmit={handleSaveNote}
-                caseId={caseId}
+                _caseId={caseId}
                 hearings={hearings}
                 initialData={editingNote}
                 parentNote={replyingTo}
@@ -1534,9 +1538,9 @@ export const CaseNotesPanel = ({
     );
 };
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 // Global legal document styles (injected once)
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 const LEGAL_STYLES = `
 .legal-content-body {
     padding: 0;

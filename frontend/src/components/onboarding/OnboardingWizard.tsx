@@ -54,7 +54,7 @@ const CURRENCIES = [
 ];
 
 const OnboardingWizard = () => {
-    const { user, refreshUser, logout } = useAuth();
+    const { refreshUser, logout } = useAuth();
     const { toast } = useToast();
     const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,6 +82,7 @@ const OnboardingWizard = () => {
 
     const [errors, setErrors] = useState<FormErrors>({});
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateField = (field: keyof FormData, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
         if (errors[field]) {
@@ -183,7 +184,7 @@ const OnboardingWizard = () => {
             });
 
             // No navigation needed - overlay will disappear automatically when user.onboardingCompleted becomes true
-        } catch (error: any) {
+        } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             toast({
                 title: 'Setup Failed',
                 description: error.message || 'Failed to complete onboarding',
@@ -202,7 +203,7 @@ const OnboardingWizard = () => {
                 title: 'Onboarding Aborted',
                 description: 'You have been logged out. You can complete onboarding later.'
             });
-        } catch (error) {
+        } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
             toast({
                 title: 'Error',
                 description: 'Failed to abort onboarding',

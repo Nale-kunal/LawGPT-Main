@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LandingLayout from '@/components/layout/LandingLayout';
 import { Ic } from '@/components/landing/LandingIcons';
-import { Shield } from 'lucide-react';
+
 
 const Privacy = () => {
     const navigate = useNavigate();

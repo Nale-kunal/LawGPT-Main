@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FileText, Sparkles, Copy, Download, RefreshCw } from 'lucide-react';
-import { useLegalData, Case } from '@/contexts/LegalDataContext';
+import { useLegalData } from '@/contexts/LegalDataContext';
 import { useToast } from '@/hooks/use-toast';
 
 interface CaseSummaryGeneratorProps {
@@ -22,51 +22,51 @@ export const CaseSummaryGenerator = ({ caseId }: CaseSummaryGeneratorProps) => {
     if (!case_) return;
 
     setIsGenerating(true);
-    
+
     // Simulate AI processing time
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
+
     // Generate mock AI summary
     const mockSummary = `
-**Case Summary: ${case_.caseNumber}**
+  ** Case Summary: ${case_.caseNumber}**
 
-**Parties Involved:**
-- Petitioner/Plaintiff: ${case_.clientName}
+** Parties Involved:**
+  - Petitioner / Plaintiff: ${case_.clientName}
 ${case_.opposingParty ? `- Respondent/Defendant: ${case_.opposingParty}` : ''}
 
-**Case Details:**
-- Case Type: ${case_.caseType}
+** Case Details:**
+  - Case Type: ${case_.caseType}
 - Court: ${case_.courtName}
 ${case_.judgeName ? `- Presiding Judge: ${case_.judgeName}` : ''}
 - Priority Level: ${case_.priority.toUpperCase()}
 - Current Status: ${case_.status.toUpperCase()}
 
-**Case Description:**
-${case_.description || 'No detailed description available.'}
+** Case Description:**
+  ${case_.description || 'No detailed description available.'}
 
-**Key Information:**
-${case_.hearingDate ? `- Next Hearing: ${new Date(case_.hearingDate).toLocaleDateString('en-IN')} ${case_.hearingTime ? `at ${case_.hearingTime}` : ''}` : '- No hearing scheduled'}
+** Key Information:**
+  ${case_.hearingDate ? `- Next Hearing: ${new Date(case_.hearingDate).toLocaleDateString('en-IN')} ${case_.hearingTime ? `at ${case_.hearingTime}` : ''}` : '- No hearing scheduled'}
 - Documents: ${case_.documents.length} document(s) on file
-- Case Priority: This case is marked as ${case_.priority} priority
+  - Case Priority: This case is marked as ${case_.priority} priority
 
-**Professional Notes:**
-${case_.notes || 'No additional notes available.'}
+    ** Professional Notes:**
+      ${case_.notes || 'No additional notes available.'}
 
-**Action Items:**
-- Prepare case documents and evidence
-- Review relevant legal precedents
-- Coordinate with client for hearing preparation
+** Action Items:**
+  - Prepare case documents and evidence
+    - Review relevant legal precedents
+      - Coordinate with client for hearing preparation
 ${case_.priority === 'urgent' ? '- URGENT: Immediate attention required' : ''}
 
-**Generated on:** ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}
-**AI Confidence:** High (95%)
+** Generated on:** ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}
+** AI Confidence:** High(95 %)
 
-*This summary was generated using AI assistance. Please review and verify all information.*
+  * This summary was generated using AI assistance.Please review and verify all information.*
     `.trim();
 
     setSummary(mockSummary);
     setIsGenerating(false);
-    
+
     toast({
       title: "Summary Generated",
       description: "AI case summary has been created successfully",
@@ -89,12 +89,12 @@ ${case_.priority === 'urgent' ? '- URGENT: Immediate attention required' : ''}
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${case_.caseNumber}_Summary.txt`;
+      a.download = `${case_.caseNumber} _Summary.txt`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      
+
       toast({
         title: "Download Started",
         description: "Case summary file is being downloaded",
@@ -141,7 +141,7 @@ ${case_.priority === 'urgent' ? '- URGENT: Immediate attention required' : ''}
                 Create a comprehensive summary for case {case_.caseNumber}
               </p>
             </div>
-            
+
             <Button onClick={generateSummary} disabled={isGenerating}>
               {isGenerating ? (
                 <>
@@ -155,7 +155,7 @@ ${case_.priority === 'urgent' ? '- URGENT: Immediate attention required' : ''}
                 </>
               )}
             </Button>
-            
+
             {isGenerating && (
               <div className="mt-4 space-y-2">
                 <div className="w-full bg-muted rounded-full h-2">
@@ -183,13 +183,13 @@ ${case_.priority === 'urgent' ? '- URGENT: Immediate attention required' : ''}
                 Regenerate
               </Button>
             </div>
-            
+
             <div className="bg-muted p-4 rounded-lg">
               <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
                 {summary}
               </pre>
             </div>
-            
+
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Badge variant="outline" className="text-xs">AI Generated</Badge>
               <span>•</span>

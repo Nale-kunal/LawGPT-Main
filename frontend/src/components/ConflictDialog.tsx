@@ -79,7 +79,7 @@ export const ConflictDialog: React.FC<ConflictDialogProps> = ({
                 </DialogHeader>
 
                 <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                    {conflicts.map((conflict, idx) => (
+                    {conflicts.map((conflict) => (
                         <div
                             key={conflict.hearingId}
                             className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg"

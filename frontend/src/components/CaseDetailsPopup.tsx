@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import {
   Calendar,
   Clock,
@@ -15,14 +14,13 @@ import {
   AlertTriangle,
   Plus,
   Edit,
-  Trash2,
   Gavel,
   Users,
   FileCheck,
   ArrowRight,
   Eye
 } from 'lucide-react';
-import { Case, Hearing, useLegalData } from '@/contexts/LegalDataContext';
+import { useLegalData, type Case, type Hearing } from '@/contexts/LegalDataContext';
 import { HearingRecordPopup } from './HearingRecordPopup';
 import { HearingViewPopup } from './HearingViewPopup';
 import { HearingPipelinePanel } from './HearingPipelinePanel';
@@ -34,6 +32,67 @@ interface CaseDetailsPopupProps {
   onClose: () => void;
 }
 
+// Helper function to safely parse and validate dates
+const safeParseDate = (date: unknown): Date | undefined => {
+  if (!date) return undefined;
+
+  // Already a valid Date object
+  if (date instanceof Date && !Number.isNaN(date.getTime())) {
+    return date;
+  }
+
+  // Try to parse as string or number
+  const parsed = new Date(date as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed;
+  }
+
+  return undefined;
+};
+
+// Helper function to safely format dates for display
+const formatDateSafe = (date: unknown): string => {
+  const parsed = safeParseDate(date);
+  if (!parsed) return '—';
+
+  try {
+    return parsed.toLocaleDateString('en-IN');
+  } catch {
+    return '—';
+  }
+};
+
+const normalizeHearing = (hearing: Hearing): Hearing => {
+  // CRITICAL: Always preserve the existing ID - never regenerate it
+  // The ID should already be set from mapHearingFromApi or reloadHearings
+  const preservedId = hearing.id || (hearing as any).id || (hearing as any)._id; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  if (!preservedId) {
+    console.error('Hearing missing ID:', hearing);
+    throw new Error('Cannot normalize hearing without ID');
+  }
+
+  return {
+    ...hearing,
+    id: preservedId,
+    hearingDate: safeParseDate(hearing.hearingDate) || new Date(),
+    hearingTime: hearing.hearingTime || undefined,
+    hearingType: hearing.hearingType || 'other',
+    status: hearing.status || 'scheduled',
+    documentsToBring: hearing.documentsToBring || [],
+    attendance: {
+      clientPresent: hearing.attendance?.clientPresent ?? false,
+      opposingPartyPresent: hearing.attendance?.opposingPartyPresent ?? false,
+      witnessesPresent: hearing.attendance?.witnessesPresent || [],
+    },
+    orders: (hearing.orders || []).map(order => ({
+      ...order,
+      orderDate: safeParseDate(order.orderDate) || new Date()
+    })),
+    nextHearingDate: safeParseDate(hearing.nextHearingDate),
+  };
+};
+
 export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpen, onClose }) => {
   const { getHearingsByCaseId, hearings: allHearings, refreshCase } = useLegalData();
   const [showHearingRecord, setShowHearingRecord] = useState(false);
@@ -44,67 +103,6 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
   const [localHearings, setLocalHearings] = useState<Hearing[]>([]);
   const [customPipelineNodes, setCustomPipelineNodes] = useState<Array<{ nodeId: string; name: string }>>([]);
   const [highlightedHearingId, setHighlightedHearingId] = useState<string | null>(null);
-
-  // Helper function to safely parse and validate dates
-  const safeParseDate = (date: any): Date | undefined => {
-    if (!date) return undefined;
-
-    // Already a valid Date object
-    if (date instanceof Date && !Number.isNaN(date.getTime())) {
-      return date;
-    }
-
-    // Try to parse as string or number
-    const parsed = new Date(date);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed;
-    }
-
-    return undefined;
-  };
-
-  // Helper function to safely format dates for display
-  const formatDateSafe = (date: any): string => {
-    const parsed = safeParseDate(date);
-    if (!parsed) return '—';
-
-    try {
-      return parsed.toLocaleDateString('en-IN');
-    } catch (error) {
-      return '—';
-    }
-  };
-
-  const normalizeHearing = (hearing: Hearing): Hearing => {
-    // CRITICAL: Always preserve the existing ID - never regenerate it
-    // The ID should already be set from mapHearingFromApi or reloadHearings
-    const preservedId = hearing.id || (hearing as any)._id;
-
-    if (!preservedId) {
-      console.error('Hearing missing ID:', hearing);
-      throw new Error('Cannot normalize hearing without ID');
-    }
-
-    return {
-      ...hearing,
-      id: preservedId,
-      hearingDate: safeParseDate(hearing.hearingDate) || new Date(),
-      hearingTime: hearing.hearingTime || undefined,
-      hearingType: hearing.hearingType || 'other',
-      status: hearing.status || 'scheduled',
-      documentsToBring: hearing.documentsToBring || [],
-      attendance: {
-        clientPresent: hearing.attendance?.clientPresent ?? false,
-        opposingPartyPresent: hearing.attendance?.opposingPartyPresent ?? false,
-        witnessesPresent: hearing.attendance?.witnessesPresent || [],
-      },
-      orders: (hearing.orders || []).map(order => ({
-        ...order,
-        orderDate: safeParseDate(order.orderDate) || new Date()
-      })),
-      nextHearingDate: safeParseDate(hearing.nextHearingDate),
-    };
-  };
 
   // Get hearings from both global state and local state for maximum reliability
   const globalHearings = case_
@@ -122,7 +120,7 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
   };
 
   // Force reload hearings from API if needed
-  const reloadHearings = async () => {
+  const reloadHearings = useCallback(async () => {
     if (!case_) return;
 
     setIsLoading(true);
@@ -135,9 +133,9 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
         const apiHearings = await response.json();
 
         // Map hearings from API - preserve _id as id
-        const mappedHearings = apiHearings.map((h: any) => {
+        const mappedHearings = apiHearings.map((h: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
           // Create a properly structured hearing object with _id preserved as id
-          const hearing: any = {
+          const hearing: Hearing = {
             id: h._id || h.id, // CRITICAL: Use _id from MongoDB
             caseId: h.caseId,
             hearingDate: h.hearingDate,
@@ -175,9 +173,10 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
       // Swallow errors to avoid crashing the interface
       console.error('Failed to reload hearings', error);
     } finally {
+      setIsLoading(true);
       setIsLoading(false);
     }
-  };
+  }, [case_]);
 
   useEffect(() => {
     if (case_ && isOpen) {
@@ -190,7 +189,7 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
         })
         .catch(() => { });
     }
-  }, [case_, isOpen]);
+  }, [case_, isOpen, reloadHearings]);
 
   // Refresh hearings when global hearings state changes
   useEffect(() => {
@@ -201,11 +200,10 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
 
   // Reset local hearings when popup closes
   useEffect(() => {
-    if (!isOpen) {
-      setLocalHearings([]);
-      setRefreshCounter(0);
+    if (isOpen && case_) {
+      reloadHearings();
     }
-  }, [isOpen]);
+  }, [isOpen, case_, refreshCounter, reloadHearings]);
 
   if (!case_) return null;
 
@@ -252,9 +250,9 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
   };
 
   /** Returns the display label for a hearing type, including custom pipeline node names */
-  const getHearingTypeLabel = (hearing: any): string => {
+  const getHearingTypeLabel = (hearing: any): string => { // eslint-disable-line @typescript-eslint/no-explicit-any
     // Check customHearingType first — this is what the backend stores for pipeline custom nodes
-    const customId = (hearing as any)?.customHearingType;
+    const customId = (hearing as any)?.customHearingType; // eslint-disable-line @typescript-eslint/no-explicit-any
     if (customId) {
       const match = customPipelineNodes.find(n => n.nodeId === customId);
       if (match) return match.name;
@@ -370,7 +368,7 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
                   // Find the first hearing matching this node type
                   const match = sortedHearings.find(h =>
                     h.hearingType === hearingType ||
-                    (h as any).customHearingType === hearingType
+                    (h as any).customHearingType === hearingType // eslint-disable-line @typescript-eslint/no-explicit-any
                   );
                   if (match) {
                     setHighlightedHearingId(match.id);
@@ -425,7 +423,7 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
                       <div>
                         <span className="font-medium text-sm">Documents to Bring:</span>
                         <ul className="text-sm text-muted-foreground mt-1 space-y-1">
-                          {nextHearing.documentsToBring.map((doc, index) => (
+                          {nextHearing.documentsToBring.map((doc: string, index: number) => (
                             <li key={index} className="flex items-center gap-2">
                               <FileCheck className="h-3 w-3" />
                               {doc}
@@ -488,8 +486,8 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
                           key={`${hearing.id}-${refreshCounter}`}
                           id={`hearing-${hearing.id}`}
                           className={`border rounded-lg p-4 space-y-3 transition-all duration-500 ${highlightedHearingId === hearing.id
-                              ? 'ring-2 ring-primary border-primary bg-primary/5'
-                              : ''
+                            ? 'ring-2 ring-primary border-primary bg-primary/5'
+                            : ''
                             }`}
                         >
                           <div className="flex items-center justify-between">
@@ -559,13 +557,13 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
                           {hearing.orders.length > 0 && (
                             <div>
                               <span className="font-medium text-sm">Orders:</span>
-                              <div className="mt-1 space-y-1">
-                                {hearing.orders.map((order, index) => (
-                                  <div key={index} className="text-sm text-muted-foreground">
+                              <ul className="mt-2 space-y-2">
+                                {hearing.orders.map((order: any, index: number) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
+                                  <li key={index} className="bg-muted/30 p-2 rounded border border-muted-foreground/10">
                                     <span className="font-medium">{order.orderType}:</span> {order.orderDetails}
-                                  </div>
+                                  </li>
                                 ))}
-                              </div>
+                              </ul>
                             </div>
                           )}
 

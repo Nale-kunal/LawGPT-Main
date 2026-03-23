@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLegalData } from '@/contexts/LegalDataContext';
 import { CaseNotesPanel } from '@/components/CaseNotesPanel';
-import { MessageSquare, BookOpen, Scale } from 'lucide-react';
+import { MessageSquare, Scale } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const NotesPage = () => {

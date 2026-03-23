@@ -394,7 +394,8 @@ const Settings = () => {
         title: 'Export successful',
         description: 'Your data has been downloaded'
       });
-    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_error) {
       toast({
         title: 'Export failed',
         description: 'Unable to export data. Please try again.',

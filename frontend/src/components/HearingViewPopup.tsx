@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import {
   Calendar,
   Clock,
@@ -11,14 +10,12 @@ import {
   Gavel,
   FileText,
   Users,
-  CheckCircle,
   AlertTriangle,
   ArrowRight,
-  MapPin,
   User,
   FileCheck
 } from 'lucide-react';
-import { Case, Hearing } from '@/contexts/LegalDataContext';
+import type { Case, Hearing } from '@/contexts/LegalDataContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CaseNotesPanel } from '@/components/CaseNotesPanel';
 
@@ -36,7 +33,7 @@ export const HearingViewPopup: React.FC<HearingViewPopupProps> = ({
   onClose
 }) => {
   // Helper function to safely parse and validate dates
-  const safeParseDate = (date: any): Date | undefined => {
+  const safeParseDate = (date: any): Date | undefined => { // eslint-disable-line @typescript-eslint/no-explicit-any
     if (!date) return undefined;
 
     // Already a valid Date object
@@ -96,7 +93,7 @@ export const HearingViewPopup: React.FC<HearingViewPopupProps> = ({
         month: 'long',
         day: 'numeric'
       });
-    } catch (error) {
+    } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
       return '—';
     }
   };

@@ -71,7 +71,7 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
       }
 
       isSameOrigin = requestOrigin === currentOrigin || (apiOrigin !== '' && requestOrigin === apiOrigin);
-    } catch (e) {
+    } catch (_e) { // eslint-disable-line @typescript-eslint/no-unused-vars
       isSameOrigin = false;
     }
   }
@@ -91,7 +91,7 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
             document.cookie = `csrf-token=${encodeURIComponent(token)}; path=/; max-age=86400; samesite=strict`;
           }
         }
-      } catch (e) {
+      } catch (_e) { // eslint-disable-line @typescript-eslint/no-unused-vars
         // Silently continue; if token generation failed, backend will naturally reject the request
       }
     }
@@ -122,7 +122,7 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
 /**
  * Make an API request with proper error handling and automatic JSON parsing.
  */
-export async function apiRequest<T = any>(
+export async function apiRequest<T = any>( // eslint-disable-line @typescript-eslint/no-explicit-any
   path: string,
   options: RequestInit = {}
 ): Promise<T> {

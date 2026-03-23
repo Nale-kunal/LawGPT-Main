@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CheckCircle, Clock } from 'lucide-react';
-import { useLegalData, Case } from '@/contexts/LegalDataContext';
+import { type Case, useLegalData } from '@/contexts/LegalDataContext';
+
 import { parseTimeToMinutes } from '@/lib/utils';
 
 interface ConflictCheckerProps {
@@ -39,12 +40,12 @@ export const CaseConflictChecker = ({ currentCase, selectedDate }: ConflictCheck
         eventType: 'case'
       })),
       ...hearings.map(h => {
-        const caseData = (h as any).populatedCase || (h.caseId && typeof h.caseId === 'object' ? h.caseId : null);
+        const caseData = (h as unknown as { populatedCase: Case }).populatedCase || (h.caseId && typeof h.caseId === 'object' ? h.caseId : null);
         return {
           id: h.id,
           caseNumber: caseData?.caseNumber || `Case ${h.caseId}`,
           clientName: caseData?.clientName || 'Unknown',
-          opposingParty: (h as any).opposingParty || '',
+          opposingParty: (h as unknown as { opposingParty: string }).opposingParty || '',
           eventDate: h.nextHearingDate || h.hearingDate,
           eventTime: h.nextHearingTime || h.hearingTime,
           status: 'active' as const,
@@ -73,7 +74,7 @@ export const CaseConflictChecker = ({ currentCase, selectedDate }: ConflictCheck
                 type: 'time',
                 severity: timeDiff < 60 ? 'high' : 'medium',
                 message: `Scheduling conflict with ${event.caseNumber} on ${eDate.toLocaleDateString('en-IN')}`,
-                affectedCase: event as any,
+                affectedCase: event as unknown as Case,
                 date: eDate.toDateString()
               });
             }
@@ -87,7 +88,7 @@ export const CaseConflictChecker = ({ currentCase, selectedDate }: ConflictCheck
             type: 'client',
             severity: 'medium',
             message: `Multiple active cases for client: ${currentCase.clientName}`,
-            affectedCase: event as any
+            affectedCase: event as unknown as Case
           });
         }
 
@@ -98,7 +99,7 @@ export const CaseConflictChecker = ({ currentCase, selectedDate }: ConflictCheck
             type: 'opposing-party',
             severity: 'high',
             message: `Conflict of interest: Same opposing party (${currentCase.opposingParty})`,
-            affectedCase: event as any
+            affectedCase: event as unknown as Case
           });
         }
       });
@@ -106,8 +107,6 @@ export const CaseConflictChecker = ({ currentCase, selectedDate }: ConflictCheck
       // MODE 2: Check ALL conflicts for a selected date (Daily View mode)
       const dateStr = selectedDate.toDateString();
       const dayEvents = allEvents.filter(e => e.eventDate && new Date(e.eventDate).toDateString() === dateStr);
-
-      console.log(`[CaseConflictChecker] Mode=Daily Date=${dateStr} EventsSelected=${dayEvents.length}`);
 
       for (let i = 0; i < dayEvents.length; i++) {
         for (let j = i + 1; j < dayEvents.length; j++) {
@@ -123,8 +122,8 @@ export const CaseConflictChecker = ({ currentCase, selectedDate }: ConflictCheck
               type: 'time',
               severity: timeDiff < 60 ? 'high' : 'medium',
               message: `Scheduling conflict: ${e1.caseNumber} & ${e2.caseNumber}`,
-              affectedCase: e1 as any,
-              otherCase: e2 as any,
+              affectedCase: e1 as unknown as Case,
+              otherCase: e2 as unknown as Case,
               date: dateStr
             });
           }

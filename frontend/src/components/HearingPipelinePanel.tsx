@@ -163,6 +163,7 @@ export const HearingPipelinePanel: React.FC<HearingPipelinePanelProps> = ({
         if (isLoading || hearings.length === 0) return;
         const existingIds = new Set(nodes.map(n => n.nodeId));
         const completedTypes = new Set(hearings.flatMap(h =>
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             [h.hearingType, (h as any).customHearingType].filter(Boolean)
         ));
         const DEFAULT_SYSTEM_NODES: PipelineNode[] = [

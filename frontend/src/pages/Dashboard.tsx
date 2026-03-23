@@ -6,14 +6,12 @@ import {
   FileText,
   Users,
   Calendar,
-  AlertTriangle,
   Clock,
   Gavel,
   TrendingUp,
   IndianRupee,
   Plus,
   Activity,
-  CheckCircle,
   UserPlus,
   Timer,
   Receipt
@@ -44,13 +42,13 @@ interface Activity {
   type: string;
   message: string;
   timestamp: string;
-  metadata: any;
+  metadata: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
 const Dashboard = () => {
-  const { cases, clients, alerts } = useLegalData();
+  const { cases, clients } = useLegalData();
   const { user } = useAuth();
-  const { formatCurrency, formatRelativeDate, currencySymbol } = useFormatting();
+  const { formatCurrency, formatRelativeDate } = useFormatting();
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +73,7 @@ const Dashboard = () => {
           const activity = await activityRes.json();
           setRecentActivity(activity);
         }
-      } catch (error) {
+      } catch {
         // Silently handle errors
       } finally {
         setLoading(false);
@@ -93,7 +91,6 @@ const Dashboard = () => {
 
   const urgentCases = cases.filter(c => c.priority === 'urgent');
   const activeCases = cases.filter(c => c.status === 'active');
-  const unreadAlerts = alerts.filter(a => !a.isRead);
 
   // formatCurrency is now provided by useFormatting hook
 

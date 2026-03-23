@@ -12,8 +12,6 @@ import {
   Settings,
   Scale,
   Newspaper,
-  ChevronLeft,
-  ChevronRight,
   ChevronsLeftRight,
   MessageSquare
 } from 'lucide-react';

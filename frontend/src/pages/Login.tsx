@@ -76,7 +76,8 @@ const Login = () => {
           });
         }
       }
-    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_error) {
       toast({
         title: "Error",
         description: "An error occurred during login.",

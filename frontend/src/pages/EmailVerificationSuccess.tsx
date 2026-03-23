@@ -35,7 +35,7 @@ const EmailVerificationSuccess = () => {
                     setStatus('error');
                     setMessage(result.error || 'Verification failed.');
                 }
-            } catch (error) {
+            } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
                 setStatus('error');
                 setMessage('An unexpected error occurred.');
             }
@@ -55,8 +55,8 @@ const EmailVerificationSuccess = () => {
             <Card className="w-full max-w-md">
                 <CardHeader className="text-center">
                     <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 ${status === 'success' ? 'bg-green-100 text-green-600' :
-                            status === 'error' ? 'bg-red-100 text-red-600' :
-                                'bg-blue-100 text-blue-600'
+                        status === 'error' ? 'bg-red-100 text-red-600' :
+                            'bg-blue-100 text-blue-600'
                         }`}>
                         {status === 'success' ? <CheckCircle className="h-6 w-6" /> :
                             status === 'error' ? <XCircle className="h-6 w-6" /> :

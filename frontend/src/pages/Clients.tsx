@@ -16,7 +16,7 @@ import {
   Edit,
   Trash2
 } from 'lucide-react';
-import { useLegalData, Client } from '@/contexts/LegalDataContext';
+import { useLegalData, type Client } from '@/contexts/LegalDataContext';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';

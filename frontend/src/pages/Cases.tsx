@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import {
   Plus,
   Search,
-  Filter,
   FileText,
   Calendar,
   User,
@@ -16,7 +15,7 @@ import {
   Clock,
   XCircle
 } from 'lucide-react';
-import { useLegalData, Case } from '@/contexts/LegalDataContext';
+import { useLegalData, type Case } from '@/contexts/LegalDataContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -267,7 +266,7 @@ const Cases = () => {
             cases: [],
             documents: [],
             notes: `Auto-created when adding case: ${trimmedCaseNumber}. Please update email and phone details.`
-          }) as any; // Type assertion since addClient returns the client but type says void
+          }) as any; // eslint-disable-line @typescript-eslint/no-explicit-any
           if (newClient && newClient.id) {
             clientCreated = true;
             createdClientId = newClient.id;

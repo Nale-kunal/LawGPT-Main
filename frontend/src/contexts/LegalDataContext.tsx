@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { type ReactNode, createContext, useContext, useState } from 'react';
+
 import { useAuth } from './AuthContext';
 import { getApiUrl, apiFetch } from '@/lib/api';
 
@@ -165,7 +166,7 @@ interface LegalDataContextType {
   updateHearing: (hearingId: string, updates: Partial<Hearing>, override?: boolean, overrideReason?: string) => void;
   deleteHearing: (hearingId: string) => void;
   getHearingsByCaseId: (caseId: string) => Hearing[];
-  checkHearingConflict: (startAt: Date, endAt: Date, timezone: string, resourceScope?: any, excludeHearingId?: string) => Promise<{ hasConflict: boolean; conflicts: any[] }>;
+  checkHearingConflict: (startAt: Date, endAt: Date, timezone: string, resourceScope?: unknown, excludeHearingId?: string) => Promise<{ hasConflict: boolean; conflicts: unknown[] }>;
 
   // Invoices
   invoices: Invoice[];
@@ -304,7 +305,7 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
     }).catch((error) => {
       // Silently ignore errors; UI can still function without data
       // Don't log aborted requests or 401 errors as they're expected
-      if (!abortController.signal.aborted && error.status !== 401) {
+      if (!abortController.signal.aborted && (error as { status?: number }).status !== 401) {
         // Error logging removed for production
       }
     });
@@ -436,9 +437,9 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
     startAt: Date,
     endAt: Date,
     timezone: string,
-    resourceScope: any = {},
+    resourceScope: any = {}, // eslint-disable-line @typescript-eslint/no-explicit-any
     excludeHearingId?: string
-  ) => {
+  ): Promise<{ hasConflict: boolean; conflicts: any[] }> => { // eslint-disable-line @typescript-eslint/no-explicit-any
     const res = await apiFetch(getApiUrl('/api/hearings/check-conflict'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -481,7 +482,7 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
       const errorData = await res.json().catch(() => ({ error: 'Failed to create hearing' }));
       // If it's a conflict error (409), throw with conflict details
       if (res.status === 409) {
-        const error: any = new Error(errorData.message || 'Hearing conflicts with existing schedules');
+        const error: { message: string; conflicts?: unknown[]; status?: number } = new Error(errorData.message || 'Hearing conflicts with existing schedules');
         error.conflicts = errorData.conflicts;
         error.status = 409;
         throw error;
@@ -496,9 +497,6 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
   };
 
   const updateHearing = async (hearingId: string, updates: Partial<Hearing>) => {
-    console.log('[LegalDataContext] updateHearing called with ID:', hearingId);
-    console.log('[LegalDataContext] API URL:', getApiUrl(`/api/hearings/${hearingId}`));
-
     const res = await apiFetch(getApiUrl(`/api/hearings/${hearingId}`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -508,7 +506,6 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: 'Failed to update hearing' }));
-      console.error('[LegalDataContext] Update failed:', errorData);
       throw new Error(errorData.error || 'Failed to update hearing');
     }
 
@@ -550,7 +547,7 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
   const getHearingsByCaseId = (caseId: string) => {
     return hearings.filter(h => {
       // Handle cases where caseId might be populated as an object or just a string ID
-      const hCaseId = typeof h.caseId === 'object' && h.caseId !== null ? (h.caseId as any)._id || (h.caseId as any).id : h.caseId;
+      const hCaseId = typeof h.caseId === 'object' && h.caseId !== null ? (h.caseId as { _id?: string; id?: string })._id || (h.caseId as { _id?: string; id?: string }).id : h.caseId;
       return hCaseId === caseId || hCaseId === caseId.toString();
     });
   };
@@ -587,41 +584,29 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
 
   // Refresh a single case from the API
   const refreshCase = async (caseId: string) => {
-    try {
-      console.log('[refreshCase] Fetching case:', caseId);
-      const res = await apiFetch(getApiUrl(`/api/cases/${caseId}`), {
-        credentials: 'include'
-      });
+    const res = await apiFetch(getApiUrl(`/api/cases/${caseId}`), {
+      credentials: 'include'
+    });
 
-      if (!res.ok) {
-        throw new Error('Failed to refresh case');
-      }
-
-      const rawCase = await res.json();
-      console.log('[refreshCase] Received case data:', rawCase);
-      console.log('[refreshCase] Case nextHearing:', rawCase.nextHearing);
-
-      const mappedCase = mapCaseFromApi(rawCase);
-      console.log('[refreshCase] Mapped case nextHearing:', mappedCase.nextHearing);
-
-      // Update the case in the global state
-      setCases(prev => {
-        const index = prev.findIndex(c => c.id === caseId);
-        if (index !== -1) {
-          const updated = [...prev];
-          updated[index] = mappedCase;
-          console.log('[refreshCase] Updated case in state at index:', index);
-          return updated;
-        }
-        console.log('[refreshCase] Case not found in state, ID:', caseId);
-        return prev;
-      });
-
-      return mappedCase;
-    } catch (error) {
-      console.error('Error refreshing case:', error);
-      throw error;
+    if (!res.ok) {
+      throw new Error('Failed to refresh case');
     }
+
+    const rawCase = await res.json();
+    const mappedCase = mapCaseFromApi(rawCase);
+
+    // Update the case in the global state
+    setCases(prev => {
+      const index = prev.findIndex(c => c.id === caseId);
+      if (index !== -1) {
+        const updated = [...prev];
+        updated[index] = mappedCase;
+        return updated;
+      }
+      return prev;
+    });
+
+    return mappedCase;
   };
 
   const value: LegalDataContextType = {
@@ -664,7 +649,7 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
 };
 
 // Helper to safely convert Firestore timestamps / mixed values to JS Date
-function toSafeDate(value: any): Date | undefined {
+function toSafeDate(value: unknown): Date | undefined {
   // Return undefined only for truly absent values
   if (value === null || value === undefined) return undefined;
 
@@ -674,19 +659,18 @@ function toSafeDate(value: any): Date | undefined {
   }
 
   // Firestore Timestamp object with toDate() method
-  if (typeof value.toDate === 'function') {
+  if (typeof value === 'object' && value !== null && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
     try {
-      const d = value.toDate();
+      const d = (value as { toDate: () => Date }).toDate();
       return Number.isNaN(d.getTime()) ? undefined : d;
-    } catch (error) {
-      console.error('[toSafeDate] Error calling toDate():', error);
+    } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
       return undefined;
     }
   }
 
   // Firestore Timestamp-like plain object { seconds, nanoseconds } or {_seconds, _nanoseconds}
-  if (typeof value === 'object' && (value.seconds !== undefined || value._seconds !== undefined)) {
-    const seconds = value.seconds ?? value._seconds;
+  if (typeof value === 'object' && value !== null && ('seconds' in value || '_seconds' in value)) {
+    const seconds = (value as { seconds?: number }).seconds ?? (value as { _seconds?: number })._seconds;
     if (typeof seconds === 'number') {
       const millis = seconds * 1000;
       const d = new Date(millis);
@@ -696,15 +680,15 @@ function toSafeDate(value: any): Date | undefined {
 
   // ISO string or number - try to parse
   try {
-    const d = new Date(value);
+    const d = new Date(value as string | number);
     return Number.isNaN(d.getTime()) ? undefined : d;
-  } catch (error) {
-    console.error('[toSafeDate] Error parsing date:', error, 'value:', value);
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return undefined;
   }
 }
 
 // Mappers
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapCaseFromApi(raw: any): Case {
   return {
     id: raw._id || raw.id,
@@ -713,22 +697,23 @@ function mapCaseFromApi(raw: any): Case {
     opposingParty: raw.opposingParty,
     courtName: raw.courtName,
     judgeName: raw.judgeName,
-    hearingDate: (toSafeDate(raw.hearingDate) || undefined) as any,
+    hearingDate: (toSafeDate(raw.hearingDate) || undefined) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     hearingTime: raw.hearingTime,
     status: raw.status,
     priority: raw.priority,
     caseType: raw.caseType,
     description: raw.description,
-    nextHearing: toSafeDate(raw.nextHearing) as any,
+    nextHearing: toSafeDate(raw.nextHearing) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     documents: raw.documents || [],
     notes: raw.notes || '',
     alerts: [],
     createdAt: toSafeDate(raw.createdAt) || new Date(),
     updatedAt: toSafeDate(raw.updatedAt) || new Date(),
     folderId: raw.folderId,
-  } as Case;
+  };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapClientFromApi(raw: any): Client {
   return {
     id: raw._id || raw.id,
@@ -743,9 +728,10 @@ function mapClientFromApi(raw: any): Client {
     notes: raw.notes || '',
     createdAt: toSafeDate(raw.createdAt) || new Date(),
     updatedAt: toSafeDate(raw.updatedAt) || new Date(),
-  } as Client;
+  };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapAlertFromApi(raw: any): Alert {
   return {
     id: raw._id || raw.id,
@@ -755,9 +741,10 @@ function mapAlertFromApi(raw: any): Alert {
     alertTime: toSafeDate(raw.alertTime) || new Date(),
     isRead: !!raw.isRead,
     createdAt: toSafeDate(raw.createdAt) || new Date(),
-  } as Alert;
+  };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapTimeEntryFromApi(raw: any): TimeEntry {
   return {
     id: raw._id || raw.id,
@@ -767,10 +754,11 @@ function mapTimeEntryFromApi(raw: any): TimeEntry {
     hourlyRate: raw.hourlyRate,
     date: toSafeDate(raw.date) || new Date(),
     billable: !!raw.billable,
-  } as TimeEntry;
+  };
 }
 
-function mapHearingFromApi(raw: any): Hearing {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapHearingFromApi(raw: any): Hearing & { populatedCase?: any } {
   return {
     id: raw._id || raw.id,
     caseId: raw.caseId,
@@ -784,7 +772,7 @@ function mapHearingFromApi(raw: any): Hearing {
     courtInstructions: raw.courtInstructions,
     documentsToBring: raw.documentsToBring || [],
     proceedings: raw.proceedings,
-    nextHearingDate: raw.nextHearingDate ? new Date(raw.nextHearingDate) : undefined,
+    nextHearingDate: toSafeDate(raw.nextHearingDate),
     nextHearingTime: raw.nextHearingTime,
     adjournmentReason: raw.adjournmentReason,
     attendance: {
@@ -792,19 +780,20 @@ function mapHearingFromApi(raw: any): Hearing {
       opposingPartyPresent: !!raw.attendance?.opposingPartyPresent,
       witnessesPresent: raw.attendance?.witnessesPresent || [],
     },
-    orders: (raw.orders || []).map((order: any) => ({
+    orders: (raw.orders || []).map((order: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
       orderType: order.orderType,
       orderDetails: order.orderDetails,
-      orderDate: order.orderDate ? new Date(order.orderDate) : new Date(),
+      orderDate: toSafeDate(order.orderDate) || new Date(),
     })),
     notes: raw.notes,
-    createdAt: raw.createdAt ? new Date(raw.createdAt) : new Date(),
-    updatedAt: raw.updatedAt ? new Date(raw.updatedAt) : new Date(),
+    createdAt: toSafeDate(raw.createdAt) || new Date(),
+    updatedAt: toSafeDate(raw.updatedAt) || new Date(),
     // Preserve populated case data if available
     populatedCase: raw.caseId && typeof raw.caseId === 'object' ? raw.caseId : null,
-  } as Hearing & { populatedCase?: any };
+  };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapInvoiceFromApi(raw: any): Invoice {
   return {
     id: raw._id || raw.id,
@@ -815,7 +804,7 @@ function mapInvoiceFromApi(raw: any): Invoice {
     dueDate: toSafeDate(raw.dueDate) || new Date(),
     status: raw.status,
     currency: raw.currency || 'INR',
-    items: (raw.items || []).map((i: any) => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice, amount: i.amount })),
+    items: (raw.items || []).map((i: { description: string; quantity: number; unitPrice: number; amount: number }) => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice, amount: i.amount })),
     subtotal: raw.subtotal || 0,
     taxRate: raw.taxRate || 0,
     taxAmount: raw.taxAmount || 0,
@@ -849,6 +838,7 @@ function mapInvoiceToApi(inv: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>) {
 }
 
 function mapInvoicePartialToApi(updates: Partial<Invoice>) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const u: any = { ...updates };
   if ('id' in u) delete u.id;
   if (u.issueDate instanceof Date) u.issueDate = u.issueDate.toISOString();

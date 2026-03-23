@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,6 @@ import {
   Calendar,
   HardDrive,
   Edit,
-  Share,
   MoreVertical,
   ArrowLeft,
   Home,
@@ -32,7 +31,7 @@ import { getApiUrl, apiFetch } from '@/lib/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -106,7 +105,7 @@ const Documents = () => {
         });
       }
     }
-  }, [showCreateFolderDialog]);
+  }, [showCreateFolderDialog, getFolderDraft, toast]);
 
   const detectType = (mimetype: string): DocType => {
     if (mimetype.includes('pdf')) return 'pdf';
@@ -214,13 +213,14 @@ const Documents = () => {
           title: 'Upload Successful',
           description: `${f.length} file(s) uploaded successfully`
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Upload error:', error);
         // Don't show duplicate toast if we already showed one above
-        if (!error?.message || !error.message.includes('Upload failed')) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (!errorMessage.includes('Upload failed')) {
           toast({
             title: 'Upload Failed',
-            description: error instanceof Error ? error.message : 'Failed to upload files',
+            description: errorMessage,
             variant: 'destructive'
           });
         }
@@ -232,25 +232,12 @@ const Documents = () => {
     input.click();
   };
 
-  const fileUrl = (doc: ApiFile) => {
-    // If URL is already a full URL (Cloudinary or external), use it directly
-    if (doc.url && (doc.url.startsWith('http://') || doc.url.startsWith('https://'))) {
-      return doc.url;
-    }
-    // Otherwise, prepend backend URL for local file paths
-    const apiUrl = (import.meta as any).env?.VITE_API_URL;
-    if (apiUrl) {
-      return `${apiUrl}${doc.url}`;
-    }
-    return doc.url;
-  };
+
 
   const handleDownload = async (doc: ApiFile) => {
     try {
       // Use backend proxy for proper filename handling
       const downloadUrl = getApiUrl(`/api/documents/files/${doc._id}/download`);
-
-      console.log('Downloading via proxy:', { name: doc.name, url: downloadUrl });
 
       // Fetch from backend proxy
       const response = await apiFetch(downloadUrl);
@@ -307,7 +294,7 @@ const Documents = () => {
 
       await loadFiles();
       toast({ title: 'Document Deleted', description: `${doc.name} has been deleted` });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Delete error:', error);
       toast({
         title: 'Delete Failed',
@@ -335,7 +322,7 @@ const Documents = () => {
     return path;
   };
 
-  const loadFolders = async () => {
+  const loadFolders = useCallback(async () => {
     try {
       const res = await apiFetch(getApiUrl('/api/documents/folders'), { credentials: 'include' });
       if (res.ok) {
@@ -345,25 +332,21 @@ const Documents = () => {
         // Update folder path when folders are loaded
         setFolderPath(buildFolderPath(currentFolderId, loadedFolders));
       } else {
-        console.error('Failed to load folders');
         setFolders([]);
       }
-    } catch (error: any) {
-      console.error('Load folders error:', error);
+    } catch {
       setFolders([]);
     }
-  };
+  }, [currentFolderId]);
 
-  const loadFiles = async () => {
+  const loadFiles = useCallback(async () => {
     try {
       // Load ALL files for statistics (no folder filter at all)
       const allFilesRes = await apiFetch(getApiUrl('/api/documents/files?all=true'), { credentials: 'include' });
       if (allFilesRes.ok) {
         const allFilesData = await allFilesRes.json();
         setAllFiles(allFilesData.files || []);
-        console.log('📊 Loaded all files for statistics:', allFilesData.files?.length || 0);
       } else {
-        console.error('Failed to load all files for statistics');
         setAllFiles([]);
       }
 
@@ -374,19 +357,16 @@ const Documents = () => {
       if (res.ok) {
         const data = await res.json();
         setFiles(data.files || []);
-        console.log('📁 Loaded folder files:', data.files?.length || 0, 'for folder:', currentFolderId || 'root');
       } else {
-        console.error('Failed to load files');
         setFiles([]);
       }
-    } catch (error: any) {
-      console.error('Load files error:', error);
+    } catch {
       setFiles([]);
       setAllFiles([]);
     }
-  };
+  }, [currentFolderId]);
 
-  const createFoldersForExistingCases = async () => {
+  const createFoldersForExistingCases = useMemo(() => async () => {
     try {
       // Get all existing folders
       const foldersRes = await apiFetch(getApiUrl('/api/documents/folders'), { credentials: 'include' });
@@ -412,26 +392,26 @@ const Documents = () => {
             });
 
             if (folderRes.ok) {
-              console.log(`Created folder for existing case: ${expectedFolderName}`);
+              // Success
             }
-          } catch (error) {
-            console.warn(`Failed to create folder for case ${case_.caseNumber}:`, error);
+          } catch {
+            // Silently ignore
           }
         }
       }
-    } catch (error) {
-      console.warn('Error creating folders for existing cases:', error);
+    } catch {
+      // Silently ignore
     }
-  };
+  }, [cases]);
 
   useEffect(() => {
     loadFolders();
     createFoldersForExistingCases();
-  }, []);
+  }, [loadFolders, createFoldersForExistingCases]);
   useEffect(() => {
     loadFiles();
     setFolderPath(buildFolderPath(currentFolderId, folders));
-  }, [currentFolderId]);
+  }, [currentFolderId, folders, loadFiles]);
 
   const createFolder = async () => {
     if (!newFolderName.trim()) {
@@ -460,7 +440,7 @@ const Documents = () => {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to create folder');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Create folder error:', error);
       toast({
         title: 'Create Failed',
@@ -505,7 +485,7 @@ const Documents = () => {
           variant: 'destructive'
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Delete folder error:', error);
       toast({
         title: 'Delete Failed',

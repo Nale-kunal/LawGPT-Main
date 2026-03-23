@@ -86,6 +86,7 @@ const Onboarding = () => {
 
     const [errors, setErrors] = useState<FormErrors>({});
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateField = (field: keyof FormData, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
         if (errors[field]) {
@@ -193,7 +194,7 @@ const Onboarding = () => {
                 description: 'Welcome to Juriq! Your profile has been set up successfully.'
             });
             navigate('/dashboard');
-        } catch (error: any) {
+        } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             toast({
                 title: 'Setup Failed',
                 description: error.message || 'Failed to complete onboarding',
@@ -213,7 +214,7 @@ const Onboarding = () => {
                 description: 'You have been logged out. You can complete onboarding later.'
             });
             navigate('/login');
-        } catch (error) {
+        } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
             toast({
                 title: 'Error',
                 description: 'Failed to abort onboarding',

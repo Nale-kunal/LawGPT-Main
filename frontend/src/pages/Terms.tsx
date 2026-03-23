@@ -2,7 +2,6 @@ import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LandingLayout from '@/components/layout/LandingLayout';
 import { Ic } from '@/components/landing/LandingIcons';
-import { FileText } from 'lucide-react';
 
 const Terms = () => {
     const navigate = useNavigate();

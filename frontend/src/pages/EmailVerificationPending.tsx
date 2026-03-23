@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, ArrowLeft, RefreshCw, CheckCircle } from 'lucide-react';
+import { Mail, ArrowLeft, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const EmailVerificationPending = () => {
@@ -60,7 +60,7 @@ const EmailVerificationPending = () => {
                     setCountdown(60);
                 }
             }
-        } catch (error) {
+        } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
             toast({
                 variant: "destructive",
                 title: "Error",

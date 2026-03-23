@@ -15,7 +15,7 @@ export function parseTimeToMinutes(timeStr: string): number {
   const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
   if (!match) return 0;
 
-  let [_, hours, minutes, meridiem] = match;
+  const [, hours, minutes, meridiem] = match;
   let h = parseInt(hours, 10);
   const m = parseInt(minutes, 10);
 

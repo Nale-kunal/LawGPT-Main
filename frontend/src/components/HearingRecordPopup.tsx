@@ -8,22 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import {
   Plus,
   Trash2,
-  Calendar,
-  Clock,
-  Building,
-  Gavel,
   FileText,
   Users,
-  CheckCircle,
-  AlertTriangle,
   Edit,
   MessageSquare
 } from 'lucide-react';
-import { Case, Hearing, useLegalData } from '@/contexts/LegalDataContext';
+import { useLegalData, type Case, type Hearing } from '@/contexts/LegalDataContext';
+
 import { useToast } from '@/hooks/use-toast';
 import { CaseNotesPanel } from '@/components/CaseNotesPanel';
 
@@ -85,7 +79,6 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
   const [newDocument, setNewDocument] = useState('');
   const [newWitness, setNewWitness] = useState('');
   const [newOrder, setNewOrder] = useState({ orderType: '', orderDetails: '' });
-  const todayIsoString = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     if (hearing) {
@@ -224,13 +217,11 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
       };
 
       if (hearing) {
-        console.log('[HearingRecordPopup] Updating hearing with ID:', hearing.id);
-        console.log('[HearingRecordPopup] Full hearing object:', hearing);
-        // Cast to any to avoid TypeScript error - API expects ISO strings
-        await updateHearing(hearing.id, hearingData as any);
+        // Updated hearing
+        await updateHearing(hearing.id, hearingData as unknown as Partial<Hearing>);
       } else {
-        // Cast to any to avoid TypeScript error - API expects ISO strings
-        await addHearing(hearingData as any);
+        // Added hearing
+        await addHearing(hearingData as unknown as Omit<Hearing, "id" | "createdAt" | "updatedAt">);
       }
 
 
@@ -333,28 +324,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
     }));
   };
 
-  const getHearingTypeLabel = (type: Hearing['hearingType']) => {
-    switch (type) {
-      case 'first_hearing': return 'First Hearing';
-      case 'interim_hearing': return 'Interim Hearing';
-      case 'final_hearing': return 'Final Hearing';
-      case 'evidence_hearing': return 'Evidence Hearing';
-      case 'argument_hearing': return 'Argument Hearing';
-      case 'judgment_hearing': return 'Judgment Hearing';
-      case 'other': return 'Other';
-      default: return type;
-    }
-  };
-
-  const getStatusLabel = (status: Hearing['status']) => {
-    switch (status) {
-      case 'scheduled': return 'Scheduled';
-      case 'completed': return 'Completed';
-      case 'adjourned': return 'Adjourned';
-      case 'cancelled': return 'Cancelled';
-      default: return status;
-    }
-  };
+  // Helper labels removed as they were unused
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

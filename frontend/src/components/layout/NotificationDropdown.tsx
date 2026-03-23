@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Bell, Clock, AlertTriangle, CheckCircle, Plus, Trash2, Calendar, X, Maximize2, Minimize2 } from 'lucide-react';
-import { useLegalData, Alert } from '@/contexts/LegalDataContext';
+import { useLegalData, type Alert } from '@/contexts/LegalDataContext';
+
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -13,10 +14,10 @@ import { apiFetch } from '@/lib/api';
 
 interface DashboardNotifications {
     alerts: Alert[];
-    urgentCases: any[];
-    overdueInvoices: any[];
-    todaysHearings: any[];
-    tomorrowsHearings: any[];
+    urgentCases: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+    overdueInvoices: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+    todaysHearings: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+    tomorrowsHearings: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
     summary: {
         totalUnread: number;
         urgentCount: number;
@@ -59,7 +60,7 @@ export const NotificationDropdown = ({ unreadCount }: NotificationDropdownProps)
                     const data = await response.json();
                     setNotifications(data);
                 }
-            } catch (error: any) {
+            } catch (error) {
                 console.error('Failed to fetch notifications:', error);
             } finally {
                 setLoading(false);
@@ -344,7 +345,7 @@ export const NotificationDropdown = ({ unreadCount }: NotificationDropdownProps)
                                                     <Clock className="h-3 w-3" />
                                                     Today's Hearings ({notifications.todaysHearings.length})
                                                 </h4>
-                                                {notifications.todaysHearings.map((hearing: any) => (
+                                                {notifications.todaysHearings.map((hearing: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
                                                     <div key={`today-${hearing._id}`} className="p-1.5 rounded-md bg-destructive/5 border border-destructive/20">
                                                         <div className="flex items-center justify-between gap-2">
                                                             <div className="flex-1 min-w-0">
@@ -370,7 +371,7 @@ export const NotificationDropdown = ({ unreadCount }: NotificationDropdownProps)
                                                     <Calendar className="h-3 w-3" />
                                                     Tomorrow's Hearings ({notifications.tomorrowsHearings.length})
                                                 </h4>
-                                                {notifications.tomorrowsHearings.map((hearing: any) => (
+                                                {notifications.tomorrowsHearings.map((hearing: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
                                                     <div key={`tomorrow-${hearing._id}`} className="p-1.5 rounded-md bg-warning/5 border border-warning/20">
                                                         <div className="flex items-center justify-between gap-2">
                                                             <div className="flex-1 min-w-0">
@@ -396,7 +397,7 @@ export const NotificationDropdown = ({ unreadCount }: NotificationDropdownProps)
                                                     <AlertTriangle className="h-3 w-3" />
                                                     Other Urgent Cases ({notifications.urgentCases.length})
                                                 </h4>
-                                                {notifications.urgentCases.slice(0, 3).map((case_: any) => (
+                                                {notifications.urgentCases.slice(0, 3).map((case_: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
                                                     <div key={`urgent-${case_._id}`} className="p-1.5 rounded-md bg-destructive/5 border border-destructive/20">
                                                         <div className="flex items-center justify-between gap-2">
                                                             <div className="flex-1 min-w-0">
@@ -424,7 +425,7 @@ export const NotificationDropdown = ({ unreadCount }: NotificationDropdownProps)
                                                     <AlertTriangle className="h-3 w-3" />
                                                     Overdue Invoices ({notifications.overdueInvoices.length})
                                                 </h4>
-                                                {notifications.overdueInvoices.slice(0, 3).map((invoice: any) => (
+                                                {notifications.overdueInvoices.slice(0, 3).map((invoice: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
                                                     <div key={`overdue-${invoice._id}`} className="p-1.5 rounded-md bg-destructive/5 border border-destructive/20">
                                                         <div className="flex items-center justify-between gap-2">
                                                             <div className="flex-1 min-w-0">

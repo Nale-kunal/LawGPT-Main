@@ -1,4 +1,4 @@
-import { CaseNoteExportData } from './types';
+import type { CaseNoteExportData } from './types';
 import { generatePDF } from './pdf-driver';
 import { generateWord } from './word-driver';
 

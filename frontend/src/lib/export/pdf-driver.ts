@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { CaseNoteExportData } from './types';
+import type { CaseNoteExportData } from './types';
 
 // ─── Content Type Detection (mirrors LegalContentRenderer) ─────────────────
 type LineType = 'heading' | 'bullet' | 'numbered' | 'risk' | 'body';
@@ -318,6 +318,7 @@ export const generatePDF = async (data: CaseNoteExportData) => {
     }
 
     // ── 8. Footer on every page ───────────────────────────────────────────────
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const total = (doc as any).internal.getNumberOfPages();
     for (let i = 1; i <= total; i++) {
         doc.setPage(i);

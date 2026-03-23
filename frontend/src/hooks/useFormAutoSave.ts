@@ -18,6 +18,7 @@ interface UseFormAutoSaveOptions {
  * // Clear saved data after successful submission
  * clearSavedData();
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useFormAutoSave<T extends Record<string, any>>(
     formKey: string,
     formData: T,

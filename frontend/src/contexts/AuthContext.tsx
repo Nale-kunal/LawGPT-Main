@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import React, { type ReactNode, createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+
 import { getApiUrl, apiFetch } from '@/lib/api';
 
 interface NotificationSettings {
@@ -164,8 +165,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (!res.ok) { persistUser(null); return; }
       const data = await res.json();
       persistUser(data.user ? data.user as User : null);
-    } catch (error: any) {
-      if (error.name !== 'AbortError') persistUser(null);
+    } catch (error: unknown) {
+      if ((error as any).name !== 'AbortError') persistUser(null); // eslint-disable-line @typescript-eslint/no-explicit-any
     }
   }, [persistUser]);
 
@@ -178,7 +179,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         // Always validate session on mount - don't trust localStorage
         await refreshUser();
-      } catch (error) {
+      } catch {
         // Clear any stale auth data on error
         persistUser(null);
       } finally {
@@ -281,7 +282,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setIsLoading(false);
         return { success: false, error: 'Invalid response from server' };
       }
-    } catch (error) {
+    } catch {
       persistUser(null);
       setIsLoading(false);
       return { success: false, error: 'Network error occurred' };
@@ -310,7 +311,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       persistUser(data.user as User);
       setIsLoading(false);
       return { success: true };
-    } catch (error) {
+    } catch {
       persistUser(null);
       setIsLoading(false);
       return { success: false, error: 'Network error occurred' };
@@ -379,7 +380,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       return { success: true, message: data.message };
-    } catch (error) {
+    } catch {
       return { success: false, error: 'Network error occurred' };
     }
   };
@@ -399,7 +400,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       return { success: true, message: data.message };
-    } catch (error) {
+    } catch {
       return { success: false, error: 'Network error occurred' };
     }
   };

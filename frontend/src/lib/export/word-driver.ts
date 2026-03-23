@@ -1,10 +1,7 @@
-import {
-    Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-    WidthType, AlignmentType, BorderStyle, Header, Footer, PageNumber,
-    IBorderOptions, ShadingType
-} from 'docx';
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, Header, Footer, PageNumber, ShadingType, type IBorderOptions } from 'docx';
+
 import { saveAs } from 'file-saver';
-import { CaseNoteExportData } from './types';
+import type { CaseNoteExportData } from './types';
 
 // ─── Content Type Detection (mirrors LegalContentRenderer + pdf-driver) ─────
 type LineType = 'heading' | 'bullet' | 'numbered' | 'risk' | 'body';
@@ -150,6 +147,7 @@ export const generateWord = async (data: CaseNoteExportData) => {
                     borders: {
                         top: pageBorder, bottom: pageBorder,
                         left: pageBorder, right: pageBorder,
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     } as any,
                 },
             },

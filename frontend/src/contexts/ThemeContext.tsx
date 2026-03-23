@@ -14,7 +14,6 @@ type ThemeProviderState = {
   setTheme: (theme: Theme) => void;
   setThemeAndSave: (theme: Theme) => Promise<void>;
   actualTheme: 'dark' | 'light';
-  isAnimating: boolean;
   triggerThemeChange: () => void;
 };
 
@@ -23,7 +22,6 @@ const initialState: ThemeProviderState = {
   setTheme: () => null,
   setThemeAndSave: async () => { },
   actualTheme: 'light',
-  isAnimating: false,
   triggerThemeChange: () => null,
 };
 
@@ -40,7 +38,6 @@ export function ThemeProvider({
   );
 
   const [actualTheme, setActualTheme] = useState<'dark' | 'light'>('light');
-  const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -102,7 +99,6 @@ export function ThemeProvider({
     setTheme,
     setThemeAndSave,
     actualTheme,
-    isAnimating,
     triggerThemeChange,
   };
 

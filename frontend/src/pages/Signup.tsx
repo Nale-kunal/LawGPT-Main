@@ -14,6 +14,7 @@ const Signup = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const queryEmail = searchParams.get('email') || '';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const stateEmail = (location.state as any)?.email || '';
   const preFilledEmail = queryEmail || stateEmail;
 

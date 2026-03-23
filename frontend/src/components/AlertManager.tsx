@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Clock, AlertTriangle, CheckCircle, Plus, X, Trash2, Calendar } from 'lucide-react';
-import { useLegalData, Alert } from '@/contexts/LegalDataContext';
+import { Bell, Clock, AlertTriangle, CheckCircle, Plus, Trash2, Calendar } from 'lucide-react';
+import { useLegalData, type Alert } from '@/contexts/LegalDataContext';
+
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -14,10 +15,10 @@ import { apiFetch } from '@/lib/api';
 
 interface DashboardNotifications {
   alerts: Alert[];
-  urgentCases: any[];
-  overdueInvoices: any[];
-  todaysHearings: any[];
-  tomorrowsHearings: any[];
+  urgentCases: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+  overdueInvoices: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+  todaysHearings: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+  tomorrowsHearings: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
   summary: {
     totalUnread: number;
     urgentCount: number;
@@ -53,7 +54,7 @@ export const AlertManager = () => {
           const data = await response.json();
           setNotifications(data);
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error('Failed to fetch notifications:', error);
       } finally {
         setLoading(false);
@@ -268,7 +269,7 @@ export const AlertManager = () => {
                     <Clock className="h-4 w-4" />
                     Today's Hearings ({notifications.todaysHearings.length})
                   </h4>
-                  {notifications.todaysHearings.map((hearing: any) => (
+                  {notifications.todaysHearings.map((hearing: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
                     <div key={`today-${hearing._id}`} className="p-2 rounded-lg bg-destructive/5 border border-destructive/20">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
@@ -294,7 +295,7 @@ export const AlertManager = () => {
                     <Calendar className="h-4 w-4" />
                     Tomorrow's Hearings ({notifications.tomorrowsHearings.length})
                   </h4>
-                  {notifications.tomorrowsHearings.map((hearing: any) => (
+                  {notifications.tomorrowsHearings.map((hearing: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
                     <div key={`tomorrow-${hearing._id}`} className="p-2 rounded-lg bg-warning/5 border border-warning/20">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
@@ -320,7 +321,7 @@ export const AlertManager = () => {
                     <AlertTriangle className="h-4 w-4" />
                     Other Urgent Cases ({notifications.urgentCases.length})
                   </h4>
-                  {notifications.urgentCases.slice(0, 3).map((case_: any) => (
+                  {notifications.urgentCases.slice(0, 3).map((case_: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
                     <div key={`urgent-${case_._id}`} className="p-2 rounded-lg bg-destructive/5 border border-destructive/20">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
@@ -348,7 +349,7 @@ export const AlertManager = () => {
                     <AlertTriangle className="h-4 w-4" />
                     Overdue Invoices ({notifications.overdueInvoices.length})
                   </h4>
-                  {notifications.overdueInvoices.slice(0, 3).map((invoice: any) => (
+                  {notifications.overdueInvoices.slice(0, 3).map((invoice: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
                     <div key={`overdue-${invoice._id}`} className="p-2 rounded-lg bg-destructive/5 border border-destructive/20">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
@@ -465,24 +466,19 @@ export const AlertManager = () => {
 
         {/* Notification Summary */}
         <div className="mt-6 pt-4 border-t">
-          <div className="grid grid-cols-2 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-destructive">
-                {notifications?.summary.todayHearings || 0}
+          {notifications?.summary && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="p-3 bg-destructive/5 border border-destructive/10 rounded-lg">
+                <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Urgent</div>
+                <div className="text-2xl font-bold text-destructive">{notifications.summary.urgentCount}</div>
               </div>
-              <p className="text-xs text-muted-foreground">Today's Hearings</p>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-warning">
-                {notifications?.summary.urgentCount || 0}
+              <div className="p-3 bg-warning/5 border border-warning/10 rounded-lg">
+                <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Overdue</div>
+                <div className="text-2xl font-bold text-orange-600">{notifications.summary.overdueCount}</div>
               </div>
-              <p className="text-xs text-muted-foreground">Urgent Cases</p>
-            </div>
-          </div>
-          {notifications?.summary.overdueCount > 0 && (
-            <div className="mt-2 text-center">
-              <div className="text-sm font-medium text-destructive">
-                {notifications.summary.overdueCount} overdue invoice{notifications.summary.overdueCount !== 1 ? 's' : ''}
+              <div className="p-3 bg-primary/5 border border-primary/10 rounded-lg">
+                <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Hearings</div>
+                <div className="text-2xl font-bold text-primary">{notifications.summary.todayHearings + notifications.summary.tomorrowHearings}</div>
               </div>
             </div>
           )}

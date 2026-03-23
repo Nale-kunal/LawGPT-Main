@@ -8,15 +8,13 @@ import {
   IndianRupee,
   Clock,
   FileText,
-  User,
-  Calendar,
   Download,
   Send,
-  Filter,
   Search,
   Check
 } from 'lucide-react';
-import { useLegalData, TimeEntry, Invoice } from '@/contexts/LegalDataContext';
+import { type Invoice, useLegalData } from '@/contexts/LegalDataContext';
+
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
@@ -29,7 +27,7 @@ import { useFormatting } from '@/contexts/FormattingContext';
 // Use Invoice from context
 
 const Billing = () => {
-  const { cases, clients, timeEntries, addTimeEntry, invoices, createInvoice, updateInvoice, deleteInvoice, sendInvoice } = useLegalData();
+  const { cases, clients, timeEntries, addTimeEntry, invoices, createInvoice, updateInvoice, deleteInvoice } = useLegalData();
   const { formatCurrency, formatDateShort, currencySymbol, currencyCode } = useFormatting();
   const [showTimeDialog, setShowTimeDialog] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -585,7 +583,7 @@ const Billing = () => {
                 terms: invoiceForm.terms,
                 createdAt: new Date(),
                 updatedAt: new Date(),
-              } as any;
+              } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
               await createInvoice(payload);
               setShowInvoiceDialog(false);
               setInvoiceForm({ clientId: '', caseId: '', issueDate: new Date().toISOString().split('T')[0], dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], taxRate: '0', discountAmount: '0', items: [{ description: '', quantity: '1', unitPrice: '0' }], notes: '', terms: '' });
@@ -702,9 +700,7 @@ const Billing = () => {
               className="bg-green-600 hover:bg-green-700"
               onClick={async () => {
                 if (selectedInvoice) {
-                  console.log('🔍 Before update - Invoice ID:', selectedInvoice.id, 'Status:', selectedInvoice.status);
                   await updateInvoice(selectedInvoice.id, { status: 'paid' });
-                  console.log('✅ Update call completed');
 
                   toast({
                     title: '✓ Invoice Marked as Paid',

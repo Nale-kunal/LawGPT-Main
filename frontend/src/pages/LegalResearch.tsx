@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,6 @@ import {
   SortAsc,
   Sparkles,
   Loader2,
-  AlertCircle,
   Landmark,
   X,
   Zap,
@@ -26,8 +25,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { searchLegal, semanticSearchLegal, explainLegal, type LegalResult } from '@/services/legalApi';
 import {
-  STATIC_ACTS,
-  STATIC_CASES,
   searchStaticData,
 } from '@/services/staticLegalData';
 
@@ -84,7 +81,7 @@ function ResultCard({
     item.description,
   ].join('\n').trim();
 
-  // @ts-ignore - dynamic properties from API
+  // @ts-expect-error - dynamic properties from API
   const semanticScore = item.semanticScore || 0;
 
   return (
@@ -203,7 +200,6 @@ const LegalResearch = () => {
 
   // API state
   const [isApiLoading, setIsApiLoading] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
   const [apiResultsActs, setApiResultsActs] = useState<LegalResult[]>([]);
   const [apiResultsCases, setApiResultsCases] = useState<LegalResult[]>([]);
 
@@ -215,7 +211,6 @@ const LegalResearch = () => {
   const [visibleCount, setVisibleCount] = useState(20);
 
   const debouncedQuery = useDebounce(searchQuery, 500);
-  const abortRef = useRef<AbortController | null>(null);
 
   // ── Static search (fallback) ────────────────────────────────────────────────
   const staticResults = searchStaticData(debouncedQuery);
@@ -256,7 +251,7 @@ const LegalResearch = () => {
   useEffect(() => {
     if (displayedActs.length > 0 && displayedCases.length === 0) setActiveTab('acts');
     else if (displayedCases.length > 0 && displayedActs.length === 0) setActiveTab('cases');
-  }, [debouncedQuery]);
+  }, [displayedActs.length, displayedCases.length]);
 
   // ── Search Logic ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -268,7 +263,6 @@ const LegalResearch = () => {
 
     const fetchSearch = async () => {
       setIsApiLoading(true);
-      setApiError(null);
       setVisibleCount(20);
 
       try {
@@ -281,8 +275,10 @@ const LegalResearch = () => {
         }
         setApiResultsActs(data.results.acts || []);
         setApiResultsCases(data.results.cases || []);
-      } catch (err: any) {
-        if (err.name !== 'AbortError') setApiError('Search service temporarily restricted. Using local fallback.');
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name !== 'AbortError') {
+          // Fallback message could be logged or toasted
+        }
       } finally {
         setIsApiLoading(false);
       }

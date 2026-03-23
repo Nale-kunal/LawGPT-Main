@@ -5,32 +5,30 @@ import userDeletionService from '../services/userDeletionService.js';
 
 /**
  * Targeted verification for hard deletion logic.
- * Requires MONGODB_URI to be explicitly set — skipped in CI without a real DB.
+ * Requires MONGODB_URI to be explicitly set — entire suite skipped in CI without a real DB.
+ * This prevents beforeAll from even attempting a connection when no URI is available.
  */
 
 const MONGODB_URI = process.env.MONGODB_URI;
-const itif = MONGODB_URI ? test : test.skip;
+const describeif = MONGODB_URI ? describe : describe.skip;
 
-describe('Hard Data Deletion Verification', () => {
+describeif('Hard Data Deletion Verification', () => {
     let testUser;
     let userId;
 
     beforeAll(async () => {
-        if (!MONGODB_URI) { return; }
-        // Connect to DB if not already connected
         if (mongoose.connection.readyState === 0) {
             await mongoose.connect(MONGODB_URI);
         }
     }, 30000);
 
     afterAll(async () => {
-        if (!MONGODB_URI) { return; }
         if (mongoose.connection.readyState !== 0) {
             await mongoose.connection.close();
         }
     }, 15000);
 
-    itif('should permanently delete user and associated data', async () => {
+    test('should permanently delete user and associated data', async () => {
         const email = `test-delete-${Date.now()}@example.com`;
 
         // 1. Create a test user

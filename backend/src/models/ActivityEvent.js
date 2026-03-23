@@ -40,8 +40,7 @@ const activityEventSchema = new mongoose.Schema({
     },
     expiresAt: {
         type: Date,
-        default: () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days TTL
-        index: true
+        default: () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) // 90 days TTL
     }
 }, { timestamps: true });
 

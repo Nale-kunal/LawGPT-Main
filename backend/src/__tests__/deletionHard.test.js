@@ -17,13 +17,13 @@ describe('Hard Data Deletion Verification', () => {
         if (mongoose.connection.readyState === 0) {
             await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/lawyer-zen-test');
         }
-    });
+    }, 30000);
 
     afterAll(async () => {
         if (mongoose.connection.readyState !== 0) {
             await mongoose.connection.close();
         }
-    });
+    }, 15000);
 
     test('should permanently delete user and associated data', async () => {
         const email = `test-delete-${Date.now()}@example.com`;

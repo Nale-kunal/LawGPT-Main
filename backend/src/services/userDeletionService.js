@@ -33,15 +33,20 @@ export async function deleteUserAccount(userId) {
         throw new Error('UserId is required for account deletion');
     }
 
-    const session = await mongoose.startSession();
-
-    // Check if system supports transactions (Replica Set required)
-    let useTransaction = true;
+    // Detect whether this MongoDB node supports transactions (requires a replica set).
+    // A standalone node (common in local/test environments) will have no 'setName' in hello().
+    let useTransaction = false;
     try {
-        session.startTransaction();
-    } catch (txnErr) {
-        logger.warn({ userId, err: txnErr.message }, 'MongoDB standalone detected, proceeding without transaction for account deletion');
+        const adminDb = mongoose.connection.db.admin();
+        const hello = await adminDb.command({ hello: 1 });
+        useTransaction = !!hello.setName;
+    } catch (_err) {
         useTransaction = false;
+    }
+
+    const session = await mongoose.startSession();
+    if (useTransaction) {
+        session.startTransaction();
     }
 
     try {

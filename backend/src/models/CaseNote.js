@@ -10,8 +10,7 @@ const caseNoteSchema = new mongoose.Schema({
     hearingId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Hearing',
-        required: false,
-        index: true
+        required: false
     },
     authorId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -32,8 +31,7 @@ const caseNoteSchema = new mongoose.Schema({
     noteType: {
         type: String,
         enum: ['general', 'hearing', 'evidence', 'strategy', 'internal'],
-        default: 'general',
-        index: true
+        default: 'general'
     },
     evidenceTags: [{
         type: String,
@@ -51,8 +49,7 @@ const caseNoteSchema = new mongoose.Schema({
     parentNoteId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'CaseNote',
-        default: null,
-        index: true
+        default: null
     },
     attachments: [{
         fileUrl: String,

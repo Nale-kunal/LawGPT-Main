@@ -42,8 +42,7 @@ const adminAuditLogSchema = new mongoose.Schema({
     },
     expiresAt: {
         type: Date,
-        default: () => new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year TTL
-        index: true
+        default: () => new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year TTL
     }
 }, { timestamps: true });
 

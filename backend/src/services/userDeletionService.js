@@ -35,7 +35,7 @@ export async function deleteUserAccount(userId) {
 
     // Detect whether this MongoDB node supports transactions (requires a replica set).
     // A standalone node (common in local/test environments) will have no 'setName' in hello().
-    let useTransaction = false;
+    let useTransaction;
     try {
         const adminDb = mongoose.connection.db.admin();
         const hello = await adminDb.command({ hello: 1 });

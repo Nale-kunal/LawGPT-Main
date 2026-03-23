@@ -14,7 +14,7 @@ import {
   computeHearingTimes
 } from '../utils/conflictDetection.js';
 
-import { logger } from '../utils/logger.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 

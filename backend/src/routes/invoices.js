@@ -2,7 +2,7 @@ import express from 'express';
 import { requireAuth } from '../middleware/auth-jwt.js';
 import { sendInvoiceEmail } from '../utils/mailer.js';
 import { logActivity } from '../middleware/activityLogger.js';
-import { logger } from '../utils/logger.js';
+import logger from '../utils/logger.js';
 import {
   createDocument,
   getDocumentById,

@@ -10,7 +10,8 @@ import userDeletionService from '../services/userDeletionService.js';
  */
 
 const MONGODB_URI = process.env.MONGODB_URI;
-const describeif = MONGODB_URI ? describe : describe.skip;
+const isCI = process.env.CI === 'true' || process.env.CI === '1';
+const describeif = (MONGODB_URI && !isCI) ? describe : describe.skip;
 
 describeif('Hard Data Deletion Verification', () => {
     let testUser;

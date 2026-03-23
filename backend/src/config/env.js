@@ -51,7 +51,7 @@ function applyProductionRules(data) {
 
     if (data.NODE_ENV === 'production') {
         if (!data.REDIS_URL && !data.ALLOW_INSECURE_REDIS_FALLBACK) {
-            errors.push('REDIS_URL is required in production. Set REDIS_URL=rediss://... or set ALLOW_INSECURE_REDIS_FALLBACK=true for small-scale deployments.');
+            console.warn('[startup] REDIS_URL not set — falling back to in-memory store. Set REDIS_URL in production for rate limiting and session persistence.');
         }
         if (!data.SENTRY_DSN) {
             // Warn but don't fail — Sentry is highly recommended but optional

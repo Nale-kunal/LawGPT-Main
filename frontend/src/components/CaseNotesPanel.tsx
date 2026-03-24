@@ -822,6 +822,7 @@ export const CaseNotesPanel = ({
     const [isFullscreen] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
     const [position, setPosition] = useState({ x: 0, y: 0 });
+    const positionRef = React.useRef(position);
     const [directReplyText, setDirectReplyText] = useState('');
     const [isSendingReply, setIsSendingReply] = useState(false);
 
@@ -1017,7 +1018,10 @@ export const CaseNotesPanel = ({
         if (!isFullscreen && !inline) setDetailOpen(true);
     };
 
-    const onDrag = (_e: unknown, data: { x: number; y: number }) => setPosition({ x: data.x, y: data.y });
+    const onDrag = (_e: unknown, data: { x: number; y: number }) => {
+        positionRef.current = { x: data.x, y: data.y };
+        setPosition({ x: data.x, y: data.y });
+    };
     const onStop = useCallback((_e: unknown, data: { x: number; y: number }) => {
         let { x, y } = data;
         const width = isMinimized ? 280 : 380;
@@ -1025,13 +1029,32 @@ export const CaseNotesPanel = ({
         if (x < 0) x = 0; if (y < 0) y = 0;
         if (x + width > window.innerWidth) x = window.innerWidth - width;
         if (y + height > window.innerHeight) y = window.innerHeight - height;
+        positionRef.current = { x, y };
         setPosition({ x, y });
     }, [isMinimized]);
 
+    // Re-clamp position when layout mode changes (fullscreen / minimized / inline).
+    // We read the current position from a ref to avoid including `position` in deps
+    // (that would create an infinite loop: setPosition → position changes → effect
+    // fires → onStop → setPosition → repeat).
     useEffect(() => {
-        if (isFullscreen || inline) setPosition({ x: 0, y: 0 });
-        else onStop(null, position);
-    }, [isFullscreen, isMinimized, inline, onStop, position]);
+        if (isFullscreen || inline) {
+            setPosition({ x: 0, y: 0 });
+            positionRef.current = { x: 0, y: 0 };
+        } else {
+            // Clamp the stored position to the current viewport without triggering a drag event
+            const cur = positionRef.current;
+            const width = isMinimized ? 280 : 380;
+            const height = isMinimized ? 40 : 520;
+            let { x, y } = cur;
+            if (x < 0) x = 0; if (y < 0) y = 0;
+            if (x + width > window.innerWidth) x = window.innerWidth - width;
+            if (y + height > window.innerHeight) y = window.innerHeight - height;
+            positionRef.current = { x, y };
+            setPosition({ x, y });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isFullscreen, isMinimized, inline]);
 
     const sortedNotes = useMemo(() => {
         const sorted = [...notes];

@@ -431,7 +431,7 @@ const LegalResearch = () => {
                   <Button
                     key={q}
                     variant="outline"
-                    className="h-9 text-xs justify-start hover:bg-primary/5 hover:border-primary/30 transition-all"
+                    className="h-9 text-xs justify-start hover:bg-primary/5 hover:border-primary/30 hover:text-primary transition-all"
                     onClick={() => setSearchQuery(q)}
                   >
                     {q}

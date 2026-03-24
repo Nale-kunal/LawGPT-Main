@@ -15,6 +15,7 @@ import {
     ChevronRight,
     X
 } from 'lucide-react';
+import { apiRequest } from '@/lib/api';
 
 interface PaginationMetadata {
     page: number;
@@ -75,10 +76,7 @@ const LegalNews: React.FC = () => {
                 source: source || ''
             });
 
-            const response = await fetch(`/ api / news ? ${params.toString()} `);
-            if (!response.ok) throw new Error('Failed to fetch legal news');
-            const data = await response.json();
-
+            const data = await apiRequest<{ news: NewsItem[], pagination: PaginationMetadata }>(`/api/news?${params.toString()}`);
             setNews(data.news || []);
             setPagination(data.pagination || null);
             setCurrentPage(data.pagination?.page || 1);
@@ -145,7 +143,7 @@ const LegalNews: React.FC = () => {
                         key={i}
                         variant={current === i ? "default" : "outline"}
                         size="icon"
-                        className={`h - 7 w - 7 text - [10px] ${current === i ? '' : 'border-transparent hover:border-accent hover:border-2'} `}
+                        className={`h-7 w-7 text-[10px] ${current === i ? '' : 'border-transparent hover:border-accent hover:border-2'}`}
                         onClick={() => handlePageChange(i)}
                     >
                         {i}
@@ -176,7 +174,7 @@ const LegalNews: React.FC = () => {
                     onClick={handleRefresh}
                     disabled={isRefreshing || loading}
                 >
-                    <RefreshCw className={`h - 3.5 w - 3.5 mr - 1.5 ${isRefreshing ? 'animate-spin' : ''} `} />
+                    <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isRefreshing ? 'animate-spin' : ''}`} />
                     {isRefreshing ? 'Updating...' : 'Refresh'}
                 </Button>
             </div>
@@ -211,7 +209,7 @@ const LegalNews: React.FC = () => {
                                 <Badge
                                     key={source}
                                     variant={selectedSource === source ? "default" : "outline"}
-                                    className={`cursor - pointer px - 2 py - 0.5 text - [10px] transition - all ${selectedSource === source ? '' : 'border-border hover:border-accent bg-muted/10 hover:bg-muted/30'} `}
+                                    className={`cursor-pointer px-2 py-0.5 text-[10px] transition-all ${selectedSource === source ? '' : 'border-border hover:border-accent bg-muted/10 hover:bg-muted/30'}`}
                                     onClick={() => setSelectedSource(selectedSource === source ? null : source)}
                                 >
                                     {source}
@@ -262,7 +260,7 @@ const LegalNews: React.FC = () => {
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                         {news.map((item, index) => (
-                            <Card key={`${item.link} -${index} `} className="shadow-card-custom border border-transparent hover:border-accent hover:border-2 hover:bg-transparent transition-all group flex flex-col">
+                            <Card key={`${item.link}-${index}`} className="shadow-card-custom border border-transparent hover:border-accent hover:border-2 hover:bg-transparent transition-all group flex flex-col">
                                 <CardHeader className="p-3 pb-1">
                                     <div className="flex items-center justify-between mb-1">
                                         <Badge variant="secondary" className="text-[9px] font-semibold tracking-tight uppercase bg-primary/10 text-primary border-none h-4 px-1">

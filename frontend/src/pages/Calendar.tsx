@@ -211,7 +211,10 @@ const Calendar = () => {
 
   const openEditModal = (c: Case) => {
     setEditingCase(c);
-    setSelectedDate(c.hearingDate ? new Date(c.hearingDate) : new Date());
+    // Do NOT change selectedDate here — it would jump the calendar view to the
+    // case's original hearingDate. The user is already on the date they clicked.
+    // If no date is selected yet, default to today.
+    if (!selectedDate) setSelectedDate(new Date());
     setFormCaseNumber(c.caseNumber || '');
     setFormClientName(c.clientName || '');
     setFormCourtName(c.courtName || '');

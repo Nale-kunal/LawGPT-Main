@@ -94,7 +94,7 @@ const normalizeHearing = (hearing: Hearing): Hearing => {
 };
 
 export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpen, onClose }) => {
-  const { getHearingsByCaseId, hearings: allHearings, refreshCase } = useLegalData();
+  const { getHearingsByCaseId, refreshCase } = useLegalData();
   const [showHearingRecord, setShowHearingRecord] = useState(false);
   const [showHearingView, setShowHearingView] = useState(false);
   const [selectedHearing, setSelectedHearing] = useState<Hearing | null>(null);
@@ -173,11 +173,11 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
       // Swallow errors to avoid crashing the interface
       console.error('Failed to reload hearings', error);
     } finally {
-      setIsLoading(true);
       setIsLoading(false);
     }
   }, [case_]);
 
+  // Fetch hearings and pipeline nodes when the popup opens or the case changes
   useEffect(() => {
     if (case_ && isOpen) {
       reloadHearings();
@@ -189,21 +189,8 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
         })
         .catch(() => { });
     }
-  }, [case_, isOpen, reloadHearings]);
-
-  // Refresh hearings when global hearings state changes
-  useEffect(() => {
-    if (case_) {
-      setRefreshCounter(prev => prev + 1); // Force re-render
-    }
-  }, [allHearings, case_, hearings.length]);
-
-  // Reset local hearings when popup closes
-  useEffect(() => {
-    if (isOpen && case_) {
-      reloadHearings();
-    }
-  }, [isOpen, case_, refreshCounter, reloadHearings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [case_?.id, isOpen]);
 
   if (!case_) return null;
 

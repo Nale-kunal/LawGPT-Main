@@ -56,8 +56,10 @@ router.get('/stats', async (req, res) => {
     // Also get paid invoices specifically
     const paidInvoicesThisMonth = allInvoices.filter(inv => {
       if (inv.status !== 'paid') { return false; }
-      if (!inv.paidAt) { return false; }
-      const paid = inv.paidAt.toDate ? inv.paidAt.toDate() : new Date(inv.paidAt);
+      // Fall back to updatedAt if paidAt is missing (invoices marked paid via UI)
+      const paidTimestamp = inv.paidAt || inv.updatedAt;
+      if (!paidTimestamp) { return false; }
+      const paid = paidTimestamp.toDate ? paidTimestamp.toDate() : new Date(paidTimestamp);
       return paid >= startOfMonth && paid <= endOfMonth;
     });
 
@@ -68,14 +70,16 @@ router.get('/stats', async (req, res) => {
     const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
-    const allInvoicesPrevMonth = allInvoices.filter(inv => {
-      if (!inv.createdAt) { return false; }
-      const created = inv.createdAt.toDate ? inv.createdAt.toDate() : new Date(inv.createdAt);
-      return created >= startOfPrevMonth && created <= endOfPrevMonth;
+    const paidInvoicesPrevMonth = allInvoices.filter(inv => {
+      if (inv.status !== 'paid') { return false; }
+      const paidTimestamp = inv.paidAt || inv.updatedAt;
+      if (!paidTimestamp) { return false; }
+      const paid = paidTimestamp.toDate ? paidTimestamp.toDate() : new Date(paidTimestamp);
+      return paid >= startOfPrevMonth && paid <= endOfPrevMonth;
     });
 
-    const prevMonthRevenue = allInvoicesPrevMonth.reduce((total, invoice) => total + (invoice.total || 0), 0);
-    const revenueGrowth = prevMonthRevenue > 0 ? ((totalInvoiceRevenue - prevMonthRevenue) / prevMonthRevenue * 100).toFixed(1) : 0;
+    const prevMonthRevenue = paidInvoicesPrevMonth.reduce((total, invoice) => total + (invoice.total || 0), 0);
+    const revenueGrowth = prevMonthRevenue > 0 ? ((paidInvoiceRevenue - prevMonthRevenue) / prevMonthRevenue * 100).toFixed(1) : 0;
 
     // Get billable time entries for this month
     const allTimeEntries = await queryDocuments(
@@ -103,7 +107,7 @@ router.get('/stats', async (req, res) => {
       urgentCases,
       totalClients,
       revenue: {
-        currentMonth: totalInvoiceRevenue, // Show total invoice revenue for better visibility
+        currentMonth: paidInvoiceRevenue, // Actual paid revenue, matches Billing 'Paid Amount'
         growth: revenueGrowth,
         invoiced: totalInvoiceRevenue,
         paid: paidInvoiceRevenue,

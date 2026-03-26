@@ -48,12 +48,14 @@ export function startTokenCleanup() {
   runCleanup().catch(err => logger.warn({ err: err.message }, 'Token cleanup: initial run failed (non-fatal)'));
 
   // Then hourly
-  const interval = setInterval(() => {
+  const interval = global.setInterval(() => {
     runCleanup().catch(err => logger.warn({ err: err.message }, 'Token cleanup: scheduled run failed (non-fatal)'));
   }, CLEANUP_INTERVAL_MS);
 
   // Prevent the interval from keeping the process alive during test teardown
-  if (interval.unref) interval.unref();
+  if (interval?.unref) {
+    interval.unref();
+  }
 
   logger.info({ intervalHours: 1, ttlDays: ACTIVITY_EVENT_TTL_DAYS }, 'Token cleanup job: scheduled');
 }

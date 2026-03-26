@@ -8,7 +8,9 @@
  *   await sendAlert({ level: 'critical', title: 'CSRF Attack', message: '...', metadata: { ip } });
  */
 
+/* global AbortSignal */
 import logger from './logger.js';
+import { activityEmitter } from './eventEmitter.js';
 
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
 
@@ -25,7 +27,9 @@ export async function sendAlert({ level = 'warning', title, message, metadata = 
   }
 
   // Slack webhook (optional — no-op if not configured)
-  if (!SLACK_WEBHOOK_URL) return;
+  if (!SLACK_WEBHOOK_URL) {
+    return;
+  }
 
   const emoji = level === 'critical' ? '🚨' : level === 'warning' ? '⚠️' : 'ℹ️';
   const color = level === 'critical' ? '#cc0000' : level === 'warning' ? '#ff9900' : '#36a64f';
@@ -56,6 +60,9 @@ export async function sendAlert({ level = 'warning', title, message, metadata = 
       signal: AbortSignal.timeout(5000), // 5-second timeout — never block auth flow
     });
     if (!res.ok) {
+      if (!SLACK_WEBHOOK_URL) { // Assuming webhookUrl in the instruction refers to SLACK_WEBHOOK_URL
+        return;
+      }
       logger.warn({ status: res.status }, 'Slack alert delivery failed (non-fatal)');
     }
   } catch (err) {

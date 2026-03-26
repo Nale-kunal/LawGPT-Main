@@ -23,7 +23,6 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import logger from '../utils/logger.js';
 import activityEmitter from '../utils/eventEmitter.js';
-import { alertCritical, alertWarning } from '../utils/alerting.js';
 import { rateLimit } from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
 import { redis } from '../utils/redis.js';
@@ -75,7 +74,7 @@ const oauthLimiter = rateLimit({
     }
     
     // For anything else (shouldn't happen on these routes), return JSON
-    res.status(429).json({ error: 'Too many login attempts. Please wait 1 minute.' });
+    return res.status(429).json({ error: 'Too many login attempts. Please wait 1 minute.' });
   }
 });
 
@@ -85,13 +84,17 @@ router.use(oauthLimiter);
 // ── OAuth Client (lazy — returns null if not configured) ───────────────────
 function getOAuthClient() {
   const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL } = process.env;
-  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_CALLBACK_URL) return null;
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_CALLBACK_URL) {
+    return null;
+  }
   return new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL);
 }
 
 // ── JWT/Cookie helpers (identical to auth-jwt.js) ──────────────────────────
 function generateJWT(userId, email, role) {
-  if (!JWT_SECRET) throw new Error('JWT_SECRET not configured');
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET not configured');
+  }
   return jwt.sign({ userId, email, role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 function generateRefreshToken(userId) {
@@ -106,7 +109,7 @@ function setAuthCookie(res, token) {
     path: '/',
   });
 }
-function setRefreshCookie(res, refreshToken) {
+function getRefreshCookie(res, refreshToken) {
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -115,10 +118,117 @@ function setRefreshCookie(res, refreshToken) {
     path: '/',
   });
 }
+
+// ── LINKING STATE HELPERS ────────────────────────────────────────────────────
+const LINK_STATE_COOKIE = 'oauth_link_state';
+const LINK_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+function signLinkState(state, userId) {
+  const payload = `${state}:${userId}`;
+  const sig = crypto.createHmac('sha256', JWT_SECRET || 'fallback')
+    .update(payload)
+    .digest('hex');
+  return `${Buffer.from(payload).toString('base64url')}.${sig}`;
+}
+
+function verifyLinkState(cookieValue) {
+  try {
+    const dotIdx = cookieValue.lastIndexOf('.');
+    if (dotIdx === -1) {
+      return null;
+    }
+    const encodedPayload = cookieValue.slice(0, dotIdx);
+    const receivedSig = cookieValue.slice(dotIdx + 1);
+    const payload = Buffer.from(encodedPayload, 'base64url').toString('utf8');
+    const expectedSig = crypto.createHmac('sha256', JWT_SECRET || 'fallback')
+      .update(payload)
+      .digest('hex');
+    const sigBuf = Buffer.from(receivedSig);
+    const expBuf = Buffer.from(expectedSig);
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return null;
+    }
+    const [state, userId] = payload.split(':');
+    if (!state || !userId) {
+      return null;
+    }
+    return { state, userId };
+  } catch {
+    return null;
+  }
+}
 function getFrontendUrl() {
   return process.env.FRONTEND_URL || 'http://localhost:8080';
 }
-const GOOGLE_LINKING_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/v1/auth/google/callback`;
+
+// Moved helper function to top (hoisted or defined before use)
+async function handleLinkingLogic(req, res, userId, googleId, googleEmail, _name) {
+  const settingsUrl = `${getFrontendUrl()}/dashboard/settings`;
+  const frontendUrl = getFrontendUrl();
+  const normalizedGoogleEmail = googleEmail.toLowerCase().trim();
+  const emailForAudit = googleEmail;
+  const currentUser = await User.findById(userId);
+
+  const redirectError = (errorCode) => {
+    logger.warn({ errorCode, ip: req.ip }, `Google link callback rejected: ${errorCode}`);
+    return res.redirect(`${settingsUrl}?link_error=${encodeURIComponent(errorCode)}`);
+  };
+
+  if (!currentUser) {
+    logger.error({ userId }, 'Google link: user not found in database');
+    return res.redirect(`${frontendUrl}/login?error=user_not_found`);
+  }
+
+  // Rule 1: This Google account is your OWN primary email?
+  if (normalizedGoogleEmail === currentUser.email.toLowerCase().trim()) {
+    logger.warn({ userId, googleEmail: normalizedGoogleEmail }, 'Google link: same as primary email — blocked');
+    await auditOAuthAttempt(req, { userId, email: emailForAudit, action: 'link_recovery_email', success: false, reason: 'SAME_AS_PRIMARY_EMAIL' });
+    return redirectError('SAME_AS_PRIMARY_EMAIL');
+  }
+
+  // Rule 2: This Google email/ID must NOT be used by ANOTHER user account.
+  const conflictQuery = {
+    $or: [
+      { email: normalizedGoogleEmail },
+      { recoveryEmail: normalizedGoogleEmail },
+      { googleId: googleId },
+      { recoveryGoogleId: googleId }
+    ]
+  };
+  const existingUser = await User.findOne(conflictQuery);
+
+  if (existingUser) {
+    if (existingUser._id.toString() !== userId) {
+      logger.warn({ userId, googleEmail: normalizedGoogleEmail, conflictUserId: existingUser._id }, 'Google link: conflict with ANOTHER account');
+      await auditOAuthAttempt(req, { userId, email: emailForAudit, action: 'link_recovery_email', success: false, reason: 'EMAIL_ALREADY_IN_USE' });
+      return redirectError('EMAIL_ALREADY_IN_USE');
+    }
+  }
+
+  // Rule 3: Check if a recovery email already exists on THIS account (to trigger replacement flow)
+  if (currentUser.recoveryEmail) {
+    if (currentUser.recoveryEmail === normalizedGoogleEmail) {
+      logger.info({ userId, googleEmail: normalizedGoogleEmail }, 'Google link: recovery email is already set to this email (idempotent)');
+      return res.redirect(`${settingsUrl}?linked=recovery`);
+    }
+    const pendingData = signRecoveryData(normalizedGoogleEmail, googleId, userId);
+    res.cookie(RECOVERY_PENDING_COOKIE, pendingData, {
+      httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/'
+    });
+    return redirectError('RECOVERY_EMAIL_EXISTS');
+  }
+
+  // Success: Link it!
+  currentUser.recoveryEmail = normalizedGoogleEmail;
+  currentUser.recoveryGoogleId = googleId;
+  if (currentUser.authProvider === 'local') {
+    currentUser.authProvider = 'hybrid';
+  }
+  await currentUser.save();
+  logger.info({ userId, recoveryEmail: normalizedGoogleEmail, googleId }, 'Google recovery email linked successfully');
+  await auditOAuthAttempt(req, { userId, email: emailForAudit, action: 'link_recovery_email', success: true });
+  return res.redirect(`${settingsUrl}?linked=recovery`);
+}
 
 // ── Audit helper — logs every OAuth attempt to activityEmitter ─────────────
 async function auditOAuthAttempt(req, { userId = null, email, action, success, reason = null }) {
@@ -154,7 +264,6 @@ const DEFAULT_SECURITY = {
 };
 
 const RECOVERY_PENDING_COOKIE = 'recovery_pending_data';
-const RECOVERY_PENDING_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Sign pending recovery data (email + googleId) for confirm-replace flow.
@@ -173,7 +282,9 @@ function signRecoveryData(email, googleId, userId) {
 function verifyRecoveryData(cookieValue) {
   try {
     const dotIdx = cookieValue.lastIndexOf('.');
-    if (dotIdx === -1) return null;
+    if (dotIdx === -1) {
+      return null;
+    }
     const encodedPayload = cookieValue.slice(0, dotIdx);
     const receivedSig = cookieValue.slice(dotIdx + 1);
     const payload = Buffer.from(encodedPayload, 'base64url').toString('utf8');
@@ -182,7 +293,9 @@ function verifyRecoveryData(cookieValue) {
       .digest('hex');
     const sigBuf = Buffer.from(receivedSig);
     const expBuf = Buffer.from(expectedSig);
-    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return null;
+    }
     const [email, googleId, userId] = payload.split(':');
     return { email, googleId, userId };
   } catch {
@@ -207,13 +320,14 @@ router.get('/google', (req, res) => {
 
   // Cryptographically secure state — stored httpOnly, expires in 10 min
   const state = crypto.randomBytes(32).toString('hex');
-  res.cookie(OAUTH_STATE_COOKIE, state, {
+  const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: OAUTH_STATE_TTL_MS,
     path: '/',
-  });
+  };
+  res.cookie(OAUTH_STATE_COOKIE, state, cookieOptions);
 
   const authUrl = client.generateAuthUrl({
     access_type: 'offline',
@@ -513,47 +627,8 @@ router.get('/google/callback', async (req, res) => {
 
 import { requireAuth } from '../middleware/auth-jwt.js';
 
-const LINK_STATE_COOKIE = 'oauth_link_state';
-const LINK_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-
-/**
- * Build a tamper-proof signed state value encoding `state:userId`.
- * Uses HMAC-SHA256(payload, JWT_SECRET) so no raw userId is stored in plain cookies.
- */
-function signLinkState(state, userId) {
-  const payload = `${state}:${userId}`;
-  const sig = crypto.createHmac('sha256', JWT_SECRET || 'fallback')
-    .update(payload)
-    .digest('hex');
-  // Cookie value: base64(payload) + "." + sig
-  return `${Buffer.from(payload).toString('base64url')}.${sig}`;
-}
-
-/**
- * Verify and decode the signed link state cookie.
- * Returns { state, userId } or null if invalid.
- */
-function verifyLinkState(cookieValue) {
-  try {
-    const dotIdx = cookieValue.lastIndexOf('.');
-    if (dotIdx === -1) return null;
-    const encodedPayload = cookieValue.slice(0, dotIdx);
-    const receivedSig = cookieValue.slice(dotIdx + 1);
-    const payload = Buffer.from(encodedPayload, 'base64url').toString('utf8');
-    const expectedSig = crypto.createHmac('sha256', JWT_SECRET || 'fallback')
-      .update(payload)
-      .digest('hex');
-    // Constant-time compare
-    const sigBuf = Buffer.from(receivedSig);
-    const expBuf = Buffer.from(expectedSig);
-    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
-    const [state, userId] = payload.split(':');
-    if (!state || !userId) return null;
-    return { state, userId };
-  } catch {
-    return null;
-  }
-}
+// Function removed from here and moved above
+const RECOVERY_PENDING_COOKIE = 'recovery_pending_data';
 
 // ── GET /api/v1/auth/google/link ─────────────────────────────────────────────
 // Requires JWT auth. Starts the Google OAuth flow for account linking.
@@ -611,73 +686,15 @@ router.get('/google/link/callback', async (req, res) => {
     return res.redirect(`${settingsUrl}?link_error=${encodeURIComponent(errorCode)}`);
   };
 
-  const handleLinkingLogic = async (req, res, userId, googleId, googleEmail, name) => {
-    const normalizedGoogleEmail = googleEmail.toLowerCase().trim();
-    const emailForAudit = googleEmail;
-    const currentUser = await User.findById(userId);
-
-    if (!currentUser) {
-      logger.error({ userId }, 'Google link: user not found in database');
-      return res.redirect(`${frontendUrl}/login?error=user_not_found`);
-    }
-
-    // Rule 1: This Google account is your OWN primary email?
-    if (normalizedGoogleEmail === currentUser.email.toLowerCase().trim()) {
-      logger.warn({ userId, googleEmail: normalizedGoogleEmail }, 'Google link: same as primary email — blocked');
-      await auditOAuthAttempt(req, { userId, email: emailForAudit, action: 'link_recovery_email', success: false, reason: 'SAME_AS_PRIMARY_EMAIL' });
-      return redirectError('SAME_AS_PRIMARY_EMAIL');
-    }
-
-    // Rule 2: This Google email/ID must NOT be used by ANOTHER user account.
-    const conflictQuery = {
-      $or: [
-        { email: normalizedGoogleEmail },
-        { recoveryEmail: normalizedGoogleEmail },
-        { googleId: googleId },
-        { recoveryGoogleId: googleId }
-      ]
-    };
-    const existingUser = await User.findOne(conflictQuery);
-
-    if (existingUser) {
-      if (existingUser._id.toString() !== userId) {
-        logger.warn({ userId, googleEmail: normalizedGoogleEmail, conflictUserId: existingUser._id }, 'Google link: conflict with ANOTHER account');
-        await auditOAuthAttempt(req, { userId, email: emailForAudit, action: 'link_recovery_email', success: false, reason: 'EMAIL_ALREADY_IN_USE' });
-        return redirectError('EMAIL_ALREADY_IN_USE');
-      }
-    }
-
-    // Rule 3: Check if a recovery email already exists on THIS account (to trigger replacement flow)
-    if (currentUser.recoveryEmail) {
-      if (currentUser.recoveryEmail === normalizedGoogleEmail) {
-        logger.info({ userId, googleEmail: normalizedGoogleEmail }, 'Google link: recovery email is already set to this email (idempotent)');
-        return res.redirect(`${settingsUrl}?linked=recovery`);
-      }
-      const pendingData = signRecoveryData(normalizedGoogleEmail, googleId, userId);
-      res.cookie(RECOVERY_PENDING_COOKIE, pendingData, {
-        httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/'
-      });
-      return redirectError('RECOVERY_EMAIL_EXISTS');
-    }
-
-    // Success: Link it!
-    currentUser.recoveryEmail = normalizedGoogleEmail;
-    currentUser.recoveryGoogleId = googleId;
-    if (currentUser.authProvider === 'local') {
-      currentUser.authProvider = 'hybrid';
-    }
-    await currentUser.save();
-    logger.info({ userId, recoveryEmail: normalizedGoogleEmail, googleId }, 'Google recovery email linked successfully');
-    await auditOAuthAttempt(req, { userId, email: emailForAudit, action: 'link_recovery_email', success: true });
-    return res.redirect(`${settingsUrl}?linked=recovery`);
-  };
+// Function removed from here and moved above
 
   let emailForAudit = 'unknown';
-  let userIdForAudit = null;
 
   try {
     const client = getOAuthClient();
-    if (!client) return redirectError('SERVICE_UNAVAILABLE');
+    if (!client) {
+      return redirectError('SERVICE_UNAVAILABLE');
+    }
 
     const { code, state: returnedState, error: oauthError } = req.query;
 
@@ -723,7 +740,6 @@ router.get('/google/link/callback', async (req, res) => {
     }
 
     const { userId } = parsed;
-    userIdForAudit = userId;
 
     // ── 2. Fetch the current user — ensure session still valid ───────────
     const currentUser = await User.findById(userId);
@@ -805,7 +821,9 @@ router.post('/google/relink', requireAuth, async (req, res) => {
     }
 
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ success: false, error: 'USER_NOT_FOUND' });
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'USER_NOT_FOUND' });
+    }
 
     const oldEmail = user.recoveryEmail;
     user.recoveryEmail = pending.email;
@@ -837,7 +855,9 @@ router.post('/google/unlink', requireAuth, async (req, res) => {
     }
 
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ success: false, error: 'USER_NOT_FOUND' });
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'USER_NOT_FOUND' });
+    }
 
     if (!user.recoveryEmail) {
       return res.status(400).json({ success: false, error: 'NOT_LINKED', message: 'No recovery email linked' });

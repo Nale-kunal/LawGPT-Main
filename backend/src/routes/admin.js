@@ -161,9 +161,9 @@ router.get('/auth-logs', async (req, res) => {
         const skip  = (page - 1) * limit;
 
         const filter = {};
-        if (req.query.event_type) filter.eventType = req.query.event_type;
-        if (req.query.success !== undefined) filter['metadata.success'] = req.query.success === 'true';
-        if (req.query.email_hash) filter['metadata.emailHash'] = req.query.email_hash;
+        if (req.query.event_type) { filter.eventType = req.query.event_type; }
+        if (req.query.success !== undefined) { filter['metadata.success'] = req.query.success === 'true'; }
+        if (req.query.email_hash) { filter['metadata.emailHash'] = req.query.email_hash; }
 
         const [events, total] = await Promise.all([
             ActivityEvent.find(filter)

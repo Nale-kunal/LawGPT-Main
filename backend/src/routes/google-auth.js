@@ -109,7 +109,7 @@ function setAuthCookie(res, token) {
     path: '/',
   });
 }
-function getRefreshCookie(res, refreshToken) {
+function setRefreshCookie(res, refreshToken) {
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -347,7 +347,7 @@ router.get('/google/callback', async (req, res) => {
   const frontendUrl = getFrontendUrl();
 
   // Build a structured redirect-error (never exposes internal details)
-  const redirectError = (errorCode, message) => {
+  const redirectError = (errorCode, _message) => {
     logger.warn({ errorCode, ip: req.ip }, `Google OAuth callback rejected: ${errorCode}`);
     const params = new URLSearchParams({ oauth: 'error', reason: errorCode });
     return res.redirect(`${frontendUrl}/login?${params.toString()}`);

@@ -1,4 +1,4 @@
-/* eslint-env node */
+/* global setInterval */
 /**
  * Token / session cleanup job.
  * Runs every hour via setInterval — no external cron dependency.

@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   Lock
 } from 'lucide-react';
+
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -31,6 +32,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+
+// Inline Google "G" logo — no external dependency
+const GoogleIcon = () => (
+  <svg viewBox="0 0 24 24" width="14" height="14" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+  </svg>
+);
 
 const defaultNotificationSettings = {
   emailAlerts: true,
@@ -67,10 +78,15 @@ const Settings = () => {
   const [isSavingPreferences, setIsSavingPreferences] = useState(false);
   const [isSavingSecurity, setIsSavingSecurity] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isUnlinking, setIsUnlinking] = useState(false);
+  const [isLinking, setIsLinking] = useState(false);
+  const [isRelinking, setIsRelinking] = useState(false);
 
   // Dialog states
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showRelinkDialog, setShowRelinkDialog] = useState(false);
+  const [linkingError, setLinkingError] = useState<{ title: string; message: string } | null>(null);
 
   // Password change state
   const [passwordData, setPasswordData] = useState({
@@ -159,6 +175,49 @@ const Settings = () => {
       ...(user.security || {})
     });
   }, [user]);
+
+  // Handle Google linking redirect results (?linked=google or ?link_error=CODE)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const linked = params.get('linked');
+    const linkError = params.get('link_error');
+    if (!linked && !linkError) return;
+
+    window.history.replaceState(null, '', window.location.pathname);
+
+    if (linked === 'recovery') {
+      refreshUser();
+      toast({ title: 'Recovery email linked', description: 'You can now sign in with this Google account or your primary email.' });
+    } else if (linked === 'google') {
+      refreshUser();
+      toast({ title: 'Google account linked', description: 'You can now sign in with Google or your email and password.' });
+    } else if (linkError) {
+      console.error('[Settings] Google linking error:', linkError);
+      const msgs: Record<string, string> = {
+        SAME_AS_PRIMARY_EMAIL: 'Recovery email cannot be the same as your primary email.',
+        RECOVERY_EMAIL_EXISTS: 'RECOVERY_EMAIL_EXISTS',
+        EMAIL_ALREADY_IN_USE: 'This Google email is already linked to another Juriq account.',
+        GOOGLE_ALREADY_LINKED: 'A Google account is already linked to your account.',
+        GOOGLE_ACCOUNT_ALREADY_IN_USE: 'This Google account is already linked to a different Juriq account.',
+        EMAIL_MISMATCH: 'The Google account email must match your Juriq account email.',
+        STATE_MISMATCH: 'Security check failed. Please try again.',
+        SESSION_EXPIRED: 'Your session expired. Please log in and try again.',
+        ACCESS_DENIED: 'Google account linking was cancelled.',
+        SERVER_ERROR: 'An unexpected error occurred. Please try again.',
+      };
+      
+      if (linkError === 'RECOVERY_EMAIL_EXISTS') {
+        setShowRelinkDialog(true);
+      } else {
+        // Set the dialog state
+        setLinkingError({
+          title: 'Google linking failed',
+          message: msgs[linkError] ?? `Linking failed: ${linkError}`
+        });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Validation functions
   const validateEmail = (email: string) => {
@@ -274,9 +333,8 @@ const Settings = () => {
       return;
     }
 
-    saveSettings({
+    const updates: any = {
       name: profileData.name.trim(),
-      recoveryEmail: profileData.recoveryEmail.trim(),
       profile: {
         lawFirmName: profileData.lawFirmName.trim(),
         practiceAreas: profileData.practiceAreas,
@@ -287,7 +345,14 @@ const Settings = () => {
         state: profileData.state.trim(),
         country: profileData.country.trim()
       }
-    }, "Profile updated successfully", setIsSavingProfile);
+    };
+
+    // Only update recovery email if NOT currently linked via Google
+    if (!user?.recoveryGoogleId) {
+      updates.recoveryEmail = profileData.recoveryEmail.trim();
+    }
+
+    saveSettings(updates, "Profile updated successfully", setIsSavingProfile);
   };
 
   const handleSaveNotifications = () => {
@@ -491,6 +556,54 @@ const Settings = () => {
     }
   };
 
+  const handleLinkGoogle = () => {
+    setIsLinking(true);
+    window.location.href = getApiUrl('/api/v1/auth/google/link');
+  };
+
+  const handleRelinkGoogle = async () => {
+    setIsRelinking(true);
+    try {
+      const res = await apiFetch(getApiUrl('/api/v1/auth/google/relink'), { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to replace recovery email');
+      }
+      setShowRelinkDialog(false);
+      await refreshUser();
+      toast({ title: 'Recovery email updated', description: 'Your new recovery email has been set.' });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to update recovery email.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRelinking(false);
+    }
+  };
+
+  const handleUnlinkGoogle = async () => {
+    setIsUnlinking(true);
+    try {
+      const res = await apiFetch(getApiUrl('/api/v1/auth/google/unlink'), { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to unlink Google account');
+      }
+      await refreshUser();
+      toast({ title: 'Recovery email unlinked', description: 'Your Google recovery email has been removed.' });
+    } catch (error) {
+      toast({
+        title: 'Unlink failed',
+        description: error instanceof Error ? error.message : 'Unable to unlink Google account.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUnlinking(false);
+    }
+  };
+
   return (
     <div className="space-y-2 md:space-y-3">
       {/* Header */}
@@ -543,8 +656,21 @@ const Settings = () => {
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label htmlFor="recoveryEmail" className="text-xs">Recovery Email (Optional)</Label>
-              <Input id="recoveryEmail" type="email" value={profileData.recoveryEmail} onChange={(e) => setProfileData(prev => ({ ...prev, recoveryEmail: e.target.value }))} placeholder="backup@email.com" disabled={isSavingProfile} className="h-7 text-xs mt-0.5" />
+              <Label htmlFor="recoveryEmail" className="text-xs">
+                Recovery Email (Optional) {user?.recoveryGoogleId && <span className="text-[10px] text-green-500 ml-1 font-semibold flex items-center gap-0.5 inline-flex"><Shield className="h-2.5 w-2.5" /> Google Verified</span>}
+              </Label>
+              <Input
+                id="recoveryEmail"
+                type="email"
+                value={profileData.recoveryEmail}
+                onChange={(e) => setProfileData(prev => ({ ...prev, recoveryEmail: e.target.value }))}
+                placeholder="backup@email.com"
+                disabled={isSavingProfile || !!user?.recoveryGoogleId}
+                className={`h-7 text-xs mt-0.5 ${user?.recoveryGoogleId ? 'bg-muted/50 cursor-not-allowed font-medium' : ''}`}
+              />
+              {user?.recoveryGoogleId && (
+                <p className="text-[9px] text-muted-foreground mt-0.5">Managed via Security & Privacy settings</p>
+              )}
             </div>
             <div>
               <Label htmlFor="phoneNumber" className="text-xs">Phone Number</Label>
@@ -811,6 +937,54 @@ const Settings = () => {
               Save Security Settings
             </Button>
             <Separator />
+
+            <div className="space-y-1">
+              <Label className="text-xs font-medium">Google Recovery Email</Label>
+              {user?.recoveryEmail ? (
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500" />
+                    Recovery Email: <span className="font-semibold">{user.recoveryEmail}</span>
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs w-full flex items-center justify-center gap-1.5"
+                    onClick={handleLinkGoogle}
+                    disabled={isLinking}
+                  >
+                    {isLinking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GoogleIcon />}
+                    Replace Recovery Email
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs w-full text-muted-foreground"
+                    onClick={handleUnlinkGoogle}
+                    disabled={isUnlinking}
+                  >
+                    {isUnlinking && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                    Unlink Recovery Email
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground">Link a Google account for faster login and recovery</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs w-full flex items-center justify-center gap-1.5"
+                    onClick={handleLinkGoogle}
+                    disabled={isLinking}
+                  >
+                    {isLinking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GoogleIcon />}
+                    Link Google Account
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <Separator />
             <div className="space-y-1.5">
               <Button variant="outline" className="w-full h-7 text-xs" onClick={() => setShowPasswordDialog(true)}>Change Password</Button>
               <Button variant="outline" className="w-full h-7 text-xs" onClick={handleExportData} disabled={isExporting}>
@@ -970,8 +1144,50 @@ const Settings = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Relink Confirmation Dialog */}
+      <Dialog open={showRelinkDialog} onOpenChange={setShowRelinkDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Replace Recovery Email?</DialogTitle>
+            <DialogDescription>
+              A recovery email is already linked to this account. Would you like to replace it with the Google account you just verified?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowRelinkDialog(false)}
+              disabled={isRelinking}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleRelinkGoogle} disabled={isRelinking}>
+              {isRelinking && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Replace Recovery Email
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Linking Error Dialog */}
+      <Dialog open={!!linkingError} onOpenChange={(open) => !open && setLinkingError(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              {linkingError?.title}
+            </DialogTitle>
+            <DialogDescription>
+              {linkingError?.message}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setLinkingError(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
-export default Settings;
+export default Settings;

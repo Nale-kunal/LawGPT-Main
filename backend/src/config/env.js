@@ -43,6 +43,12 @@ const envSchema = z.object({
 
     // Deployment
     SHUTDOWN_TIMEOUT: z.coerce.number().default(2000),
+    FRONTEND_URL: z.string().url().optional().or(z.literal('')),
+
+    // Google OAuth (optional — feature disabled if absent)
+    GOOGLE_CLIENT_ID: z.string().optional(),
+    GOOGLE_CLIENT_SECRET: z.string().optional(),
+    GOOGLE_CALLBACK_URL: z.string().url().optional().or(z.literal('')),
 });
 
 // ── Production-specific extra rules ──────────────────────────────────────────

@@ -132,6 +132,7 @@ function buildUserResponse(userId, profile) {
     name: profile.name,
     email: profile.email,
     recoveryEmail: profile.recoveryEmail || null,
+    recoveryGoogleId: profile.recoveryGoogleId || null,
     role: profile.role || 'lawyer',
     emailVerified: profile.emailVerified || false,
     onboardingCompleted,
@@ -413,6 +414,24 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
     }
 
     let userDoc = null;
+
+    // ── Google-only account guard (additive check — does not touch loop below) ──
+    // If ALL active matched accounts are Google-only (no passwordHash),
+    // return a specific error so the user knows to use Google login.
+    const activeMatches = matchedUsers.filter(doc => !(doc.status === 'deleted' || doc.deleted === true || doc.deletedAt));
+    if (activeMatches.length > 0 && activeMatches.every(doc => doc.authProvider === 'google' && !doc.passwordHash)) {
+      await activityEmitter.emit({
+        userId: activeMatches[0]._id.toString(),
+        eventType: 'login_failure',
+        req,
+        metadata: { reason: 'google_account_password_attempt', email: normalizedEmail }
+      });
+      return res.status(401).json({
+        success: false,
+        errorCode: 'USE_GOOGLE_LOGIN',
+        error: 'This account uses Google login. Please sign in with Google.',
+      });
+    }
 
     // Check all matches for a valid password
     for (const doc of matchedUsers) {

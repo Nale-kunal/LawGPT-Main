@@ -27,6 +27,7 @@ import { businessMetrics } from './src/utils/businessMetrics.js';
 import logger from './src/utils/logger.js';
 
 import authRoutes from './src/routes/auth-jwt.js';
+import googleAuthRoutes from './src/routes/google-auth.js';
 import caseRoutes from './src/routes/cases.js';
 import caseNotesRoutes from './src/routes/caseNotes.js';
 import clientRoutes from './src/routes/clients.js';
@@ -43,6 +44,7 @@ import adminInternalRoutes from './src/routes/adminInternal.js';
 import newsRoutes from './routes/news.js';
 import legalRoutes from './src/routes/legal.routes.js';
 import { startLegalCron } from './src/jobs/legalCron.js';
+import { startTokenCleanup } from './src/jobs/tokenCleanup.js';
 import { requestId } from './src/middleware/requestId.js';
 
 // dotenv already loaded at top — do not call again
@@ -86,6 +88,18 @@ app.set('trust proxy', 1);
 
 const isProduction = process.env.NODE_ENV === 'production';
 const frontendOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
+
+// ─── HTTPS Enforcement (production only) ─────────────────────────────────────
+// Render / Railway / NGINX all set X-Forwarded-Proto. This ensures any request
+// that arrives without HTTPS is permanently redirected before hitting any route.
+if (isProduction) {
+  app.use((req, res, next) => {
+    if (req.headers['x-forwarded-proto'] !== 'https') {
+      return res.redirect(301, `https://${req.headers.host}${req.originalUrl}`);
+    }
+    next();
+  });
+}
 
 // ─── 1. Helmet — Hardened Security Headers ────────────────────────────────────
 app.use(
@@ -222,6 +236,27 @@ function buildRateLimiter({ windowMs, max, message, limiterName, skip }) {
       // Track in Prometheus
       rateLimitCounter.inc({ limiter: limiterName });
       logger.warn({ ip: req.ip, path: req.path, limiter: limiterName }, 'Rate limit triggered');
+
+      // Diagnostic log (will show in node console)
+      logger.info({ 
+        msg: 'Rate limit triggered diagnostic', 
+        method: req.method, 
+        url: req.url, 
+        originalUrl: req.originalUrl, 
+        limiterName 
+      });
+
+      // If it's a browser-initiated GET request to the OAuth limiter, redirect back to login
+      // We check for 'google' or 'oauth' anywhere in the URL, case-insensitively.
+      const isOAuthPath = /google|oauth/i.test(req.originalUrl) || /google|oauth/i.test(req.url);
+      const isBrowser = req.method === 'GET';
+
+      if (isBrowser && (limiterName === 'oauth' || isOAuthPath)) {
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
+        logger.info({ msg: 'Rate limit: Redirecting to frontend', target: frontendUrl, path: req.originalUrl });
+        return res.redirect(`${frontendUrl}/login?oauth=error&reason=RATE_LIMIT_EXCEEDED&t=${Date.now()}`);
+      }
+
       res.status(options.statusCode).json(options.message);
     },
     ...storeOptions,
@@ -250,6 +285,7 @@ const uploadLimiter = buildRateLimiter({
   limiterName: 'uploads',
 });
 
+// Admin limiter handled separately in admin.js if needed or globally here
 const adminInternalLimiter = buildRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 50,
@@ -303,6 +339,7 @@ app.get('/api/auth/csrf-token', setCsrfToken);
 
 // ─── API v1 Routes ────────────────────────────────────────────────────────────
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/auth', googleAuthRoutes); // Google OAuth (limiter now inside)
 app.use('/api/v1/cases/:caseId/notes', caseNotesRoutes);
 app.use('/api/v1/cases', caseRoutes);
 app.use('/api/v1/clients', clientRoutes);
@@ -321,6 +358,7 @@ app.use('/api/v1/legal', legalRoutes);
 
 // ─── Backward Compatibility /api/* → /api/v1/* (90-day window) ───────────────
 app.use('/api/auth', authRoutes);
+app.use('/api/auth', googleAuthRoutes); // Google OAuth compat path
 app.use('/api/cases', caseRoutes);
 app.use('/api/cases/:caseId/notes', caseNotesRoutes);
 app.use('/api/clients', clientRoutes);
@@ -389,8 +427,9 @@ async function startServer() {
     // ── 4. Ensure all performance indexes exist ───────────────────────────────────
     await ensureIndexes();
 
-    // ── 5. Start legal data cron job (non-blocking; also seeds initial data) ────
+    // ── 5. Start legal data cron job + token cleanup (non-blocking) ────────────
     startLegalCron();
+    startTokenCleanup();
     // Trigger an immediate seed on startup (non-blocking — errors are caught inside)
     import('./src/services/legalDataService.js')
       .then(({ runFullRefresh }) => runFullRefresh())

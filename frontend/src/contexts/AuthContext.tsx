@@ -31,6 +31,7 @@ interface User {
   name: string;
   email: string;
   recoveryEmail?: string;
+  recoveryGoogleId?: string | null;
   role: 'lawyer' | 'assistant' | 'admin';
   emailVerified?: boolean;
   onboardingCompleted?: boolean;
@@ -359,8 +360,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       sessionStorage.clear();
       localStorage.removeItem('juriq_user');
 
-      // Use replace instead of href to prevent back button from showing protected pages
-      // This removes the current page from browser history
+      // Replace current history entry with /login so protected pages
+      // are not reachable via browser back/forward after logout.
       window.location.replace('/login');
     }
   };

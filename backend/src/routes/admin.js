@@ -12,6 +12,10 @@ import { requireRole } from '../middleware/rbac.js';
 import AuditLog from '../models/AuditLog.js';
 import logger from '../utils/logger.js';
 
+// ActivityEvent is the audit trail for auth events (login, OAuth, link, unlink)
+let ActivityEvent = null;
+try { ActivityEvent = (await import('../models/ActivityEvent.js')).default; } catch { /* not available in all envs */ }
+
 const router = express.Router();
 
 // All admin routes require authentication + admin role
@@ -136,6 +140,50 @@ router.get('/queues', async (req, res) => {
     } catch (err) {
         logger.error({ err }, 'Queue dashboard error');
         return res.status(500).json({ error: 'Queue dashboard error', message: err.message });
+    }
+});
+
+// ─── Auth Event Log Query ──────────────────────────────────────────────────────
+/**
+ * GET /api/v1/admin/auth-logs
+ * Returns last 100 authentication activity events.
+ * Filterable by: ?event_type=login_failure&success=false&email_hash=<hash>
+ * Protected by requireAuth + requireRole('admin') (applied via router.use above).
+ * Raw IPs are never stored — they are hashed at emission time.
+ */
+router.get('/auth-logs', async (req, res) => {
+    if (!ActivityEvent) {
+        return res.status(503).json({ error: 'AUTH_LOG_UNAVAILABLE', message: 'ActivityEvent model not loaded' });
+    }
+    try {
+        const page  = Math.max(1, parseInt(req.query.page  || '1',   10));
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '100', 10)));
+        const skip  = (page - 1) * limit;
+
+        const filter = {};
+        if (req.query.event_type) filter.eventType = req.query.event_type;
+        if (req.query.success !== undefined) filter['metadata.success'] = req.query.success === 'true';
+        if (req.query.email_hash) filter['metadata.emailHash'] = req.query.email_hash;
+
+        const [events, total] = await Promise.all([
+            ActivityEvent.find(filter)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .select('eventType metadata createdAt userId -_id')
+                .lean(),
+            ActivityEvent.countDocuments(filter),
+        ]);
+
+        logger.info({ userId: req.user?.userId, filters: Object.keys(filter) }, 'Admin: auth-logs queried');
+        return res.json({
+            ok: true,
+            data: events,
+            pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+        });
+    } catch (err) {
+        logger.error({ err }, 'Admin: auth-logs query failed');
+        return res.status(500).json({ error: 'QUERY_FAILED', message: err.message });
     }
 });
 

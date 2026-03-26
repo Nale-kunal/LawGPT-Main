@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema({
       message: "Invalid email format"
     }
   },
-  passwordHash: { type: String, required: true },
+  passwordHash: { type: String, default: null },
   role: { type: String, enum: ['lawyer', 'assistant', 'admin'], default: 'lawyer' },
 
   // Account status (soft-delete support)
@@ -162,6 +162,11 @@ const userSchema = new mongoose.Schema({
   region: { type: String, default: 'IN' },
   currency: { type: String, default: 'INR' },
   dataResidency: { type: String, default: 'IN-MUM-1' },
+
+  // OAuth providers (additive — null for local users)
+  googleId: { type: String, default: null, sparse: true, index: true },
+  recoveryGoogleId: { type: String, default: null, sparse: true, index: true },
+  authProvider: { type: String, enum: ['local', 'google', 'hybrid'], default: 'local' },
 }, { timestamps: true });
 
 // Indexes (email already has unique index from field definition)

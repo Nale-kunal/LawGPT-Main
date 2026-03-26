@@ -30,6 +30,10 @@ const CSRF_EXEMPT_PATTERNS = [
     /\/auth\/csrf-token$/, // Endpoint itself
     /\/auth\/change-password$/, // Requires auth but user sends old+new password
     /\/internal\/admin\//, // Admin Control Plane server-to-server routes
+    /\/auth\/google$/, // Google OAuth initiation (GET redirect)
+    /\/auth\/google\/callback$/, // Google OAuth callback (GET redirect)
+    /\/auth\/google\/link$/, // Google account linking initiation (GET, requires auth via signed state)
+    /\/auth\/google\/link\/callback$/, // Google account link callback (GET redirect from Google)
 ];
 
 function isExempt(req) {

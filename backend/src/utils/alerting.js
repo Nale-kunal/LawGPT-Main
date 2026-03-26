@@ -10,7 +10,6 @@
 
 /* global AbortSignal */
 import logger from './logger.js';
-import { activityEmitter } from './eventEmitter.js';
 
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
 

@@ -1,3 +1,4 @@
+/* eslint-env node */
 /**
  * Token / session cleanup job.
  * Runs every hour via setInterval — no external cron dependency.
@@ -48,7 +49,7 @@ export function startTokenCleanup() {
   runCleanup().catch(err => logger.warn({ err: err.message }, 'Token cleanup: initial run failed (non-fatal)'));
 
   // Then hourly
-  const interval = global.setInterval(() => {
+  const interval = setInterval(() => {
     runCleanup().catch(err => logger.warn({ err: err.message }, 'Token cleanup: scheduled run failed (non-fatal)'));
   }, CLEANUP_INTERVAL_MS);
 

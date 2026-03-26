@@ -628,7 +628,6 @@ router.get('/google/callback', async (req, res) => {
 import { requireAuth } from '../middleware/auth-jwt.js';
 
 // Function removed from here and moved above
-const RECOVERY_PENDING_COOKIE = 'recovery_pending_data';
 
 // ── GET /api/v1/auth/google/link ─────────────────────────────────────────────
 // Requires JWT auth. Starts the Google OAuth flow for account linking.

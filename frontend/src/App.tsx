@@ -9,6 +9,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { FormattingProvider } from "./contexts/FormattingContext";
 import React, { Suspense } from "react";
 import RequireAuth from "./components/auth/RequireAuth";
+import PublicOnlyRoute from "./components/auth/PublicOnlyRoute";
 import { Loader2 } from "lucide-react";
 
 // ── Consolidated Landing Pages ─────────────────────────────────────────────
@@ -106,8 +107,8 @@ const App = () => (
                 <DynamicCanonical />
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
-                    {/* Public Landing Routes */}
-                    <Route path="/" element={<Home />} />
+                    {/* Public Landing Routes — authenticated users are bounced to /dashboard */}
+                    <Route path="/" element={<PublicOnlyRoute><Home /></PublicOnlyRoute>} />
                     <Route path="/product" element={<Product />} />
                     <Route path="/experience" element={<Experience />} />
                     <Route path="/security" element={<Security />} />
@@ -119,10 +120,10 @@ const App = () => (
                     <Route path="/client-portal" element={<ClientPortalLanding />} />
                     <Route path="/legal-notes" element={<LegalNotesLanding />} />
 
-                    {/* Auth & Support */}
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/signup" element={<Signup />} />
-                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    {/* Auth pages — authenticated users are immediately bounced to /dashboard */}
+                    <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
+                    <Route path="/signup" element={<PublicOnlyRoute><Signup /></PublicOnlyRoute>} />
+                    <Route path="/forgot-password" element={<PublicOnlyRoute><ForgotPassword /></PublicOnlyRoute>} />
                     <Route path="/reset-password" element={<ResetPassword />} />
                     <Route path="/verify-email" element={<EmailVerificationSuccess />} />
                     <Route path="/verification-pending" element={<EmailVerificationPending />} />

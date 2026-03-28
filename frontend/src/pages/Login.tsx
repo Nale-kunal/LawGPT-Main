@@ -278,11 +278,11 @@ const Login = () => {
             type="button"
             variant="outline"
             className="w-full flex items-center justify-center gap-2"
-            onClick={() => { window.location.href = getApiUrl('/api/v1/auth/google?action=login'); }}
-            disabled={isSubmitting || lockoutTimer > 0}
+            onClick={handleGoogleLogin}
+            disabled={isSubmitting || lockoutTimer > 0 || isGoogleLoading}
           >
-            <GoogleIcon />
-            Continue with Google
+            {isGoogleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
+            {isGoogleLoading ? 'Connecting…' : 'Continue with Google'}
           </Button>
 
           <div className="mt-4 text-center text-sm space-y-2">

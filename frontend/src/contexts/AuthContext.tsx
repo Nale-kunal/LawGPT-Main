@@ -251,20 +251,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     init();
 
-    // Handle browser back/forward cache (bfcache) - always revalidate
+    // Handle browser back/forward cache (bfcache) restore
+    // When `event.persisted` is true the browser is restoring a snapshot of the page
+    // from its in-memory cache — React state is STALE and may show the user as logged out.
+    // We must show a loader immediately and re-validate the session before rendering anything.
     const handlePageShow = async (event: PageTransitionEvent) => {
-      // Always revalidate auth state when page is shown
-      // This prevents stale auth state when using browser back/forward buttons
-      if (event.persisted && mounted) {
-        // If BFCache restored an unauthenticated state, but a session flag exists
-        // (e.g. they logged in via Google redirect), show a loader to hide stale UI
-        const needsLoader = authState !== 'authenticated' && !!localStorage.getItem(SESSION_FLAG);
-        if (needsLoader) setIsLoading(true);
-        
-        await refreshUser();
-        
-        if (needsLoader && mounted) setIsLoading(false);
-      }
+      if (!event.persisted || !mounted) return;
+      
+      // Reset the initialisation guard so init() runs again
+      hasInitialized.current = false;
+      // Show loader immediately to prevent any flash of stale content
+      setIsLoading(true);
+      // Re-run the full auth check
+      await init();
     };
 
     // Also handle visibility change (tab switching) - debounced

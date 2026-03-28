@@ -1053,7 +1053,6 @@ export const CaseNotesPanel = ({
             positionRef.current = { x, y };
             setPosition({ x, y });
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isFullscreen, isMinimized, inline]);
 
     const sortedNotes = useMemo(() => {

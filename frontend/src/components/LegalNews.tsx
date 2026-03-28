@@ -114,10 +114,11 @@ const LegalNews: React.FC = () => {
                 setPagination(data.pagination || null);
                 setCurrentPage(data.pagination?.page || 1);
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : '';
             console.error('Error fetching news:', err);
             if (isMounted.current) {
-                if (err.message?.includes('fetch') || err.message?.includes('Network')) setApiDown(true);
+                if (message.includes('fetch') || message.includes('Network')) setApiDown(true);
                 else setError('Could not load latest news updates.');
             }
         } finally {
@@ -126,7 +127,7 @@ const LegalNews: React.FC = () => {
                 setIsRefreshing(false);
             }
         }
-    }, []);
+    }, [fetchWithRetry]);
 
     // Handle Debounced Search
     useEffect(() => {

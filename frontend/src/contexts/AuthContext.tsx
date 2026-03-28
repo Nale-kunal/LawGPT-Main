@@ -225,9 +225,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           };
           await fetchWithTimeoutLocal(refreshUser(), 5000);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (mounted) {
-            if (err.message === 'Auth timeout' || err.message === 'timeout' || err.message?.includes('fetch') || err.message?.includes('Network')) {
+            const message = err instanceof Error ? err.message : '';
+            if (message === 'Auth timeout' || message === 'timeout' || message.includes('fetch') || message.includes('Network')) {
                 setAuthState("unknown"); // IMPORTANT: Keep user in unknown state rather than force logout
             } else {
                 setAuthState("unauthenticated");

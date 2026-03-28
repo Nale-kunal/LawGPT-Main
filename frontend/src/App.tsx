@@ -2,8 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { LegalDataProvider } from "./contexts/LegalDataContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { FormattingProvider } from "./contexts/FormattingContext";
@@ -57,7 +57,6 @@ const PageLoader = () => (
   </div>
 );
 
-import { useLocation } from "react-router-dom";
 
 const DynamicCanonical = () => {
   const location = useLocation();
@@ -85,7 +84,6 @@ const queryClient = new QueryClient({
   },
 });
 
-import { useAuth } from "./contexts/AuthContext";
 
 const AuthLoaderWrapper = ({ children }: { children: React.ReactNode }) => {
   const { isLoading } = useAuth();

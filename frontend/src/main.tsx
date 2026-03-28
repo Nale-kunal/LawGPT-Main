@@ -49,7 +49,7 @@ window.onerror = async (message, source, lineno, colno, error) => {
         stack: error?.stack
       })
     });
-  } catch (e) {
+  } catch (_e) {
     // silently ignore to avoid recursion
   }
 

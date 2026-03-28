@@ -52,7 +52,6 @@ const Signup = () => {
   useEffect(() => {
     window.history.replaceState(null, '', '/');
     window.history.pushState(null, '', '/signup');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (isAuthenticated) {

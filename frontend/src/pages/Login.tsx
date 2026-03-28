@@ -137,18 +137,19 @@ const Login = () => {
           });
         }
       }
-    } catch (err: any) {
-      if (err?.response?.status === 401 || err?.status === 401) {
+    } catch (err: unknown) {
+      const e = err as { response?: { status?: number; data?: { retryAfter?: number } }; status?: number; message?: string };
+      if (e?.response?.status === 401 || e?.status === 401) {
         setError("Invalid email or password");
-      } else if (err?.response?.status === 429) {
-          const isLongLock = err.response.data?.retryAfter > 300;
+      } else if (e?.response?.status === 429) {
+          const isLongLock = (e.response?.data?.retryAfter ?? 0) > 300;
           setLockoutTimer(isLongLock ? 600 : 60);
           if (isLongLock) {
             setError("Too many attempts. Try again after 10 minutes.");
           } else {
             setError("Too many attempts. Try again shortly.");
           }
-      } else if (err?.status === 429 || err?.message?.includes('Too many')) {
+      } else if (e?.status === 429 || e?.message?.includes('Too many')) {
         setLockoutTimer(60);
         setError("Too many attempts. Try again shortly.");
       } else {

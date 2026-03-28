@@ -130,7 +130,7 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
   // Only log request IDs in dev, and skip noisy auth-check endpoints (401s there are expected)
   const isAuthCheckEndpoint = url.includes('/auth/me') || url.includes('/auth/refresh');
   if ((import.meta.env.DEV || process.env.NODE_ENV === "development") && !isAuthCheckEndpoint) {
-    console.debug("Request ID:", resRequestId);
+    console.warn("Request ID:", resRequestId);
   }
 
   // 401 Handling: Trigger centralized auth reset, clear tokens/state, do not reload.

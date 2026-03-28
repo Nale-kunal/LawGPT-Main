@@ -919,7 +919,9 @@ router.put('/me', requireAuth, async (req, res) => {
         updateQuery.$set.recoveryEmail = normalizedRecoveryEmail;
       } else {
         updateQuery.$unset = { recoveryEmail: 1, recoveryGoogleId: 1 };
-        if (user.authProviders && user.authProviders.includes('email') && user.authProviders.includes('google')) {
+        if (!user.googleId || user.googleId === user.recoveryGoogleId) {
+          updateQuery.$set = updateQuery.$set || {};
+          updateQuery.$set.authProvider = 'local';
           updateQuery.$pull = { authProviders: 'google' };
           updateQuery.$unset.googleId = 1;
         }

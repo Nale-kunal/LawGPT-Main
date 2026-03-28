@@ -86,17 +86,12 @@ const queryClient = new QueryClient({
 });
 
 
-const AuthLoaderWrapper = ({ children }: { children: React.ReactNode }) => {
-  const { isLoading } = useAuth();
-  if (isLoading) return <PageLoader />;
-  return <>{children}</>;
-};
+
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="system" storageKey="legal-pro-theme">
       <AuthProvider>
-        <AuthLoaderWrapper>
         <FormattingProvider>
           <LegalDataProvider>
             <TooltipProvider>
@@ -157,7 +152,6 @@ const App = () => (
             </TooltipProvider>
           </LegalDataProvider>
         </FormattingProvider>
-        </AuthLoaderWrapper>
       </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>

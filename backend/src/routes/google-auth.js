@@ -217,7 +217,6 @@ async function handleLinkingLogic(req, res, userId, googleId, googleEmail, _name
         $set: { 
           recoveryEmail: normalizedGoogleEmail, 
           recoveryGoogleId: googleId,
-          googleId: googleId,
           authProvider: newAuthProvider 
         },
         $addToSet: { authProviders: { $each: ["google", "email"] } }
@@ -985,23 +984,20 @@ router.delete('/google/unlink', requireAuth, async (req, res) => {
     // reused by any other account — causing duplicate key errors on re-link.
     //
     // $unset physically removes the field from the document, releasing the index slot.
-    await User.findByIdAndUpdate(
-      userId,
-      {
-        $unset: {
-          googleId: '',          // Release unique sparse index → value reusable
-          recoveryGoogleId: '',  // Release unique sparse index → value reusable
-          recoveryEmail: '',     // Release unique sparse index → value reusable
-        },
-        $set: {
-          authProvider: 'local', // Revert to local-only auth
-        },
-        $pull: {
-          authProviders: 'google' // Remove 'google' from providers list
-        }
-      },
-      { new: true }
-    );
+    const updateQuery = {
+      $unset: {
+        recoveryGoogleId: 1,
+        recoveryEmail: 1,
+      }
+    };
+
+    if (!user.googleId || user.googleId === user.recoveryGoogleId) {
+      updateQuery.$set = { authProvider: 'local' };
+      updateQuery.$pull = { authProviders: 'google' };
+      updateQuery.$unset.googleId = 1;
+    }
+
+    await User.findByIdAndUpdate(userId, updateQuery, { new: true });
 
     await auditOAuthAttempt(req, { userId, email: user.email, action: 'unlink_recovery_email', success: true });
     logger.info(

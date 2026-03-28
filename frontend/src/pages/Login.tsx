@@ -161,7 +161,10 @@ const Login = () => {
     } catch {
       // proceed anyway if the health check fails
     }
-    window.location.href = getApiUrl('/api/v1/auth/google?action=login');
+    // Use replace() so the OAuth initiation URL is NOT added to browser history.
+    // If we used href=, the browser would store the /api/v1/auth/google URL and
+    // pressing Back from /dashboard would navigate there, re-starting the OAuth flow.
+    window.location.replace(getApiUrl('/api/v1/auth/google?action=login'));
   };
 
   const handleCreateNewAccount = () => {

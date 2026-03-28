@@ -155,7 +155,10 @@ const Signup = () => {
     } catch {
       // proceed anyway
     }
-    window.location.href = getApiUrl('/api/v1/auth/google?action=signup');
+    // Use replace() so the OAuth initiation URL is NOT added to browser history.
+    // If we used href=, the browser would store the /api/v1/auth/google URL and
+    // pressing Back from /dashboard would navigate there, re-starting the OAuth flow.
+    window.location.replace(getApiUrl('/api/v1/auth/google?action=signup'));
   };
 
   return (

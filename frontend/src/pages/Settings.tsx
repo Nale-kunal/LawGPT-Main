@@ -572,7 +572,10 @@ const Settings = () => {
     } catch {
       // ignore
     }
-    window.location.href = getApiUrl('/api/v1/auth/google/link');
+    // Use replace() so the OAuth initiation URL is NOT added to browser history.
+    // This ensures that hitting 'Back' from Google's screen returns to Settings,
+    // rather than hitting the link-initiation endpoint again.
+    window.location.replace(getApiUrl('/api/v1/auth/google/link'));
   };
 
   const handleRelinkGoogle = async () => {

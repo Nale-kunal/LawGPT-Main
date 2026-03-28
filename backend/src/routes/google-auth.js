@@ -324,6 +324,13 @@ router.get('/google', (req, res) => {
     });
   }
 
+  // FAILSAFE: If a user hits this while already authenticated (e.g. via back button),
+  // just send them straight to the dashboard instead of triggering Google's UI
+  if (req.cookies?.token) {
+    const frontendUrl = getFrontendUrl();
+    return res.redirect(`${frontendUrl || 'https://juriq.app'}/dashboard`);
+  }
+
   // Cryptographically secure state — stored httpOnly, expires in 10 min
   const intent = req.query.action === 'signup' ? 'signup' : 'login';
   const stateVal = crypto.randomBytes(32).toString('hex');

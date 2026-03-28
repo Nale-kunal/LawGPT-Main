@@ -252,11 +252,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     init();
 
     // Handle browser back/forward cache (bfcache) - always revalidate
-    const handlePageShow = (event: PageTransitionEvent) => {
+    const handlePageShow = async (event: PageTransitionEvent) => {
       // Always revalidate auth state when page is shown
       // This prevents stale auth state when using browser back/forward buttons
       if (event.persisted && mounted) {
-        refreshUser();
+        // If BFCache restored an unauthenticated state, but a session flag exists
+        // (e.g. they logged in via Google redirect), show a loader to hide stale UI
+        const needsLoader = authState !== 'authenticated' && !!localStorage.getItem(SESSION_FLAG);
+        if (needsLoader) setIsLoading(true);
+        
+        await refreshUser();
+        
+        if (needsLoader && mounted) setIsLoading(false);
       }
     };
 
@@ -265,9 +272,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (!document.hidden && mounted) {
         // Debounce to prevent excessive calls
         if (visibilityTimeout) clearTimeout(visibilityTimeout);
-        visibilityTimeout = setTimeout(() => {
+        visibilityTimeout = setTimeout(async () => {
           if (mounted) {
-            refreshUser();
+            const needsLoader = authState !== 'authenticated' && !!localStorage.getItem(SESSION_FLAG);
+            if (needsLoader) setIsLoading(true);
+            await refreshUser();
+            if (needsLoader && mounted) setIsLoading(false);
           }
         }, 500);
       }
@@ -276,9 +286,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Handle focus events (window regains focus) - debounced
     const handleFocus = () => {
       if (focusTimeout) clearTimeout(focusTimeout);
-      focusTimeout = setTimeout(() => {
+      focusTimeout = setTimeout(async () => {
         if (mounted) {
-          refreshUser();
+            const needsLoader = authState !== 'authenticated' && !!localStorage.getItem(SESSION_FLAG);
+            if (needsLoader) setIsLoading(true);
+            await refreshUser();
+            if (needsLoader && mounted) setIsLoading(false);
         }
       }, 500);
     };

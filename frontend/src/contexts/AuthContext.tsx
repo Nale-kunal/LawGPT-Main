@@ -103,8 +103,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Guard: prevents refreshUser() from re-authenticating while logout is in progress
   const isLoggingOut = useRef(false);
   const hasInitialized = useRef(false);
+  const isInitializing = useRef(false); // Ref to prevent parallel initialization calls
 
-  const persistUser = useCallback((userData: User | null) => {
+  const persistUser = useCallback((userData: User | null, shouldClearCookies = false) => {
     if (userData) {
       setUser(userData);
       setAuthState("authenticated");
@@ -113,17 +114,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } else {
       setUser(null);
       setAuthState("unauthenticated");
-      // Clear session flag so next page load skips /auth/me entirely
-      localStorage.removeItem(SESSION_FLAG);
-      localStorage.removeItem('juriq_user');
-      // Clear cookies (belt-and-suspenders alongside httpOnly cookie cleared by backend)
-      document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + window.location.hostname + ';';
-      document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-      const hostname = window.location.hostname;
-      const parts = hostname.split('.');
-      if (parts.length > 1) {
-        const domain = '.' + parts.slice(-2).join('.');
-        document.cookie = `token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${domain};`;
+      
+      // Only clear persistent storage and cookies if explicitly requested (e.g., logout or confirmed invalid session)
+      // This prevents a single failed check or transient network error from nuking the user's login.
+      if (shouldClearCookies) {
+        localStorage.removeItem(SESSION_FLAG);
+        localStorage.removeItem('juriq_user');
+        // Clear cookies (belt-and-suspenders alongside httpOnly cookie cleared by backend)
+        document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + window.location.hostname + ';';
+        document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        const hostname = window.location.hostname;
+        const parts = hostname.split('.');
+        if (parts.length > 1) {
+          const domain = '.' + parts.slice(-2).join('.');
+          document.cookie = `token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${domain};`;
+        }
       }
     }
   }, []);
@@ -189,9 +194,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     let focusTimeout: NodeJS.Timeout | null = null;
 
     const init = async () => {
-      if (hasInitialized.current) return;
-      hasInitialized.current = true;
-
+      // Prevent parallel or redundant initializations
+      if (hasInitialized.current || isInitializing.current) return;
+      
+      isInitializing.current = true;
       const hasSessionFlag = !!localStorage.getItem(SESSION_FLAG);
 
       try {
@@ -200,9 +206,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (!hasSessionFlag) {
           // No prior session flag — could still be a Google OAuth redirect (JWT cookie
           // was set by backend but localStorage flag not yet written).
-          // Do ONE fast /auth/me check with no refresh retry:
-          //   • Google OAuth redirect  → /auth/me 200  → logs in, sets flag ✓
-          //   • Truly logged-out user  → /auth/me 401  → goes unauthenticated (1 console error, unavoidable)
           try {
             const fastRes = await apiFetch(getApiUrl('/api/v1/auth/me'), {
               credentials: 'include',
@@ -212,6 +215,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               const data = await fastRes.json();
               if (mounted) persistUser(data.user ? data.user as User : null);
             } else {
+              // 401/403: user is not logged in.
+              // We do NOT call persistUser(null, true) here to avoid deleting cookies
+              // that might still be valid but temporarily inaccessible.
               if (mounted) persistUser(null);
             }
           } catch {
@@ -219,17 +225,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         } else {
           // Has session flag — do full refreshUser (includes /auth/refresh retry for expired sessions)
-          const fetchWithTimeoutLocal = async <T,>(promise: Promise<T>, timeoutMs = 5000): Promise<T> => {
+          const fetchWithTimeoutLocal = async <T,>(promise: Promise<T>, timeoutMs = 8000): Promise<T> => {
             const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Auth timeout")), timeoutMs));
             return Promise.race([promise, timeout]);
           };
-          await fetchWithTimeoutLocal(refreshUser(), 5000);
+          await fetchWithTimeoutLocal(refreshUser(), 8000);
         }
       } catch (err: unknown) {
         if (mounted) {
             const message = err instanceof Error ? err.message : '';
             if (message === 'Auth timeout' || message === 'timeout' || message.includes('fetch') || message.includes('Network')) {
-                setAuthState("unknown"); // IMPORTANT: Keep user in unknown state rather than force logout
+                setAuthState("unknown"); 
             } else {
                 setAuthState("unauthenticated");
                 persistUser(null);
@@ -237,6 +243,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } finally {
         if (mounted) {
+          hasInitialized.current = true;
+          isInitializing.current = false;
           setIsLoading(false);
         }
       }
@@ -252,18 +260,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     init();
 
     // Handle browser back/forward cache (bfcache) restore
-    // When `event.persisted` is true the browser is restoring a snapshot of the page
-    // from its in-memory cache — React state is STALE and may show the user as logged out.
-    // We must show a loader immediately and re-validate the session before rendering anything.
     const handlePageShow = async (event: PageTransitionEvent) => {
       if (!event.persisted || !mounted) return;
       
-      // Reset the initialisation guard so init() runs again
-      hasInitialized.current = false;
-      // Show loader immediately to prevent any flash of stale content
-      setIsLoading(true);
-      // Re-run the full auth check
-      await init();
+      // If BFCache restored a loading state or unauthenticated state but we have a session hint, re-init.
+      const needsInit = !hasInitialized.current || (authState !== 'authenticated' && !!localStorage.getItem(SESSION_FLAG));
+      
+      if (needsInit) {
+        hasInitialized.current = false;
+        setIsLoading(true);
+        await init();
+      } else {
+        // Just ensure loading is off if we are already initialized
+        setIsLoading(false);
+      }
     };
 
     // Also handle visibility change (tab switching) - debounced
@@ -399,49 +409,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = async () => {
-    // Set guard immediately — prevents any concurrent refreshUser() from re-logging in
     isLoggingOut.current = true;
+    setIsLoading(true);
     try {
-      // Clear local state first
-      persistUser(null);
-
-      // Attempt server logout
       await apiFetch(getApiUrl('/api/v1/auth/logout'), {
         method: 'POST',
         credentials: 'include',
-        cache: 'no-store'
       });
     } catch (error) {
-      console.error('Logout request failed:', error);
+      console.error('Logout error:', error);
     } finally {
-      // Always clear local state regardless of server response
-      persistUser(null);
-
-      // Clear all cookies manually with all possible configurations
-      const hostname = window.location.hostname;
-      const cookiesToClear = [
-        'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;',
-        `token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${hostname};`,
-      ];
-
-      // Try clearing with parent domain if applicable
-      const parts = hostname.split('.');
-      if (parts.length > 1) {
-        const domain = '.' + parts.slice(-2).join('.');
-        cookiesToClear.push(`token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${domain};`);
-      }
-
-      cookiesToClear.forEach(cookie => {
-        document.cookie = cookie;
-      });
-
-      // Clear sessionStorage and localStorage completely
-      sessionStorage.clear();
-      localStorage.removeItem('juriq_user');
-      setAuthState("unauthenticated");
-
-      // Replace current history entry with /login so protected pages
-      // are not reachable via browser back/forward after logout.
+      // This call handles clearing memory (setUser(null)), authState, 
+      // localStorage (SESSION_FLAG), and all cookie variants.
+      persistUser(null, true);
+      
+      setIsLoading(false);
+      isLoggingOut.current = false;
+      
+      // Use replace to prevent the protected page from staying in history
       window.location.replace('/login');
     }
   };

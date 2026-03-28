@@ -1,6 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 /**
  * RequireAuth — protects all dashboard routes.
@@ -10,8 +11,19 @@ import { Loader2 } from 'lucide-react';
  */
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, isLoading } = useAuth();
+    const [timedOut, setTimedOut] = useState(false);
 
-    if (isLoading) {
+    // Safety timeout: if auth takes too long, stop showing the loader
+    // to prevent the app from appearing completely frozen. 
+    useEffect(() => {
+        if (!isLoading) return;
+        const timer = setTimeout(() => {
+            setTimedOut(true);
+        }, 8000); 
+        return () => clearTimeout(timer);
+    }, [isLoading]);
+
+    if (isLoading && !timedOut) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
                 <div className="flex flex-col items-center gap-3 text-muted-foreground">

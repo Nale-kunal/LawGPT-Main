@@ -378,9 +378,24 @@ router.get('/google/callback', async (req, res) => {
 
     const { code, state: returnedState, error: oauthError } = req.query;
 
-    // ── 1. Handle Google-side cancellation / error ───────────────────────
     const isLinkFlowFallback = typeof returnedState === 'string' && returnedState.startsWith('link:');
 
+    // ── 0. Back-Button Navigation Bypass ────────────────────────────────────
+    // If the CSRF state cookie is missing but the user already has a valid JWT,
+    // they are almost certainly hitting the browser back button after a successful login.
+    // We bypass the OAuth error and safely redirect them into the dashboard.
+    const storedState = req.cookies?.[OAUTH_STATE_COOKIE];
+    if (!storedState && !isLinkFlowFallback && !oauthError && req.cookies?.token) {
+      try {
+        jwt.verify(req.cookies.token, process.env.JWT_SECRET);
+        logger.info({ ip: req.ip }, 'Google OAuth: Already authenticated (back-button). Bypassing to dashboard.');
+        return safeRedirect(res, frontendUrl, '/dashboard');
+      } catch (_e) {
+        // Token invalid/expired - ignore and let the normal OAuth error catch them
+      }
+    }
+
+    // ── 1. Handle Google-side cancellation / error ───────────────────────
     if (oauthError) {
       logger.info({ oauthError }, 'Google OAuth: cancelled or Google returned error');
       await auditOAuthAttempt(req, {

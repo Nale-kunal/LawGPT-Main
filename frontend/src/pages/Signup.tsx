@@ -35,6 +35,7 @@ const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [showDeletedDialog, setShowDeletedDialog] = useState(false);
   const [isReactivating, setIsReactivating] = useState(false);
   const [pendingFormData, setPendingFormData] = useState<{ name: string; email: string; password: string } | null>(null);
@@ -47,12 +48,6 @@ const Signup = () => {
       navigate('/dashboard', { replace: true });
     }
   }, [isAuthenticated, isLoading, user, navigate]);
-
-  // Ensure back button from /signup always navigates to the landing page.
-  useEffect(() => {
-    window.history.replaceState(null, '', '/');
-    window.history.pushState(null, '', '/signup');
-  }, []);
 
   if (isAuthenticated) {
     return null;
@@ -153,16 +148,28 @@ const Signup = () => {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setIsGoogleLoading(true);
+    try {
+      await fetch(getApiUrl('/api/v1/health'));
+    } catch {
+      // proceed anyway
+    }
+    window.location.href = getApiUrl('/api/v1/auth/google?action=signup');
+  };
+
   return (
-    <div className="min-h-screen legal-gradient flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-professional">
-        <CardHeader className="text-center">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+      <Card className="w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
+        <CardHeader className="space-y-1">
           <div className="flex justify-center mb-4">
-            <Scale className="h-12 w-12 text-primary" />
+            <div className="bg-primary/10 p-3 rounded-full">
+              <Scale className="h-8 w-8 text-primary" />
+            </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
-          <CardDescription>
-            Join Juriq - Professional Legal Case Management
+          <CardTitle className="text-2xl font-bold text-center">Create Account</CardTitle>
+          <CardDescription className="text-center">
+            Join Juriq to manage your legal practice
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -171,11 +178,11 @@ const Signup = () => {
               <Label htmlFor="name">Full Name</Label>
               <Input
                 id="name"
-                type="text"
-                placeholder="Your full name"
+                placeholder="Raj Kumar"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
+                disabled={isSubmitting}
               />
             </div>
             <div className="space-y-2">
@@ -187,6 +194,7 @@ const Signup = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={isSubmitting}
               />
             </div>
             <div className="space-y-2">
@@ -195,10 +203,11 @@ const Signup = () => {
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
+                  placeholder="Create a password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  disabled={isSubmitting}
                 />
                 <Button
                   type="button"
@@ -221,6 +230,7 @@ const Signup = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
+                  disabled={isSubmitting}
                 />
                 <Button
                   type="button"
@@ -236,7 +246,7 @@ const Signup = () => {
             <Button
               type="submit"
               className="w-full"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isGoogleLoading}
             >
               {isSubmitting ? (
                 <>
@@ -261,10 +271,11 @@ const Signup = () => {
             type="button"
             variant="outline"
             className="w-full flex items-center justify-center gap-2"
-            onClick={() => { window.location.href = getApiUrl('/api/v1/auth/google?action=signup'); }}
+            onClick={handleGoogleLogin}
+            disabled={isSubmitting || isGoogleLoading}
           >
-            <GoogleIcon />
-            Continue with Google
+            {isGoogleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
+            {isGoogleLoading ? 'Connecting...' : 'Continue with Google'}
           </Button>
 
           <div className="mt-4 text-center text-sm">

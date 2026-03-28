@@ -565,8 +565,13 @@ const Settings = () => {
     }
   };
 
-  const handleLinkGoogle = () => {
+  const handleLinkGoogle = async () => {
     setIsLinking(true);
+    try {
+      await fetch(getApiUrl('/api/v1/health'));
+    } catch {
+      // ignore
+    }
     window.location.href = getApiUrl('/api/v1/auth/google/link');
   };
 

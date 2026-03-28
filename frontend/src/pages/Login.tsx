@@ -26,6 +26,7 @@ const Login = () => {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [showDeletedDialog, setShowDeletedDialog] = useState(false);
   const [deletedEmail, setDeletedEmail] = useState('');
   const [lockoutTimer, setLockoutTimer] = useState(0);
@@ -129,28 +130,38 @@ const Login = () => {
       const e = err as { response?: { status?: number; data?: { retryAfter?: number } }; status?: number; message?: string };
       if (e?.response?.status === 401 || e?.status === 401) {
         setError("Invalid email or password");
-      } else if (e?.response?.status === 429) {
-          const isLongLock = (e.response?.data?.retryAfter ?? 0) > 300;
-          setLockoutTimer(isLongLock ? 600 : 60);
-          if (isLongLock) {
-            setError("Too many attempts. Try again after 10 minutes.");
-          } else {
-            setError("Too many attempts. Try again shortly.");
-          }
-      } else if (e?.status === 429 || e?.message?.includes('Too many')) {
-        setLockoutTimer(60);
-        setError("Too many attempts. Try again shortly.");
-      } else {
-        setError("Something went wrong. Try again.");
+      } else if (e.response?.status === 429 || e.status === 429) {
+        const retryAfter = e.response?.data?.retryAfter || 60;
+        setLockoutTimer(retryAfter);
         toast({
-          title: "Error",
-          description: "An error occurred during login.",
+          title: "Too Many Login Attempts",
+          description: `Further attempts are temporarily blocked for your safety. Try again in ${retryAfter}s.`,
+          variant: "destructive",
+        });
+      } else {
+        setError(e.message || "An unexpected error occurred during login. Please try again.");
+        toast({
+          title: "Login Failed",
+          description: e.message || "An unexpected error occurred during login. Please try again.",
           variant: "destructive",
         });
       }
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsGoogleLoading(true);
+    try {
+      // Silently wake up the Render backend if it's sleeping.
+      // This prevents the browser from showing the "Welcome to Render" HTML loading page 
+      // when navigating via window.location.href.
+      await fetch(getApiUrl('/api/v1/health'));
+    } catch {
+      // proceed anyway if the health check fails
+    }
+    window.location.href = getApiUrl('/api/v1/auth/google?action=login');
   };
 
   const handleCreateNewAccount = () => {

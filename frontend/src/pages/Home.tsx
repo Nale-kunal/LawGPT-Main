@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Ic } from '@/components/landing/LandingIcons';
 import { DashMockup } from '@/components/landing/DashMockup';
 import { FaqAccordion } from '@/components/landing/FaqAccordion';
@@ -8,6 +9,14 @@ import LandingLayout from '@/components/layout/LandingLayout';
 const Home = () => {
     const navigate = useNavigate();
     const revealEls = useRef<(HTMLElement | null)[]>([]);
+    const { isAuthenticated, isLoading } = useAuth();
+
+    // Prevent authenticated users from visiting the marketing landing page (e.g. via back button)
+    useEffect(() => {
+        if (!isLoading && isAuthenticated) {
+            navigate('/dashboard', { replace: true });
+        }
+    }, [isAuthenticated, isLoading, navigate]);
 
     // Scroll-reveal
     useEffect(() => {
@@ -21,6 +30,10 @@ const Home = () => {
 
     const r = (i: number) => (el: HTMLElement | null) => { revealEls.current[i] = el; };
     const go = (p: string) => navigate(p);
+
+    if (isAuthenticated) {
+        return null; // Return null to prevent mounting flickering before redirect
+    }
 
     return (
         <LandingLayout>

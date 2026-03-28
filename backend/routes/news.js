@@ -89,7 +89,17 @@ router.get('/', async (req, res) => {
         let filteredNews = [...cachedNews];
 
         if (sourceFilter) {
-            filteredNews = filteredNews.filter(item => item.source === sourceFilter);
+            const normalize = (str) => str?.toLowerCase().trim();
+            const isBarAndBench = (source) => {
+                const s = normalize(source);
+                return s === "bar & bench" || s === "bar and bench";
+            };
+
+            if (normalize(sourceFilter) === 'bar & bench' || normalize(sourceFilter) === 'bar and bench') {
+                filteredNews = filteredNews.filter(item => isBarAndBench(item.source));
+            } else {
+                filteredNews = filteredNews.filter(item => normalize(item.source).includes(normalize(sourceFilter)));
+            }
         }
 
         if (search) {

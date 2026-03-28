@@ -46,6 +46,7 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
 
     return (
         <div className="lp-root">
+            <a href="#main-content" className="skip-link">Skip to content</a>
             {/* ══ NAVBAR ══════════════════════════════════════════════════════════════ */}
             <nav className="lp-nav lp-anim-fade" ref={el => { navRef.current = el; }}>
                 <Link className="lp-nav-logo" to="/" aria-label="Juriq">
@@ -73,7 +74,7 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
                 </div>
             </nav>
 
-            <main>
+            <main id="main-content">
                 {children}
             </main>
 

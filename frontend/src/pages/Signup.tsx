@@ -262,7 +262,7 @@ const Signup = () => {
             type="button"
             variant="outline"
             className="w-full flex items-center justify-center gap-2"
-            onClick={() => { window.location.href = getApiUrl('/api/v1/auth/google'); }}
+            onClick={() => { window.location.href = getApiUrl('/api/v1/auth/google?action=signup'); }}
           >
             <GoogleIcon />
             Continue with Google

@@ -176,43 +176,51 @@ const Settings = () => {
     });
   }, [user]);
 
-  // Handle Google linking redirect results (?linked=google or ?link_error=CODE)
+  // Handle Google linking redirect results (?linkSuccess=true or ?linkError=CODE)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const linked = params.get('linked');
-    const linkError = params.get('link_error');
-    if (!linked && !linkError) return;
+    const linkSuccess = params.get('linkSuccess');
+    const linkError = params.get('linkError') || params.get('link_error');
+    if (!linkSuccess && !linkError) return;
 
     window.history.replaceState(null, '', window.location.pathname);
 
-    if (linked === 'recovery') {
-      refreshUser();
-      toast({ title: 'Recovery email linked', description: 'You can now sign in with this Google account or your primary email.' });
-    } else if (linked === 'google') {
-      refreshUser();
-      toast({ title: 'Google account linked', description: 'You can now sign in with Google or your email and password.' });
+    if (linkSuccess === 'true') {
+      const verifySuccess = async () => {
+        try {
+          // Always refresh user state from server — let the DB state determine linked status.
+          // Do not gate this on a condition; if linking succeeded the user object will reflect it.
+          await refreshUser();
+          toast({ title: 'Google account linked successfully', description: 'You can now sign in with this Google account or your primary email.' });
+        } catch {
+          toast({ title: 'Link failed', description: 'Google linking verification failed.', variant: 'destructive' });
+        }
+      };
+      verifySuccess();
     } else if (linkError) {
-      console.error('[Settings] Google linking error:', linkError);
       const msgs: Record<string, string> = {
-        SAME_AS_PRIMARY_EMAIL: 'Recovery email cannot be the same as your primary email.',
+        SAME_AS_PRIMARY_EMAIL: 'Same as primary email',
         RECOVERY_EMAIL_EXISTS: 'RECOVERY_EMAIL_EXISTS',
-        EMAIL_ALREADY_IN_USE: 'This Google email is already linked to another Juriq account.',
+        EMAIL_ALREADY_USED: 'Email already used',
+        EMAIL_ALREADY_IN_USE: 'This email is already used in another account',
         GOOGLE_ALREADY_LINKED: 'A Google account is already linked to your account.',
         GOOGLE_ACCOUNT_ALREADY_IN_USE: 'This Google account is already linked to a different Juriq account.',
         EMAIL_MISMATCH: 'The Google account email must match your Juriq account email.',
         STATE_MISMATCH: 'Security check failed. Please try again.',
         SESSION_EXPIRED: 'Your session expired. Please log in and try again.',
         ACCESS_DENIED: 'Google account linking was cancelled.',
+        OAUTH_CANCELLED: 'Google login was cancelled.',
         SERVER_ERROR: 'An unexpected error occurred. Please try again.',
+        OAUTH_ERROR: 'OAuth failed'
       };
       
       if (linkError === 'RECOVERY_EMAIL_EXISTS') {
         setShowRelinkDialog(true);
       } else {
-        // Set the dialog state
-        setLinkingError({
+        toast({
           title: 'Google linking failed',
-          message: msgs[linkError] ?? `Linking failed: ${linkError}`
+          description: msgs[linkError] ?? 'Unknown error',
+          variant: 'destructive',
         });
       }
     }
@@ -253,7 +261,7 @@ const Settings = () => {
         setProfileData(prev => ({
           ...prev,
           name: data.user.name || prev.name,
-          recoveryEmail: data.user.recoveryEmail !== undefined ? data.user.recoveryEmail : prev.recoveryEmail,
+          recoveryEmail: data.user.recoveryEmail !== undefined ? (data.user.recoveryEmail || '') : prev.recoveryEmail,
           lawFirmName: data.user.profile?.lawFirmName || prev.lawFirmName,
           practiceAreas: data.user.profile?.practiceAreas || prev.practiceAreas,
           courtLevels: data.user.profile?.courtLevels || prev.courtLevels,
@@ -333,7 +341,7 @@ const Settings = () => {
       return;
     }
 
-    const updates: any = {
+    const updates: Record<string, unknown> = {
       name: profileData.name.trim(),
       profile: {
         lawFirmName: profileData.lawFirmName.trim(),
@@ -348,7 +356,8 @@ const Settings = () => {
     };
 
     // Only update recovery email if NOT currently linked via Google
-    if (!user?.recoveryGoogleId) {
+    // Use authProviders as the source of truth (same signal as the disabled-field condition)
+    if (!user?.authProviders?.includes('google')) {
       updates.recoveryEmail = profileData.recoveryEmail.trim();
     }
 
@@ -586,11 +595,14 @@ const Settings = () => {
   const handleUnlinkGoogle = async () => {
     setIsUnlinking(true);
     try {
-      const res = await apiFetch(getApiUrl('/api/v1/auth/google/unlink'), { method: 'POST' });
+      const res = await apiFetch(getApiUrl('/api/v1/auth/google/unlink'), { method: 'DELETE' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(data.message || 'Failed to unlink Google account');
       }
+      // Immediately clear local state so the field goes blank right away
+      // without waiting for the full refreshUser → useEffect → re-render cycle
+      setProfileData(prev => ({ ...prev, recoveryEmail: '' }));
       await refreshUser();
       toast({ title: 'Recovery email unlinked', description: 'Your Google recovery email has been removed.' });
     } catch (error) {
@@ -657,7 +669,7 @@ const Settings = () => {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label htmlFor="recoveryEmail" className="text-xs">
-                Recovery Email (Optional) {user?.recoveryGoogleId && <span className="text-[10px] text-green-500 ml-1 font-semibold flex items-center gap-0.5 inline-flex"><Shield className="h-2.5 w-2.5" /> Google Verified</span>}
+                Recovery Email (Optional) {user?.authProviders?.includes('google') && <span className="text-[10px] text-green-500 ml-1 font-semibold flex items-center gap-0.5 inline-flex"><Shield className="h-2.5 w-2.5" /> Google Verified</span>}
               </Label>
               <Input
                 id="recoveryEmail"
@@ -665,10 +677,10 @@ const Settings = () => {
                 value={profileData.recoveryEmail}
                 onChange={(e) => setProfileData(prev => ({ ...prev, recoveryEmail: e.target.value }))}
                 placeholder="backup@email.com"
-                disabled={isSavingProfile || !!user?.recoveryGoogleId}
-                className={`h-7 text-xs mt-0.5 ${user?.recoveryGoogleId ? 'bg-muted/50 cursor-not-allowed font-medium' : ''}`}
+                disabled={isSavingProfile || !!user?.authProviders?.includes('google')}
+                className={`h-7 text-xs mt-0.5 ${user?.authProviders?.includes('google') ? 'bg-muted/50 cursor-not-allowed font-medium' : ''}`}
               />
-              {user?.recoveryGoogleId && (
+              {user?.authProviders?.includes('google') && (
                 <p className="text-[9px] text-muted-foreground mt-0.5">Managed via Security & Privacy settings</p>
               )}
             </div>
@@ -940,21 +952,25 @@ const Settings = () => {
 
             <div className="space-y-1">
               <Label className="text-xs font-medium">Google Recovery Email</Label>
-              {user?.recoveryEmail ? (
+              {/* Check both authProviders and recoveryGoogleId — either confirms a linked Google account */}
+              {(user?.authProviders?.includes('google') || !!user?.recoveryGoogleId) ? (
                 <div className="space-y-1">
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500" />
-                    Recovery Email: <span className="font-semibold">{user.recoveryEmail}</span>
+                  <p className="text-[10px] text-green-500 font-medium flex items-center gap-1">
+                    ✅ Google Linked
                   </p>
+                  {user.recoveryEmail && (
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                      Recovery Email: <span className="font-semibold">{user.recoveryEmail}</span>
+                    </p>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
                     className="h-7 text-xs w-full flex items-center justify-center gap-1.5"
                     onClick={handleLinkGoogle}
-                    disabled={isLinking}
+                    disabled={true}
                   >
-                    {isLinking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GoogleIcon />}
-                    Replace Recovery Email
+                    <GoogleIcon /> Linked
                   </Button>
                   <Button
                     variant="ghost"
@@ -969,6 +985,9 @@ const Settings = () => {
                 </div>
               ) : (
                 <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    ❌ Not Linked
+                  </p>
                   <p className="text-[10px] text-muted-foreground">Link a Google account for faster login and recovery</p>
                   <Button
                     variant="outline"
@@ -977,8 +996,7 @@ const Settings = () => {
                     onClick={handleLinkGoogle}
                     disabled={isLinking}
                   >
-                    {isLinking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GoogleIcon />}
-                    Link Google Account
+                    {isLinking ? '🔄 Linking...' : <><GoogleIcon /> Link Google Account</>}
                   </Button>
                 </div>
               )}

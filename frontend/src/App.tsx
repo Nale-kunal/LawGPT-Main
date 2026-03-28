@@ -57,6 +57,23 @@ const PageLoader = () => (
   </div>
 );
 
+import { useLocation } from "react-router-dom";
+
+const DynamicCanonical = () => {
+  const location = useLocation();
+  React.useEffect(() => {
+    let link = document.querySelector('link[rel="canonical"]');
+    if (!link) {
+      link = document.createElement('link');
+      link.setAttribute('rel', 'canonical');
+      document.head.appendChild(link);
+    }
+    const baseUrl = 'https://juriq.app';
+    link.setAttribute('href', `${baseUrl}${location.pathname}`);
+  }, [location]);
+  return null;
+};
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -68,10 +85,19 @@ const queryClient = new QueryClient({
   },
 });
 
+import { useAuth } from "./contexts/AuthContext";
+
+const AuthLoaderWrapper = ({ children }: { children: React.ReactNode }) => {
+  const { isLoading } = useAuth();
+  if (isLoading) return <PageLoader />;
+  return <>{children}</>;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="system" storageKey="legal-pro-theme">
       <AuthProvider>
+        <AuthLoaderWrapper>
         <FormattingProvider>
           <LegalDataProvider>
             <TooltipProvider>
@@ -79,6 +105,7 @@ const App = () => (
               <Sonner />
               <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                 <ScrollToHash />
+                <DynamicCanonical />
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
                     {/* Public Landing Routes */}
@@ -131,6 +158,7 @@ const App = () => (
             </TooltipProvider>
           </LegalDataProvider>
         </FormattingProvider>
+        </AuthLoaderWrapper>
       </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>

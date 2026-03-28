@@ -133,6 +133,7 @@ function buildUserResponse(userId, profile) {
     email: profile.email,
     recoveryEmail: profile.recoveryEmail || null,
     recoveryGoogleId: profile.recoveryGoogleId || null,
+    authProviders: profile.authProviders || ['email'],
     role: profile.role || 'lawyer',
     emailVerified: profile.emailVerified || false,
     onboardingCompleted,
@@ -410,7 +411,7 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
         req,
         metadata: { reason: 'user_not_found', email: normalizedEmail }
       });
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'No account exists linked with this mail. Try with another mail.' });
     }
 
     let userDoc = null;
@@ -419,7 +420,7 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
     // If ALL active matched accounts are Google-only (no passwordHash),
     // return a specific error so the user knows to use Google login.
     const activeMatches = matchedUsers.filter(doc => !(doc.status === 'deleted' || doc.deleted === true || doc.deletedAt));
-    if (activeMatches.length > 0 && activeMatches.every(doc => doc.authProvider === 'google' && !doc.passwordHash)) {
+    if (activeMatches.length > 0 && activeMatches.every(doc => !doc.authProviders || !doc.authProviders.includes('email'))) {
       await activityEmitter.emit({
         userId: activeMatches[0]._id.toString(),
         eventType: 'login_failure',
@@ -877,11 +878,11 @@ router.put('/me', requireAuth, async (req, res) => {
     }
 
     // Build update object - only allow updating editable fields
-    const updateFields = {};
+    const updateQuery = { $set: {} };
 
     // Update display name if provided
     if (name !== undefined) {
-      updateFields.name = name.trim();
+      updateQuery.$set.name = name.trim();
     }
 
     // Process recovery email update
@@ -915,46 +916,50 @@ router.put('/me', requireAuth, async (req, res) => {
       }
 
       if (normalizedRecoveryEmail) {
-        updateFields.recoveryEmail = normalizedRecoveryEmail;
+        updateQuery.$set.recoveryEmail = normalizedRecoveryEmail;
       } else {
-        updateFields.$unset = { recoveryEmail: 1 };
+        updateQuery.$unset = { recoveryEmail: 1, recoveryGoogleId: 1 };
+        if (user.authProviders && user.authProviders.includes('email') && user.authProviders.includes('google')) {
+          updateQuery.$pull = { authProviders: 'google' };
+          updateQuery.$unset.googleId = 1;
+        }
       }
     }
 
     // Update editable profile fields (NOT immutable: fullName, barCouncilNumber, currency)
     if (profile) {
-      if (profile.lawFirmName !== undefined) { updateFields['profile.lawFirmName'] = profile.lawFirmName?.trim() || null; }
-      if (profile.practiceAreas !== undefined) { updateFields['profile.practiceAreas'] = profile.practiceAreas || []; }
-      if (profile.courtLevels !== undefined) { updateFields['profile.courtLevels'] = profile.courtLevels || []; }
-      if (profile.phoneNumber !== undefined) { updateFields['profile.phoneNumber'] = profile.phoneNumber?.trim() || null; }
-      if (profile.address !== undefined) { updateFields['profile.address'] = profile.address?.trim() || null; }
-      if (profile.city !== undefined) { updateFields['profile.city'] = profile.city?.trim() || null; }
-      if (profile.state !== undefined) { updateFields['profile.state'] = profile.state?.trim() || null; }
-      if (profile.country !== undefined) { updateFields['profile.country'] = profile.country?.trim() || null; }
-      if (profile.timezone !== undefined) { updateFields['profile.timezone'] = profile.timezone || 'Asia/Kolkata'; }
+      if (profile.lawFirmName !== undefined) { updateQuery.$set['profile.lawFirmName'] = profile.lawFirmName?.trim() || null; }
+      if (profile.practiceAreas !== undefined) { updateQuery.$set['profile.practiceAreas'] = profile.practiceAreas || []; }
+      if (profile.courtLevels !== undefined) { updateQuery.$set['profile.courtLevels'] = profile.courtLevels || []; }
+      if (profile.phoneNumber !== undefined) { updateQuery.$set['profile.phoneNumber'] = profile.phoneNumber?.trim() || null; }
+      if (profile.address !== undefined) { updateQuery.$set['profile.address'] = profile.address?.trim() || null; }
+      if (profile.city !== undefined) { updateQuery.$set['profile.city'] = profile.city?.trim() || null; }
+      if (profile.state !== undefined) { updateQuery.$set['profile.state'] = profile.state?.trim() || null; }
+      if (profile.country !== undefined) { updateQuery.$set['profile.country'] = profile.country?.trim() || null; }
+      if (profile.timezone !== undefined) { updateQuery.$set['profile.timezone'] = profile.timezone || 'Asia/Kolkata'; }
     }
 
     // Update notification settings
     if (notifications) {
-      updateFields.notifications = { ...(user.notifications?.toObject?.() || user.notifications || {}), ...notifications };
+      updateQuery.$set.notifications = { ...(user.notifications?.toObject?.() || user.notifications || {}), ...notifications };
     }
 
     // Update preferences
     if (preferences) {
-      updateFields.preferences = { ...(user.preferences?.toObject?.() || user.preferences || {}), ...preferences };
+      updateQuery.$set.preferences = { ...(user.preferences?.toObject?.() || user.preferences || {}), ...preferences };
     }
 
     // Update security settings
     if (security) {
-      updateFields.security = { ...(user.security?.toObject?.() || user.security || {}), ...security };
+      updateQuery.$set.security = { ...(user.security?.toObject?.() || user.security || {}), ...security };
     }
 
-    logger.info('💾 Saving update fields: %j', updateFields);
+    logger.info('💾 Saving update fields: %j', updateQuery);
 
     // Perform update
     const updatedUser = await User.findByIdAndUpdate(
       req.user.userId,
-      { $set: updateFields },
+      updateQuery,
       { new: true, runValidators: true }
     );
 
@@ -974,7 +979,7 @@ router.put('/me', requireAuth, async (req, res) => {
         metadata: {
           action: 'recovery_email_changed',
           oldValue: user.recoveryEmail || null,
-          newValue: updateFields.recoveryEmail || null
+          newValue: updateQuery.$set.recoveryEmail || null
         }
       });
     }

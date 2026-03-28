@@ -42,11 +42,7 @@ function safeRedirect(res, base, path, qs = '') {
   return res.redirect(`${base}${safePath}${qs}`);
 }
 
-// ── Constants (mirrors auth-jwt.js exactly — no cross-import coupling) ──────
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || (JWT_SECRET + '_refresh');
-const JWT_EXPIRES_IN = '15m';
-const JWT_REFRESH_EXPIRES_IN = '7d';
+// ── Constants (Resolved dynamically to prevent loader race conditions) ──────
 const OAUTH_STATE_COOKIE = 'oauth_state';
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes — one-time use
 
@@ -92,13 +88,15 @@ function getOAuthClient() {
 
 // ── JWT/Cookie helpers (identical to auth-jwt.js) ──────────────────────────
 function generateJWT(userId, email, role) {
-  if (!JWT_SECRET) {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
     throw new Error('JWT_SECRET not configured');
   }
-  return jwt.sign({ userId, email, role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign({ userId, email, role }, secret, { expiresIn: '15m' });
 }
 function generateRefreshToken(userId) {
-  return jwt.sign({ userId, type: 'refresh' }, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN });
+  const refreshSecret = process.env.JWT_REFRESH_SECRET || (process.env.JWT_SECRET + '_refresh');
+  return jwt.sign({ userId, type: 'refresh' }, refreshSecret, { expiresIn: '7d' });
 }
 function setAuthCookie(res, token) {
   res.cookie('token', token, {
@@ -125,7 +123,8 @@ const LINK_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 function signLinkState(state, userId) {
   const payload = `${state}:${userId}`;
-  const sig = crypto.createHmac('sha256', JWT_SECRET || 'fallback')
+  const secret = process.env.JWT_SECRET || 'fallback';
+  const sig = crypto.createHmac('sha256', secret)
     .update(payload)
     .digest('hex');
   return `${Buffer.from(payload).toString('base64url')}.${sig}`;
@@ -140,7 +139,8 @@ function verifyLinkState(cookieValue) {
     const encodedPayload = cookieValue.slice(0, dotIdx);
     const receivedSig = cookieValue.slice(dotIdx + 1);
     const payload = Buffer.from(encodedPayload, 'base64url').toString('utf8');
-    const expectedSig = crypto.createHmac('sha256', JWT_SECRET || 'fallback')
+    const secret = process.env.JWT_SECRET || 'fallback';
+    const expectedSig = crypto.createHmac('sha256', secret)
       .update(payload)
       .digest('hex');
     const sigBuf = Buffer.from(receivedSig);
@@ -171,7 +171,7 @@ async function handleLinkingLogic(req, res, userId, googleId, googleEmail, _name
 
   const redirectError = (errorCode) => {
     logger.warn({ errorCode, ip: req.ip }, `Google link callback rejected: ${errorCode}`);
-    return res.redirect(`${settingsUrl}?link_error=${encodeURIComponent(errorCode)}`);
+    return res.redirect(`${settingsUrl}?linkError=${encodeURIComponent(errorCode)}`); // Changed here
   };
 
   if (!currentUser) {
@@ -186,6 +186,12 @@ async function handleLinkingLogic(req, res, userId, googleId, googleEmail, _name
     return redirectError('SAME_AS_PRIMARY_EMAIL');
   }
 
+  // BLOCK DUPLICATES
+  if (currentUser.authProviders && currentUser.authProviders.includes("google")) {
+    logger.warn({ userId }, 'Google link: already linked');
+    return redirectError('GOOGLE_ALREADY_LINKED');
+  }
+
   // Rule 2: This Google email/ID must NOT be used by ANOTHER user account.
   const conflictQuery = {
     $or: [
@@ -197,37 +203,57 @@ async function handleLinkingLogic(req, res, userId, googleId, googleEmail, _name
   };
   const existingUser = await User.findOne(conflictQuery);
 
-  if (existingUser) {
-    if (existingUser._id.toString() !== userId) {
-      logger.warn({ userId, googleEmail: normalizedGoogleEmail, conflictUserId: existingUser._id }, 'Google link: conflict with ANOTHER account');
-      await auditOAuthAttempt(req, { userId, email: emailForAudit, action: 'link_recovery_email', success: false, reason: 'EMAIL_ALREADY_IN_USE' });
-      return redirectError('EMAIL_ALREADY_IN_USE');
-    }
+  if (existingUser && existingUser._id.toString() !== userId) {
+    logger.warn({ userId, googleEmail: normalizedGoogleEmail, conflictUserId: existingUser._id }, 'Google link: conflict with ANOTHER account');
+    await auditOAuthAttempt(req, { userId, email: emailForAudit, action: 'link_recovery_email', success: false, reason: 'EMAIL_ALREADY_USED' });
+    return redirectError('EMAIL_ALREADY_USED');
   }
 
-  // Rule 3: Check if a recovery email already exists on THIS account (to trigger replacement flow)
-  if (currentUser.recoveryEmail) {
-    if (currentUser.recoveryEmail === normalizedGoogleEmail) {
-      logger.info({ userId, googleEmail: normalizedGoogleEmail }, 'Google link: recovery email is already set to this email (idempotent)');
-      return res.redirect(`${settingsUrl}?linked=recovery`);
+  // Verify Google Email before linking
+  // In the callback, if email_verified is false, we technically reject it already. But we should double check:
+  // (The token verification already rejects unverified emails, so this is safe).
+  
+  // Success: Link it! allow overwrite if previously present (atomically)
+  const newAuthProvider = currentUser.authProvider === 'local' ? 'hybrid' : currentUser.authProvider;
+
+  try {
+    const updatedUser = await User.findOneAndUpdate(
+      {
+        _id: currentUser._id,
+        recoveryEmail: { $exists: false } // prevents overwrite race
+      },
+      {
+        $set: { 
+          recoveryEmail: normalizedGoogleEmail, 
+          recoveryGoogleId: googleId,
+          googleId: googleId,
+          authProvider: newAuthProvider 
+        },
+        $addToSet: { authProviders: { $each: ["google", "email"] } }
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      logger.warn({ action: "GOOGLE_LINK_FAILED", reason: "Recovery email already set or conflict occurred", userId: currentUser._id });
+      return redirectError('GOOGLE_ACCOUNT_ALREADY_IN_USE'); // Or a generic conflict error
     }
-    const pendingData = signRecoveryData(normalizedGoogleEmail, googleId, userId);
-    res.cookie(RECOVERY_PENDING_COOKIE, pendingData, {
-      httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/'
-    });
-    return redirectError('RECOVERY_EMAIL_EXISTS');
+  } catch (err) {
+    if (err.code === 11000) {
+      logger.warn({ action: "GOOGLE_LINK_FAILED", reason: "Mongo 11000 duplicate key", userId: currentUser._id });
+      return redirectError('EMAIL_ALREADY_USED');
+    }
+    throw err;
   }
 
-  // Success: Link it!
-  currentUser.recoveryEmail = normalizedGoogleEmail;
-  currentUser.recoveryGoogleId = googleId;
-  if (currentUser.authProvider === 'local') {
-    currentUser.authProvider = 'hybrid';
-  }
-  await currentUser.save();
-  logger.info({ userId, recoveryEmail: normalizedGoogleEmail, googleId }, 'Google recovery email linked successfully');
+  logger.info({
+    action: "GOOGLE_LINK",
+    userId: currentUser._id,
+    linkedEmail: normalizedGoogleEmail,
+    timestamp: new Date()
+  }, 'Google recovery email linked successfully');
   await auditOAuthAttempt(req, { userId, email: emailForAudit, action: 'link_recovery_email', success: true });
-  return res.redirect(`${settingsUrl}?linked=recovery`);
+  return res.redirect(`${settingsUrl}?linkSuccess=true`);
 }
 
 // ── Audit helper — logs every OAuth attempt to activityEmitter ─────────────
@@ -319,7 +345,9 @@ router.get('/google', (req, res) => {
   }
 
   // Cryptographically secure state — stored httpOnly, expires in 10 min
-  const state = crypto.randomBytes(32).toString('hex');
+  const intent = req.query.action === 'signup' ? 'signup' : 'login';
+  const stateVal = crypto.randomBytes(32).toString('hex');
+  const state = `${stateVal}|${intent}`;
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -347,8 +375,15 @@ router.get('/google/callback', async (req, res) => {
   const frontendUrl = getFrontendUrl();
 
   // Build a structured redirect-error (never exposes internal details)
-  const redirectError = (errorCode, _message) => {
+  let redirectError = (errorCode, _message) => {
     logger.warn({ errorCode, ip: req.ip }, `Google OAuth callback rejected: ${errorCode}`);
+    
+    // Dynamically check if this originated as a link flow parsing the raw state parameter
+    const stateParam = req.query.state;
+    if (typeof stateParam === 'string' && stateParam.startsWith('link:')) {
+      return res.redirect(`${frontendUrl}/dashboard/settings?linkError=${encodeURIComponent(errorCode)}`);
+    }
+    
     const params = new URLSearchParams({ oauth: 'error', reason: errorCode });
     return res.redirect(`${frontendUrl}/login?${params.toString()}`);
   };
@@ -364,12 +399,18 @@ router.get('/google/callback', async (req, res) => {
     const { code, state: returnedState, error: oauthError } = req.query;
 
     // ── 1. Handle Google-side cancellation / error ───────────────────────
+    const isLinkFlowFallback = typeof returnedState === 'string' && returnedState.startsWith('link:');
+
     if (oauthError) {
       logger.info({ oauthError }, 'Google OAuth: cancelled or Google returned error');
       await auditOAuthAttempt(req, {
         email: emailForAudit, action: 'login', success: false,
         reason: oauthError === 'access_denied' ? 'USER_CANCELLED' : 'GOOGLE_ERROR',
       });
+      
+      if (isLinkFlowFallback) {
+        return res.redirect(`${getFrontendUrl()}/dashboard/settings?linkError=OAUTH_CANCELLED`);
+      }
       return redirectError(
         oauthError === 'access_denied' ? 'ACCESS_DENIED' : 'OAUTH_ERROR',
         'Google returned an error'
@@ -381,33 +422,89 @@ router.get('/google/callback', async (req, res) => {
       return redirectError('INVALID_REQUEST', 'Missing code or state parameter');
     }
 
-    // ── 2. CSRF: validate state (constant-time, one-time use) ────────────
-    const storedState = req.cookies?.[OAUTH_STATE_COOKIE];
+    // ── 1.5 INTERCEPT ENCRYPTED LINK STATE ──────────────────────────────
+    let isLinkFlow = false;
+    let linkUserId = null;
+    
+    if (typeof returnedState === 'string' && returnedState.startsWith('link:')) {
+      let isError = false;
+      try {
+        const parts = returnedState.substring(5).split(':');
+        if (parts.length === 2) {
+          const iv = Buffer.from(parts[0], 'hex');
+          const encrypted = parts[1];
+          const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from((process.env.JWT_SECRET || 'fallback').padEnd(32, '0').slice(0, 32)), iv);
+          let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+          decrypted += decipher.final('utf8');
+          const payload = JSON.parse(decrypted);
+          if (payload.action === 'link' && payload.userId) {
+            // New Hardening Logic: Timestamp & Nonce
+            if (!payload.timestamp || Date.now() - payload.timestamp > 5 * 60 * 1000) {
+              logger.warn({ userId: payload.userId }, 'Google OAuth: Link request expired');
+              isError = true;
+            }
+            
+            if (!isError && payload.nonce) {
+              let exists = null;
+              try {
+                exists = await redis.get(`oauth_nonce:${payload.nonce}`);
+              } catch (e) {
+                logger.error({ err: e.message }, 'Google OAuth: Redis failure retrieving nonce');
+              }
+              if (!exists) {
+                logger.warn({ userId: payload.userId }, 'Google OAuth: Invalid or expired nonce (Replay Attack?)');
+                isError = true;
+              } else {
+                try { await redis.del(`oauth_nonce:${payload.nonce}`); } catch (_e) { /* ignore */ }
+              }
+            } else {
+              isError = true;
+            }
 
-    // Always clear the state cookie immediately — one-time use regardless of outcome
-    res.clearCookie(OAUTH_STATE_COOKIE, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      path: '/',
-    });
-
-    if (!storedState) {
-      logger.warn({ ip: req.ip }, 'Google OAuth: missing state cookie — possible CSRF or expired flow');
-      await auditOAuthAttempt(req, { email: emailForAudit, action: 'login', success: false, reason: 'CSRF_NO_STATE_COOKIE' });
-      return redirectError('STATE_MISMATCH', 'Security validation failed. Please try again.');
+            if (!isError) {
+              isLinkFlow = true;
+              linkUserId = payload.userId;
+            }
+          }
+        }
+      } catch (err) {
+        logger.warn({ err: err.message }, 'Failed to decrypt link state');
+        isError = true;
+      }
+      if (isError) {
+        return redirectError('STATE_MISMATCH', 'Invalid or expired request');
+      }
     }
 
-    const returnedStateBuf = Buffer.from(String(returnedState));
-    const storedStateBuf = Buffer.from(storedState);
-    const stateValid =
-      returnedStateBuf.length === storedStateBuf.length &&
-      crypto.timingSafeEqual(returnedStateBuf, storedStateBuf);
+    if (!isLinkFlow) {
+      // ── 2. CSRF: validate state (constant-time, one-time use) ────────────
+      const storedState = req.cookies?.[OAUTH_STATE_COOKIE];
 
-    if (!stateValid) {
-      logger.warn({ ip: req.ip }, 'Google OAuth: state mismatch — possible CSRF attack');
-      await auditOAuthAttempt(req, { email: emailForAudit, action: 'login', success: false, reason: 'CSRF_STATE_MISMATCH' });
-      return redirectError('STATE_MISMATCH', 'Security validation failed. Please try again.');
+      // Always clear the state cookie immediately — one-time use regardless of outcome
+      res.clearCookie(OAUTH_STATE_COOKIE, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        path: '/',
+      });
+
+      if (!storedState) {
+        logger.warn({ ip: req.ip }, 'Google OAuth: missing state cookie — possible CSRF or expired flow');
+        await auditOAuthAttempt(req, { email: emailForAudit, action: 'login', success: false, reason: 'CSRF_NO_STATE_COOKIE' });
+        return redirectError('STATE_MISMATCH', 'Security validation failed. Please try again.');
+      }
+
+      const returnedStateBuf = Buffer.from(String(returnedState));
+      const storedStateBuf = Buffer.from(storedState);
+      const stateValid =
+        returnedStateBuf.length === storedStateBuf.length &&
+        crypto.timingSafeEqual(returnedStateBuf, storedStateBuf);
+
+      if (!stateValid) {
+        logger.warn({ ip: req.ip }, 'Google OAuth: state mismatch — possible CSRF attack');
+        await auditOAuthAttempt(req, { email: emailForAudit, action: 'login', success: false, reason: 'CSRF_STATE_MISMATCH' });
+        return redirectError('STATE_MISMATCH', 'Security validation failed. Please try again.');
+      }
     }
 
     // ── 3. Exchange code for tokens ──────────────────────────────────────
@@ -471,18 +568,9 @@ router.get('/google/callback', async (req, res) => {
     const normalizedEmail = email.toLowerCase().trim();
 
     // ── 6. LINKING CHECK — is this a link attempt from settings? ──────────
-    const signedLinkCookie = req.signedCookies[LINK_STATE_COOKIE];
-    if (signedLinkCookie) {
-      const parsed = verifyLinkState(signedLinkCookie);
-      if (parsed && parsed.userId) {
-        logger.info({ userId: parsed.userId, email }, 'Google OAuth: detected LINK request in main callback');
-        res.clearCookie(LINK_STATE_COOKIE);
-        
-        // Use the common linking logic (Helper function or inline)
-        // For efficiency, I will call a dedicated internal handler or redirect.
-        // Actually, I can just re-execute the logic here.
-        return handleLinkingLogic(req, res, parsed.userId, googleId, email, name);
-      }
+    if (isLinkFlow && linkUserId) {
+      logger.info({ userId: linkUserId, email }, 'Google OAuth: detected LINK request in main callback via encrypted state');
+      return handleLinkingLogic(req, res, linkUserId, googleId, email, name);
     }
 
     // ── 7. LOGIN LOOKUP — find user by primary or recovery fields ──────────
@@ -502,8 +590,8 @@ router.get('/google/callback', async (req, res) => {
       }
 
       // Paranoia check: email on token must match either primary or recovery email
-      const isPrimaryMatch = user.email === normalizedEmail;
-      const isRecoveryMatch = user.recoveryEmail === normalizedEmail;
+      const isPrimaryMatch = user.email.toLowerCase().trim() === normalizedEmail;
+      const isRecoveryMatch = user.recoveryEmail && user.recoveryEmail.toLowerCase().trim() === normalizedEmail;
 
       if (!isPrimaryMatch && !isRecoveryMatch) {
         logger.warn({ storedEmail: user.email, recoveryEmail: user.recoveryEmail, tokenEmail: normalizedEmail }, 'Google OAuth: email on token does not match any stored email — rejecting');
@@ -559,6 +647,13 @@ router.get('/google/callback', async (req, res) => {
 
       } else {
         // ── Case D: New user — create Google account ─────────────────────
+        const intent = typeof returnedState === 'string' ? returnedState.split('|')[1] : 'login';
+        if (intent !== 'signup') {
+          logger.warn({ email: normalizedEmail }, 'Google OAuth: Prevented unauthorized google login for unknown account');
+          await auditOAuthAttempt(req, { email: normalizedEmail, action: 'login', success: false, reason: 'USER_NOT_FOUND' });
+          return redirectError('USER_NOT_FOUND', 'No account exists linked with this email');
+        }
+
         user = new User({
           name: (name || '').trim() || normalizedEmail.split('@')[0],
           email: normalizedEmail,
@@ -616,7 +711,12 @@ router.get('/google/callback', async (req, res) => {
   } catch (err) {
     logger.error({ err: err.message, stack: err.stack }, 'Google OAuth: unexpected error in callback');
     await auditOAuthAttempt(req, { email: emailForAudit, action: 'login', success: false, reason: 'SERVER_ERROR' }).catch(() => {});
-    return res.redirect(`${getFrontendUrl()}/login?oauth=error&reason=SERVER_ERROR`);
+    const stateParam = req.query?.state;
+    if (typeof stateParam === 'string' && stateParam.startsWith('link:')) {
+      return res.redirect(`${getFrontendUrl()}/dashboard/settings?linkError=SERVER_ERROR`);
+    }
+    const safeMsg = encodeURIComponent(String(err.message).substring(0, 50));
+    return res.redirect(`${getFrontendUrl()}/login?oauth=error&reason=SERVER_ERROR&errmsg=${safeMsg}`);
   }
 });
 
@@ -629,9 +729,16 @@ import { requireAuth } from '../middleware/auth-jwt.js';
 
 // Function removed from here and moved above
 
+// ── Limiter for Google Linking ───────────────────────────────────────────────
+const linkLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { success: false, error: 'TOO_MANY_REQUESTS', message: 'Too many linking attempts. Please try again later.' }
+});
+
 // ── GET /api/v1/auth/google/link ─────────────────────────────────────────────
 // Requires JWT auth. Starts the Google OAuth flow for account linking.
-router.get('/google/link', requireAuth, (req, res) => {
+router.get('/google/link', requireAuth, linkLimiter, async (req, res) => {
   const client = getOAuthClient();
   if (!client) {
     return res.status(503).json({
@@ -650,18 +757,17 @@ router.get('/google/link', requireAuth, (req, res) => {
     });
   }
 
-  // Generate a cryptographically secure state value
-  const state = crypto.randomBytes(32).toString('hex');
+  // Encrypt userId into state parameter to avoid cookie reliance on cross-site callback
+  const nonce = crypto.randomUUID();
+  const timestamp = Date.now();
+  await redis.set(`oauth_nonce:${nonce}`, "valid", 300); // 5 minutes
 
-  // Sign state + userId together — tamper-proof, stored in httpOnly cookie
-  const signedState = signLinkState(state, userId);
-  res.cookie(LINK_STATE_COOKIE, signedState, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    maxAge: LINK_STATE_TTL_MS,
-    path: '/',
-  });
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from((process.env.JWT_SECRET || 'fallback').padEnd(32, '0').slice(0, 32)), iv);
+  const payload = JSON.stringify({ userId, action: 'link', nonce, timestamp });
+  let encrypted = cipher.update(payload, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  const state = `link:${iv.toString('hex')}:${encrypted}`;
 
   const authUrl = client.generateAuthUrl({
     access_type: 'offline',
@@ -844,9 +950,10 @@ router.post('/google/relink', requireAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/v1/auth/google/unlink ──────────────────────────────────────────
-// Requires JWT auth. Removes Google recovery email.
-router.post('/google/unlink', requireAuth, async (req, res) => {
+// ── DELETE /api/v1/auth/google/unlink ──────────────────────────────────────────
+// Requires JWT auth. Completely removes ALL Google fields from the document,
+// freeing all unique/sparse index slots so values can be reused by other accounts.
+router.delete('/google/unlink', requireAuth, async (req, res) => {
   try {
     const userId = req.user?.userId;
     if (!userId) {
@@ -858,16 +965,47 @@ router.post('/google/unlink', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'USER_NOT_FOUND' });
     }
 
-    if (!user.recoveryEmail) {
-      return res.status(400).json({ success: false, error: 'NOT_LINKED', message: 'No recovery email linked' });
+    if (!user.authProviders || !user.authProviders.includes("google")) {
+      return res.status(400).json({ success: false, error: 'NOT_LINKED', message: 'Google not linked' });
     }
 
-    user.recoveryEmail = undefined;
-    user.recoveryGoogleId = undefined;
-    await user.save();
+    if (!user.authProviders.includes("email")) {
+      logger.warn({ action: "GOOGLE_UNLINK_FAILED", userId: user._id, reason: "No other login method available" }, 'Google unlink failed');
+      return res.status(400).json({ success: false, error: 'CANT_UNLINK', message: 'Cannot unlink Google. No other login method available.' });
+    }
+
+    // CRITICAL: Use findByIdAndUpdate with $unset — NOT .save() with field = undefined.
+    //
+    // Mongoose .save() with `field = undefined` does NOT send a MongoDB $unset.
+    // It simply omits the field from the update, leaving the old value physically
+    // present in the BSON document. For unique:sparse indexes (googleId, recoveryGoogleId,
+    // recoveryEmail), the old value stays "owned" by this document and CANNOT be
+    // reused by any other account — causing duplicate key errors on re-link.
+    //
+    // $unset physically removes the field from the document, releasing the index slot.
+    await User.findByIdAndUpdate(
+      userId,
+      {
+        $unset: {
+          googleId: '',          // Release unique sparse index → value reusable
+          recoveryGoogleId: '',  // Release unique sparse index → value reusable
+          recoveryEmail: '',     // Release unique sparse index → value reusable
+        },
+        $set: {
+          authProvider: 'local', // Revert to local-only auth
+        },
+        $pull: {
+          authProviders: 'google' // Remove 'google' from providers list
+        }
+      },
+      { new: true }
+    );
 
     await auditOAuthAttempt(req, { userId, email: user.email, action: 'unlink_recovery_email', success: true });
-    logger.info({ userId, email: user.email }, 'Google recovery email unlinked');
+    logger.info(
+      { action: 'GOOGLE_UNLINK', userId: user._id },
+      'Google recovery email fully unlinked — all index slots freed'
+    );
 
     return res.json({ success: true, message: 'Recovery email unlinked' });
   } catch (err) {

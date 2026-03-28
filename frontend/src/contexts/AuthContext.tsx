@@ -32,6 +32,8 @@ interface User {
   email: string;
   recoveryEmail?: string;
   recoveryGoogleId?: string | null;
+  googleId?: string | null;
+  authProviders?: string[];
   role: 'lawyer' | 'assistant' | 'admin';
   emailVerified?: boolean;
   onboardingCompleted?: boolean;
@@ -90,19 +92,29 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Lightweight flag — set on login/register, cleared on logout.
+// Prevents /auth/me + /auth/refresh from firing when there is provably no session.
+const SESSION_FLAG = 'juriq_has_session';
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authState, setAuthState] = useState<"loading" | "authenticated" | "unauthenticated" | "unknown">("loading");
   // Guard: prevents refreshUser() from re-authenticating while logout is in progress
   const isLoggingOut = useRef(false);
+  const hasInitialized = useRef(false);
 
   const persistUser = useCallback((userData: User | null) => {
     if (userData) {
       setUser(userData);
-      // JWT is stored in httpOnly cookie only — no sensitive data in localStorage
+      setAuthState("authenticated");
+      // Mark that a session exists so future page loads can skip the blind auth check
+      localStorage.setItem(SESSION_FLAG, '1');
     } else {
       setUser(null);
-      // Clean up any stale data from previous sessions
+      setAuthState("unauthenticated");
+      // Clear session flag so next page load skips /auth/me entirely
+      localStorage.removeItem(SESSION_FLAG);
       localStorage.removeItem('juriq_user');
       // Clear cookies (belt-and-suspenders alongside httpOnly cookie cleared by backend)
       document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + window.location.hostname + ';';
@@ -135,7 +147,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       clearTimeout(timeoutId);
 
       if (res.status === 401) {
-        // Access token may have expired — attempt silent refresh using the refresh cookie
+        // user not logged in → expected
         // Skip refresh entirely if logout is in progress to prevent re-login after logout
         if (isLoggingOut.current) { persistUser(null); return; }
         try {
@@ -177,14 +189,52 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     let focusTimeout: NodeJS.Timeout | null = null;
 
     const init = async () => {
+      if (hasInitialized.current) return;
+      hasInitialized.current = true;
+
+      const hasSessionFlag = !!localStorage.getItem(SESSION_FLAG);
+
       try {
-        // Always validate session on mount - don't trust localStorage
-        await refreshUser();
-      } catch {
-        // Clear any stale auth data on error
-        persistUser(null);
+        setAuthState("loading");
+
+        if (!hasSessionFlag) {
+          // No prior session flag — could still be a Google OAuth redirect (JWT cookie
+          // was set by backend but localStorage flag not yet written).
+          // Do ONE fast /auth/me check with no refresh retry:
+          //   • Google OAuth redirect  → /auth/me 200  → logs in, sets flag ✓
+          //   • Truly logged-out user  → /auth/me 401  → goes unauthenticated (1 console error, unavoidable)
+          try {
+            const fastRes = await apiFetch(getApiUrl('/api/v1/auth/me'), {
+              credentials: 'include',
+              cache: 'no-store',
+            });
+            if (fastRes.ok) {
+              const data = await fastRes.json();
+              if (mounted) persistUser(data.user ? data.user as User : null);
+            } else {
+              if (mounted) persistUser(null);
+            }
+          } catch {
+            if (mounted) persistUser(null);
+          }
+        } else {
+          // Has session flag — do full refreshUser (includes /auth/refresh retry for expired sessions)
+          const fetchWithTimeoutLocal = async <T,>(promise: Promise<T>, timeoutMs = 5000): Promise<T> => {
+            const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Auth timeout")), timeoutMs));
+            return Promise.race([promise, timeout]);
+          };
+          await fetchWithTimeoutLocal(refreshUser(), 5000);
+        }
+      } catch (err: any) {
+        if (mounted) {
+            if (err.message === 'Auth timeout' || err.message === 'timeout' || err.message?.includes('fetch') || err.message?.includes('Network')) {
+                setAuthState("unknown"); // IMPORTANT: Keep user in unknown state rather than force logout
+            } else {
+                setAuthState("unauthenticated");
+                persistUser(null);
+            }
+        }
       } finally {
-        // Always set loading to false, even if refresh fails
         if (mounted) {
           setIsLoading(false);
         }
@@ -193,7 +243,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Set a timeout to ensure loading doesn't hang forever
     const timeout = setTimeout(() => {
-      if (mounted) {
+      if (mounted && authState !== 'unknown') {
         setIsLoading(false);
       }
     }, 5000); // Max 5 seconds for initial load
@@ -245,10 +295,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (visibilityTimeout) clearTimeout(visibilityTimeout);
       if (focusTimeout) clearTimeout(focusTimeout);
     };
-  }, [refreshUser, persistUser]);
+  }, [refreshUser, persistUser, authState]);
+
+  useEffect(() => {
+    if (authState === "unknown") {
+      const timer = setTimeout(() => {
+        setAuthState("unauthenticated");
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [authState]);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; errorCode?: string }> => {
     setIsLoading(true);
+    setAuthState("loading");
     try {
       // Clear any existing auth state before login
       persistUser(null);
@@ -277,15 +337,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (data.user) {
         persistUser(data.user as User);
         setIsLoading(false);
+        setAuthState("authenticated");
         return { success: true };
       } else {
         persistUser(null);
         setIsLoading(false);
+        setAuthState("unauthenticated");
         return { success: false, error: 'Invalid response from server' };
       }
     } catch {
       persistUser(null);
       setIsLoading(false);
+      setAuthState("unauthenticated");
       return { success: false, error: 'Network error occurred' };
     }
   };
@@ -306,15 +369,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (!res.ok) {
         persistUser(null);
         setIsLoading(false);
+        setAuthState("unauthenticated");
         return { success: false, error: data.error || 'Registration failed', errorCode: data.errorCode };
       }
 
       persistUser(data.user as User);
       setIsLoading(false);
+      setAuthState("authenticated");
       return { success: true };
     } catch {
       persistUser(null);
       setIsLoading(false);
+      setAuthState("unauthenticated");
       return { success: false, error: 'Network error occurred' };
     }
   };
@@ -359,6 +425,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Clear sessionStorage and localStorage completely
       sessionStorage.clear();
       localStorage.removeItem('juriq_user');
+      setAuthState("unauthenticated");
 
       // Replace current history entry with /login so protected pages
       // are not reachable via browser back/forward after logout.
@@ -417,6 +484,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoading,
     isAuthenticated: !!user
   };
+
+  if (authState === "loading" || authState === "unknown") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-sm font-medium text-foreground">Checking session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={value}>

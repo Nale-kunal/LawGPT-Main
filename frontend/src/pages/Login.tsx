@@ -23,6 +23,7 @@ const GoogleIcon = () => (
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDeletedDialog, setShowDeletedDialog] = useState(false);
@@ -44,15 +45,6 @@ const Login = () => {
     }
   }, [isAuthenticated, isLoading, user, navigate]);
 
-  // Ensure back button from /login always navigates to the landing page.
-  // Uses null state so React Router reads the pathname '/' on popstate
-  // instead of restoring its internal /login pointer.
-  useEffect(() => {
-    window.history.replaceState(null, '', '/');
-    window.history.pushState(null, '', '/login');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // Handle Google OAuth error redirects (?oauth=error&reason=CODE)
   // Success needs no handling: backend sets cookies and redirects to /dashboard;
   // AuthContext.refreshUser() on mount reads the cookies and authenticates.
@@ -60,18 +52,13 @@ const Login = () => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('oauth') !== 'error') return;
 
-    // Clean URL so params don't persist on refresh
     window.history.replaceState(null, '', window.location.pathname);
 
     const reason = params.get('reason') || 'UNKNOWN';
+    const errmsg = params.get('errmsg') || '';
 
     if (reason === 'RATE_LIMIT_EXCEEDED') {
-      setLockoutTimer(60); // 1 minute for Google OAuth
-      toast({
-        title: 'Too Many Attempts',
-        description: 'Please wait 1 minute before trying Google sign-in again.',
-        variant: 'destructive',
-      });
+      setLockoutTimer(60);
       return;
     }
 
@@ -79,11 +66,12 @@ const Login = () => {
       ACCESS_DENIED: 'Google sign-in was cancelled.',
       EMAIL_NOT_VERIFIED: 'Your Google account email is not verified. Please verify it with Google first.',
       ACCOUNT_EXISTS_WITH_DIFFERENT_METHOD: 'An account with this email already exists. Please log in with your email and password.',
+      USER_NOT_FOUND: 'No account exists linked with this mail. Try with another mail.',
       ACCOUNT_DELETED: 'This account has been deleted.',
       ACCOUNT_CONFLICT: 'A sign-in conflict was detected. Please contact support.',
       SERVICE_UNAVAILABLE: 'Google login is not available right now. Please try again later.',
       STATE_MISMATCH: 'Security check failed. Please try again.',
-      SERVER_ERROR: 'An unexpected error occurred. Please try again.',
+      SERVER_ERROR: `An unexpected error occurred: ${errmsg || 'Please try again.'}`,
     };
     toast({
       title: 'Google Sign-In Failed',
@@ -126,6 +114,7 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError(null);
 
     try {
       const result = await login(email, password);
@@ -140,6 +129,7 @@ const Login = () => {
           setDeletedEmail(email);
           setShowDeletedDialog(true);
         } else {
+          setError(result.error || "Invalid email or password");
           toast({
             title: "Login Failed",
             description: result.error || "Please check your credentials and try again.",
@@ -147,15 +137,22 @@ const Login = () => {
           });
         }
       }
-      } catch (error: any) {
-      if (error?.status === 429 || error?.message?.includes('Too many')) {
-        setLockoutTimer(900); // 15 minutes for authLimiter
-        toast({
-          title: "Rate Limit Exceeded",
-          description: "Too many attempts. Please wait 15 minutes before trying again.",
-          variant: "destructive",
-        });
+    } catch (err: any) {
+      if (err?.response?.status === 401 || err?.status === 401) {
+        setError("Invalid email or password");
+      } else if (err?.response?.status === 429) {
+          const isLongLock = err.response.data?.retryAfter > 300;
+          setLockoutTimer(isLongLock ? 600 : 60);
+          if (isLongLock) {
+            setError("Too many attempts. Try again after 10 minutes.");
+          } else {
+            setError("Too many attempts. Try again shortly.");
+          }
+      } else if (err?.status === 429 || err?.message?.includes('Too many')) {
+        setLockoutTimer(60);
+        setError("Too many attempts. Try again shortly.");
       } else {
+        setError("Something went wrong. Try again.");
         toast({
           title: "Error",
           description: "An error occurred during login.",
@@ -186,6 +183,24 @@ const Login = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* ── Rate Limit inline banner — shown at top of card, fully visible ── */}
+          {lockoutTimer > 0 && (
+            <div className="mb-4 flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-destructive animate-in fade-in slide-in-from-top-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="text-sm font-semibold leading-snug">Too many login attempts</p>
+                <p className="text-xs leading-relaxed opacity-90">
+                  For your security, further attempts are temporarily blocked.{' '}
+                  Try again in{' '}
+                  <span className="font-bold tabular-nums">
+                    {lockoutTimer >= 60
+                      ? `${Math.floor(lockoutTimer / 60)}:${(lockoutTimer % 60).toString().padStart(2, '0')}`
+                      : `${lockoutTimer}s`}
+                  </span>.
+                </p>
+              </div>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
@@ -194,7 +209,8 @@ const Login = () => {
                 type="email"
                 placeholder="advocate@lawfirm.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                onChange={(e) => { setEmail(e.target.value); setError(null); }}
                 required
                 disabled={isSubmitting || lockoutTimer > 0}
               />
@@ -207,7 +223,8 @@ const Login = () => {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Enter your password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  onChange={(e) => { setPassword(e.target.value); setError(null); }}
                   required
                   disabled={isSubmitting || lockoutTimer > 0}
                 />
@@ -217,6 +234,7 @@ const Login = () => {
                   size="sm"
                   className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label="Toggle password visibility"
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -225,6 +243,11 @@ const Login = () => {
                   )}
                 </Button>
               </div>
+              {error && (
+                <div className="text-red-500 text-sm mt-2">
+                  {error}
+                </div>
+              )}
             </div>
             <Button
               type="submit"
@@ -234,10 +257,10 @@ const Login = () => {
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing In...
+                  Logging in...
                 </>
               ) : (
-                'Sign In'
+                'Login'
               )}
             </Button>
           </form>
@@ -255,7 +278,7 @@ const Login = () => {
             type="button"
             variant="outline"
             className="w-full flex items-center justify-center gap-2"
-            onClick={() => { window.location.href = getApiUrl('/api/v1/auth/google'); }}
+            onClick={() => { window.location.href = getApiUrl('/api/v1/auth/google?action=login'); }}
             disabled={isSubmitting || lockoutTimer > 0}
           >
             <GoogleIcon />
@@ -317,21 +340,6 @@ const Login = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ── Rate Limit Alert ── */}
-      {lockoutTimer > 0 && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-sm">
-          <div className="bg-destructive/10 border border-destructive/20 backdrop-blur-md p-4 rounded-xl flex items-start gap-3 shadow-lg animate-in fade-in slide-in-from-bottom-4">
-            <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <p className="text-sm font-semibold text-destructive">Too many login attempts</p>
-              <p className="text-xs text-destructive/80 leading-relaxed">
-                For your security, we've temporarily blocked further attempts. 
-                Please try again in <span className="font-bold tabular-nums">{Math.floor(lockoutTimer / 60)}:{(lockoutTimer % 60).toString().padStart(2, '0')}</span>.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

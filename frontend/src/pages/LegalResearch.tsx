@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,8 +20,21 @@ import {
   X,
   Zap,
   Brain,
+  ServerCrash,
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const ErrorScreen = ({ message }: { message: string }) => (
+  <div className="flex items-center justify-center py-12">
+    <Card className="text-center py-12 border border-transparent border-dashed w-full max-w-md">
+      <CardContent>
+        <ServerCrash className="h-10 w-10 mx-auto mb-3 text-destructive/50" />
+        <h3 className="text-lg font-semibold">System Error</h3>
+        <p className="text-sm text-muted-foreground mt-1">{message}</p>
+      </CardContent>
+    </Card>
+  </div>
+);
 import { useToast } from '@/hooks/use-toast';
 import { searchLegal, semanticSearchLegal, explainLegal, type LegalResult } from '@/services/legalApi';
 import {
@@ -200,7 +213,13 @@ const LegalResearch = () => {
 
   // API state
   const [isApiLoading, setIsApiLoading] = useState(false);
+  const [apiDown, setApiDown] = useState(false);
   const [apiResultsActs, setApiResultsActs] = useState<LegalResult[]>([]);
+
+  const isMounted = useRef(true);
+  useEffect(() => {
+      return () => { isMounted.current = false; };
+  }, []);
   const [apiResultsCases, setApiResultsCases] = useState<LegalResult[]>([]);
 
   // AI Assist
@@ -264,23 +283,25 @@ const LegalResearch = () => {
     const fetchSearch = async () => {
       setIsApiLoading(true);
       setVisibleCount(20);
+      setApiDown(false);
 
       try {
         let data;
         if (searchMode === 'semantic') {
           data = await semanticSearchLegal(debouncedQuery);
         } else {
-          // 'hybrid' or 'keyword' — backend handles 'hybrid' by default now
           data = await searchLegal(debouncedQuery);
         }
-        setApiResultsActs(data.results.acts || []);
-        setApiResultsCases(data.results.cases || []);
+        if (isMounted.current) {
+            setApiResultsActs(data.results.acts || []);
+            setApiResultsCases(data.results.cases || []);
+        }
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== 'AbortError') {
-          // Fallback message could be logged or toasted
+          if (isMounted.current) setApiDown(true);
         }
       } finally {
-        setIsApiLoading(false);
+        if (isMounted.current) setIsApiLoading(false);
       }
     };
 
@@ -416,12 +437,14 @@ const LegalResearch = () => {
       </Card>
 
       {/* Main Content Area */}
-      {!debouncedQuery ? (
+      {apiDown ? (
+        <ErrorScreen message="Service temporarily unavailable. Try again later." />
+      ) : !debouncedQuery ? (
         <div className="grid md:grid-cols-3 gap-4">
           <Card className="md:col-span-2 shadow-sm border-dashed">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Landmark className="h-4 w-4 text-primary" /> Core Statues
+                <Landmark className="h-4 w-4 text-primary" /> Core Statutes
               </CardTitle>
               <CardDescription className="text-xs">Quick access to primary Indian codes</CardDescription>
             </CardHeader>
@@ -513,9 +536,9 @@ const LegalResearch = () => {
                   <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
                     <Search className="h-6 w-6 text-muted-foreground" />
                   </div>
-                  <h3 className="text-base font-semibold">No direct matches found</h3>
+                  <h3 className="text-base font-semibold">No results found.</h3>
                   <p className="text-sm text-muted-foreground max-w-xs mt-1">
-                    Try switching to <strong className="text-primary cursor-pointer" onClick={() => setSearchMode('semantic')}>Semantic Mode</strong> for reasoning-based retrieval.
+                    Try different keywords.
                   </p>
                 </CardContent>
               </Card>

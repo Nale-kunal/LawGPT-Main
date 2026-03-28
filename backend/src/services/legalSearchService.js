@@ -198,12 +198,39 @@ function mergeResults(kwResults, semResults) {
     }
 
     // Compute hybrid score and sort
+    const normalize = (val) => Math.max(0, Math.min(val, 1));
+    const MIN_SCORE = 0.2;
+
+    const calculateScore = (r) => {
+        let semanticScore = normalize(r.semanticScore || 0);
+        let keywordScore = normalize(r.keywordScore || 0);
+
+        let score = (0.6 * semanticScore) + (0.3 * keywordScore);
+        
+        if (keywordScore > 0.8) {
+            score += 0.2;
+        }
+        if (semanticScore < 0.1 && keywordScore < 0.1) {
+            score -= 0.3;
+        }
+        return score;
+    };
+
     return [...byId.values()]
         .map(r => ({
             ...r,
-            score: (r.keywordScore * 0.5) + (r.semanticScore * 0.5),
+            semanticScore: normalize(r.semanticScore || 0),
+            keywordScore: normalize(r.keywordScore || 0),
+            finalScore: calculateScore(r)
         }))
-        .sort((a, b) => b.score - a.score);
+        .filter(r => r.finalScore > MIN_SCORE)
+        .sort((a, b) => {
+            if (b.finalScore === a.finalScore) {
+                return b.keywordScore - a.keywordScore;
+            }
+            return b.finalScore - a.finalScore;
+        })
+        .slice(0, 50);
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -212,22 +239,34 @@ function mergeResults(kwResults, semResults) {
  * Main search function — hybrid keyword + semantic.
  * Returns { acts, cases, sections } arrays capped at MAX_PER_COLLECTION each.
  *
- * @param {string} q — search query
+ * @param {string} rawQ — search query
  * @returns {Promise<{ acts: object[], cases: object[], sections: object[] }>}
  */
-export async function searchLegal(q) {
-    if (!q || !q.trim()) {
+const sanitizeQuery = (query) => {
+  if (typeof query !== 'string') return '';
+  return query
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s]/g, "")
+    .slice(0, 200); // limit length
+};
+
+export async function searchLegal(rawQ) {
+    if (!rawQ) {
         return { acts: [], cases: [], sections: [] };
     }
 
-    const trimmed = q.trim();
+    const q = sanitizeQuery(rawQ);
+    if (!q) {
+        return { acts: [], cases: [], sections: [] };
+    }
 
     // Run keyword and semantic searches in parallel
     const [kwActs, kwCases, sections, semResults] = await Promise.all([
-        searchActs(trimmed),
-        searchCases(trimmed),
-        searchSections(trimmed),
-        semanticSearch(trimmed, MAX_PER_COLLECTION).catch(err => {
+        searchActs(q),
+        searchCases(q),
+        searchSections(q),
+        semanticSearch(q, MAX_PER_COLLECTION).catch(err => {
             logger.warn({ err }, 'Semantic search failed, falling back to keyword only');
             return { acts: [], cases: [] };
         }),

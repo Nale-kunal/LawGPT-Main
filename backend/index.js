@@ -25,6 +25,7 @@ import { connectRedis, redis } from './src/utils/redis.js';
 import { csrfProtection, setCsrfToken } from './src/middleware/csrf.js';
 import { businessMetrics } from './src/utils/businessMetrics.js';
 import logger from './src/utils/logger.js';
+import ClientErrorLog from './src/models/ClientErrorLog.js';
 
 import authRoutes from './src/routes/auth-jwt.js';
 import googleAuthRoutes from './src/routes/google-auth.js';
@@ -193,6 +194,15 @@ app.use(compression());
 app.use(requestId);  // Sets req.requestId + X-Request-Id header
 app.use(pinoHttp({ logger, genReqId: (req) => req.requestId }));
 
+app.use((req, res, next) => {
+  logger.info({
+    requestId: req.requestId,
+    route: req.url,
+    userId: req.user?.id
+  });
+  next();
+});
+
 
 // ─── Prometheus Request Duration Tracking ────────────────────────────────────
 app.use((req, res, next) => {
@@ -233,6 +243,25 @@ function buildRateLimiter({ windowMs, max, message, limiterName, skip }) {
     message: { error: message },
     skip: skip || (() => false),
     handler(req, res, next, options) {
+      // Backend Tracking: Rate Limit Escalation
+      const ip = req.ip;
+      const key = `rl_hits:${ip}`;
+      
+      let failedAttempts = 1;
+      if (redis.isAvailable()) {
+          redis.client.incr(key).then(hits => {
+              if (hits === 1) redis.client.expire(key, 600); // 10 min window to accumulate
+              
+              if (hits > 10) {
+                  redis.client.setex(`block:${ip}`, 600, 'blocked'); // block 10 mins
+                  logger.warn({ ip, hits }, 'IP Blocked for 10 minutes');
+              } else if (hits > 5) {
+                  redis.client.setex(`block:${ip}`, 60, 'blocked'); // block 1 min
+                  logger.warn({ ip, hits }, 'IP Blocked for 1 minute');
+              }
+          }).catch(err => logger.error(err));
+      }
+
       // Track in Prometheus
       rateLimitCounter.inc({ limiter: limiterName });
       logger.warn({ ip: req.ip, path: req.path, limiter: limiterName }, 'Rate limit triggered');
@@ -298,6 +327,18 @@ app.use(globalLimiter);
 // ─── System Routes ────────────────────────────────────────────────────────────
 app.get('/favicon.ico', (_req, res) => res.status(204).end());
 
+app.get('/sitemap.xml', (req, res) => {
+  res.setHeader('Content-Type', 'application/xml');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  const routes = ['/', '/login', '/signup', '/legal-research', '/news'];
+  const urlset = routes.map(route => `
+    <url><loc>https://juriq.app${route !== '/' ? route : ''}</loc></url>`).join('');
+  
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urlset}
+</urlset>`);
+});
+
 app.get('/', (_req, res) => {
   res.json({
     ok: true,
@@ -305,6 +346,25 @@ app.get('/', (_req, res) => {
     version: process.env.npm_package_version || '1.0.0',
     docs: '/api/v1/health',
   });
+});
+
+app.get('/health', async (req, res) => {
+  try {
+    const mongoose = (await import('mongoose')).default;
+    const dbStatus = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+
+    res.status(200).json({
+      status: "ok",
+      uptime: process.uptime(),
+      database: dbStatus,
+      timestamp: Date.now()
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      status: "error"
+    });
+  }
 });
 
 // Enhanced health check
@@ -337,7 +397,42 @@ app.get('/api/v1/metrics', async (_req, res) => {
 app.get('/api/v1/auth/csrf-token', setCsrfToken);
 app.get('/api/auth/csrf-token', setCsrfToken);
 
-// ─── API v1 Routes ────────────────────────────────────────────────────────────
+const clientErrorLimiter = buildRateLimiter({
+  windowMs: 60 * 1000,
+  max: 20,
+  message: 'Too many error logs.',
+  limiterName: 'client-error'
+});
+
+app.post('/api/v1/logs/client-error', clientErrorLimiter, async (req, res) => {
+  if (JSON.stringify(req.body).length > 5000) {
+    return res.status(413).send("Payload too large");
+  }
+  if (!req.body.message) {
+    return res.status(400).send("Message required");
+  }
+
+  const { level, message, source, line, col, stack } = req.body;
+  const logLevel = level === 'warn' ? 'warn' : level === 'info' ? 'info' : 'error';
+  
+  logger[logLevel]({ 
+    msg: 'Client side log', level: logLevel, clientMessage: message, source, line, col, stack, userId: req.user?.userId || 'anonymous'
+  });
+  
+  try {
+      await ClientErrorLog.create({
+          message, source, line, col, stack, level: logLevel, userId: req.user?.userId
+      });
+  } catch (err) {
+      logger.error('Failed to store client error in DB');
+  }
+
+  if (process.env.SENTRY_DSN && logLevel === 'error') {
+    Sentry.captureException(new Error(message), { extra: { source, line, col, stack } });
+  }
+  res.json({ ok: true });
+});
+
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/auth', googleAuthRoutes); // Google OAuth (limiter now inside)
 app.use('/api/v1/cases/:caseId/notes', caseNotesRoutes);
@@ -430,6 +525,18 @@ async function startServer() {
     // ── 5. Start legal data cron job + token cleanup (non-blocking) ────────────
     startLegalCron();
     startTokenCleanup();
+    
+    // Log Retention Policy Cleanup
+    setInterval(async () => {
+      try {
+        const cutoff = new Date(Date.now() - (14 * 24 * 60 * 60 * 1000));
+        await ClientErrorLog.deleteMany({ createdAt: { $lt: cutoff } });
+        logger.info('Cleaned up old ClientErrorLogs');
+      } catch (err) {
+        logger.error({ err }, 'ClientErrorLog cleanup failed');
+      }
+    }, 86400000); // daily
+
     // Trigger an immediate seed on startup (non-blocking — errors are caught inside)
     import('./src/services/legalDataService.js')
       .then(({ runFullRefresh }) => runFullRefresh())

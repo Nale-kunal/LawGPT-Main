@@ -164,14 +164,31 @@ const userSchema = new mongoose.Schema({
   dataResidency: { type: String, default: 'IN-MUM-1' },
 
   // OAuth providers (additive — null for local users)
-  googleId: { type: String, default: null, sparse: true, index: true },
-  recoveryGoogleId: { type: String, default: null, sparse: true, index: true },
+  googleId: { type: String, default: null, sparse: true, unique: true },
+  recoveryGoogleId: { type: String, default: null, sparse: true, unique: true },
   authProvider: { type: String, enum: ['local', 'google', 'hybrid'], default: 'local' },
+  authProviders: { type: [String], default: ['email'] },
 }, { timestamps: true });
 
 // Indexes (email already has unique index from field definition)
 userSchema.index({ resetPasswordToken: 1 });
 userSchema.index({ verificationToken: 1 });
+
+// Hardening: Prevent recovery email from being the same as primary email
+userSchema.pre('save', function (next) {
+  // Normalize casing
+  if (this.email) {
+    this.email = this.email.toLowerCase().trim();
+  }
+  if (this.recoveryEmail) {
+    this.recoveryEmail = this.recoveryEmail.toLowerCase().trim();
+  }
+
+  if (this.recoveryEmail && this.email && this.recoveryEmail === this.email) {
+    return next(new Error("Recovery email cannot be primary email"));
+  }
+  return next();
+});
 
 userSchema.methods.verifyPassword = async function (password) {
   // Check if password hash exists

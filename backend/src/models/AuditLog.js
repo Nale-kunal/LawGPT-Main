@@ -58,6 +58,11 @@ const auditLogSchema = new mongoose.Schema(
             type: Date,
             default: () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
         },
+        createdAt: {
+            type: Date,
+            default: Date.now,
+            index: true
+        }
     },
     {
         timestamps: true,

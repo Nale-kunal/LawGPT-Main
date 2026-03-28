@@ -13,8 +13,21 @@ import {
     Search,
     ChevronLeft,
     ChevronRight,
-    X
+    X,
+    ServerCrash
 } from 'lucide-react';
+
+const ErrorScreen = ({ message }: { message: string }) => (
+  <div className="flex items-center justify-center py-12">
+    <Card className="text-center py-12 border border-transparent border-dashed w-full max-w-md">
+      <CardContent>
+        <ServerCrash className="h-10 w-10 mx-auto mb-3 text-destructive/50" />
+        <h3 className="text-lg font-semibold">System Error</h3>
+        <p className="text-sm text-muted-foreground mt-1">{message}</p>
+      </CardContent>
+    </Card>
+  </div>
+);
 import { apiRequest } from '@/lib/api';
 
 interface PaginationMetadata {
@@ -54,8 +67,14 @@ const LegalNews: React.FC = () => {
     const [news, setNews] = useState<NewsItem[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
+    const [apiDown, setApiDown] = useState<boolean>(false);
     const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
     const [pagination, setPagination] = useState<PaginationMetadata | null>(null);
+
+    const isMounted = React.useRef(true);
+    useEffect(() => {
+        return () => { isMounted.current = false; };
+    }, []);
 
     // Search and Filter State
     const [searchTerm, setSearchTerm] = useState('');
@@ -65,9 +84,22 @@ const LegalNews: React.FC = () => {
 
     const sources = ['LiveLaw', 'Bar & Bench', 'Google News Law India'];
 
+    const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+    const fetchWithRetry = async <T,>(fn: () => Promise<T>, retries = 2): Promise<T> => {
+        try {
+            return await fn();
+        } catch (err) {
+            if (retries <= 0) throw err;
+            await delay(500 * (3 - retries));
+            return fetchWithRetry(fn, retries - 1);
+        }
+    };
+
     const fetchNews = useCallback(async (page = 1, search = '', source = '', silent = false) => {
         if (!silent) setLoading(true);
         setError(null);
+        setApiDown(false);
         try {
             const params = new URLSearchParams({
                 page: page.toString(),
@@ -76,16 +108,23 @@ const LegalNews: React.FC = () => {
                 source: source || ''
             });
 
-            const data = await apiRequest<{ news: NewsItem[], pagination: PaginationMetadata }>(`/api/news?${params.toString()}`);
-            setNews(data.news || []);
-            setPagination(data.pagination || null);
-            setCurrentPage(data.pagination?.page || 1);
-        } catch (err) {
+            const data = await fetchWithRetry(() => apiRequest<{ news: NewsItem[], pagination: PaginationMetadata }>(`/api/news?${params.toString()}`));
+            if (isMounted.current) {
+                setNews(data.news || []);
+                setPagination(data.pagination || null);
+                setCurrentPage(data.pagination?.page || 1);
+            }
+        } catch (err: any) {
             console.error('Error fetching news:', err);
-            setError('Could not load latest news updates.');
+            if (isMounted.current) {
+                if (err.message?.includes('fetch') || err.message?.includes('Network')) setApiDown(true);
+                else setError('Could not load latest news updates.');
+            }
         } finally {
-            setLoading(false);
-            setIsRefreshing(false);
+            if (isMounted.current) {
+                setLoading(false);
+                setIsRefreshing(false);
+            }
         }
     }, []);
 
@@ -230,17 +269,19 @@ const LegalNews: React.FC = () => {
                 </CardContent>
             </Card>
 
-            {loading ? (
+            {apiDown ? (
+                <ErrorScreen message="Service temporarily unavailable. Try again later." />
+            ) : loading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                     {[1, 2, 3, 4, 5, 6].map(i => (
                         <Card key={i} className="h-40 rounded-xl border border-transparent bg-muted/20 animate-pulse shadow-sm" />
                     ))}
                 </div>
-            ) : error && (!news || news.length === 0) ? (
+            ) : error ? (
                 <Card className="text-center py-12 border border-transparent hover:border-accent hover:border-2 transition-all">
                     <CardContent>
                         <AlertTriangle className="h-8 w-8 mx-auto mb-3 text-destructive/50" />
-                        <p className="text-sm font-medium">{error}</p>
+                        <p className="text-sm font-medium">Failed to load news</p>
                         <Button variant="outline" size="sm" className="mt-4 h-8 text-xs" onClick={() => fetchNews(1, debouncedSearch, selectedSource || '')}>
                             Try Again
                         </Button>
@@ -250,9 +291,9 @@ const LegalNews: React.FC = () => {
                 <Card className="text-center py-12 border border-transparent hover:border-accent hover:border-2 transition-all border-dashed">
                     <CardContent>
                         <Newspaper className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                        <p className="text-sm text-muted-foreground">No updates found matching your criteria.</p>
-                        <Button variant="link" size="sm" className="mt-1 text-xs" onClick={clearFilters}>
-                            Reset filters
+                        <h3 className="text-lg font-semibold mt-2">No updates found</h3>
+                        <Button variant="link" size="sm" className="mt-1 text-xs text-muted-foreground hover:text-foreground" onClick={handleRefresh}>
+                            Try refreshing
                         </Button>
                     </CardContent>
                 </Card>

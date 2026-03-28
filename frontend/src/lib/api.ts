@@ -26,6 +26,15 @@ export function getApiUrl(path: string): string {
   return baseUrl ? `${baseUrl}${cleanPath}` : cleanPath;
 }
 
+export const fetchWithTimeout = (url: string | URL, options = {}, timeout = 8000) => {
+  return Promise.race([
+    fetch(url, options as RequestInit),
+    new Promise<Response>((_, reject) =>
+      setTimeout(() => reject(new Error("timeout")), timeout)
+    )
+  ]);
+};
+
 /**
  * Helper to get the CSRF token from cookies
  */
@@ -50,6 +59,16 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
   const headers = new Headers(options.headers);
   const method = (options.method || 'GET').toUpperCase();
   const isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+
+  // Attach Request Tracing UUID consistently per session
+  let requestId = sessionStorage.getItem('requestId');
+  if (!requestId) {
+    requestId = crypto.randomUUID();
+    sessionStorage.setItem('requestId', requestId);
+  }
+  if (!headers.has('x-request-id')) {
+    headers.set('x-request-id', requestId);
+  }
 
   // Ensure we send JSON by default if body is present (unless it's FormData)
   if (!headers.has('Content-Type') && options.body && !(options.body instanceof FormData)) {
@@ -101,11 +120,18 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
     }
   }
 
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     ...options,
     headers,
     credentials: 'include', // ALWAYS set
-  });
+  }, 8000);
+
+  const resRequestId = response.headers.get("x-request-id");
+  // Only log request IDs in dev, and skip noisy auth-check endpoints (401s there are expected)
+  const isAuthCheckEndpoint = url.includes('/auth/me') || url.includes('/auth/refresh');
+  if ((import.meta.env.DEV || process.env.NODE_ENV === "development") && !isAuthCheckEndpoint) {
+    console.debug("Request ID:", resRequestId);
+  }
 
   // 401 Handling: Trigger centralized auth reset, clear tokens/state, do not reload.
   // We skip intercepting 401s on the explicitly auth endpoints so refresh logic can handle it gracefully.

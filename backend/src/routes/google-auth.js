@@ -119,16 +119,7 @@ function setRefreshCookie(res, refreshToken) {
 
 // ── LINKING STATE HELPERS ────────────────────────────────────────────────────
 const LINK_STATE_COOKIE = 'oauth_link_state';
-const LINK_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-
-function signLinkState(state, userId) {
-  const payload = `${state}:${userId}`;
-  const secret = process.env.JWT_SECRET || 'fallback';
-  const sig = crypto.createHmac('sha256', secret)
-    .update(payload)
-    .digest('hex');
-  return `${Buffer.from(payload).toString('base64url')}.${sig}`;
-}
+const _LINK_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes — kept for documentation
 
 function verifyLinkState(cookieValue) {
   try {
@@ -292,17 +283,6 @@ const DEFAULT_SECURITY = {
 const RECOVERY_PENDING_COOKIE = 'recovery_pending_data';
 
 /**
- * Sign pending recovery data (email + googleId) for confirm-replace flow.
- */
-function signRecoveryData(email, googleId, userId) {
-  const payload = `${email}:${googleId}:${userId}`;
-  const sig = crypto.createHmac('sha256', JWT_SECRET || 'fallback')
-    .update(payload)
-    .digest('hex');
-  return `${Buffer.from(payload).toString('base64url')}.${sig}`;
-}
-
-/**
  * Verify pending recovery data.
  */
 function verifyRecoveryData(cookieValue) {
@@ -314,7 +294,7 @@ function verifyRecoveryData(cookieValue) {
     const encodedPayload = cookieValue.slice(0, dotIdx);
     const receivedSig = cookieValue.slice(dotIdx + 1);
     const payload = Buffer.from(encodedPayload, 'base64url').toString('utf8');
-    const expectedSig = crypto.createHmac('sha256', JWT_SECRET || 'fallback')
+    const expectedSig = crypto.createHmac('sha256', process.env.JWT_SECRET || 'fallback')
       .update(payload)
       .digest('hex');
     const sigBuf = Buffer.from(receivedSig);
@@ -375,7 +355,7 @@ router.get('/google/callback', async (req, res) => {
   const frontendUrl = getFrontendUrl();
 
   // Build a structured redirect-error (never exposes internal details)
-  let redirectError = (errorCode, _message) => {
+  const redirectError = (errorCode, _message) => {
     logger.warn({ errorCode, ip: req.ip }, `Google OAuth callback rejected: ${errorCode}`);
     
     // Dynamically check if this originated as a link flow parsing the raw state parameter

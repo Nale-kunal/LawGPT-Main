@@ -202,8 +202,8 @@ function mergeResults(kwResults, semResults) {
     const MIN_SCORE = 0.2;
 
     const calculateScore = (r) => {
-        let semanticScore = normalize(r.semanticScore || 0);
-        let keywordScore = normalize(r.keywordScore || 0);
+        const semanticScore = normalize(r.semanticScore || 0);
+        const keywordScore = normalize(r.keywordScore || 0);
 
         let score = (0.6 * semanticScore) + (0.3 * keywordScore);
         
@@ -243,7 +243,7 @@ function mergeResults(kwResults, semResults) {
  * @returns {Promise<{ acts: object[], cases: object[], sections: object[] }>}
  */
 const sanitizeQuery = (query) => {
-  if (typeof query !== 'string') return '';
+  if (typeof query !== 'string') { return ''; }
   return query
     .trim()
     .toLowerCase()

@@ -242,24 +242,26 @@ function buildRateLimiter({ windowMs, max, message, limiterName, skip }) {
     legacyHeaders: false,
     message: { error: message },
     skip: skip || (() => false),
-    handler(req, res, next, options) {
+    async handler(req, res, next, options) {
       // Backend Tracking: Rate Limit Escalation
       const ip = req.ip;
       const key = `rl_hits:${ip}`;
       
-      let failedAttempts = 1;
-      if (redis.isAvailable()) {
-          redis.client.incr(key).then(hits => {
-              if (hits === 1) redis.client.expire(key, 600); // 10 min window to accumulate
-              
-              if (hits > 10) {
-                  redis.client.setex(`block:${ip}`, 600, 'blocked'); // block 10 mins
-                  logger.warn({ ip, hits }, 'IP Blocked for 10 minutes');
-              } else if (hits > 5) {
-                  redis.client.setex(`block:${ip}`, 60, 'blocked'); // block 1 min
-                  logger.warn({ ip, hits }, 'IP Blocked for 1 minute');
-              }
-          }).catch(err => logger.error(err));
+      try {
+        if (redis.isAvailable()) {
+            const hits = await redis.incr(key);
+            if (hits === 1) await redis.expire(key, 600); // 10 min window to accumulate
+            
+            if (hits > 10) {
+                await redis.set(`block:${ip}`, 'blocked', 600); // block 10 mins
+                logger.warn({ ip, hits }, 'IP Blocked for 10 minutes');
+            } else if (hits > 5) {
+                await redis.set(`block:${ip}`, 'blocked', 60); // block 1 min
+                logger.warn({ ip, hits }, 'IP Blocked for 1 minute');
+            }
+        }
+      } catch (err) {
+        logger.error({ err }, 'Rate limit escalation tracking failed');
       }
 
       // Track in Prometheus
@@ -277,7 +279,7 @@ function buildRateLimiter({ windowMs, max, message, limiterName, skip }) {
 
       // If it's a browser-initiated GET request to the OAuth limiter, redirect back to login
       // We check for 'google' or 'oauth' anywhere in the URL, case-insensitively.
-      const isOAuthPath = /google|oauth/i.test(req.originalUrl) || /google|oauth/i.test(req.url);
+      const isOAuthPath = /google|oauth/i.test(req.originalUrl || '') || /google|oauth/i.test(req.url || '');
       const isBrowser = req.method === 'GET';
 
       if (isBrowser && (limiterName === 'oauth' || isOAuthPath)) {
@@ -449,6 +451,7 @@ app.use('/api/v1/2fa', twoFactorRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/internal/admin', adminInternalLimiter, adminInternalRoutes);
 app.use('/api/v1/news', newsRoutes);
+app.use('/api/news', newsRoutes);
 app.use('/api/v1/legal', legalRoutes);
 
 // ─── Backward Compatibility /api/* → /api/v1/* (90-day window) ───────────────

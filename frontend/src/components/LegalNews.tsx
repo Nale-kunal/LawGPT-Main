@@ -63,6 +63,18 @@ const formatRelativeTime = (isoDate: string) => {
     }
 };
 
+const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+const fetchWithRetry = async <T,>(fn: () => Promise<T>, retries = 2): Promise<T> => {
+    try {
+        return await fn();
+    } catch (err) {
+        if (retries <= 0) throw err;
+        await delay(500 * (3 - retries));
+        return fetchWithRetry(fn, retries - 1);
+    }
+};
+
 const LegalNews: React.FC = () => {
     const [news, setNews] = useState<NewsItem[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
@@ -84,18 +96,6 @@ const LegalNews: React.FC = () => {
 
     const sources = ['LiveLaw', 'Bar & Bench', 'Google News Law India'];
 
-    const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
-
-    const fetchWithRetry = async <T,>(fn: () => Promise<T>, retries = 2): Promise<T> => {
-        try {
-            return await fn();
-        } catch (err) {
-            if (retries <= 0) throw err;
-            await delay(500 * (3 - retries));
-            return fetchWithRetry(fn, retries - 1);
-        }
-    };
-
     const fetchNews = useCallback(async (page = 1, search = '', source = '', silent = false) => {
         if (!silent) setLoading(true);
         setError(null);
@@ -108,7 +108,7 @@ const LegalNews: React.FC = () => {
                 source: source || ''
             });
 
-            const data = await fetchWithRetry(() => apiRequest<{ news: NewsItem[], pagination: PaginationMetadata }>(`/api/news?${params.toString()}`));
+            const data = await fetchWithRetry(() => apiRequest<{ news: NewsItem[], pagination: PaginationMetadata }>(`/api/v1/news?${params.toString()}`));
             if (isMounted.current) {
                 setNews(data.news || []);
                 setPagination(data.pagination || null);
@@ -127,7 +127,7 @@ const LegalNews: React.FC = () => {
                 setIsRefreshing(false);
             }
         }
-    }, [fetchWithRetry]);
+    }, []); // Stabilized fetchNews
 
     // Handle Debounced Search
     useEffect(() => {
@@ -137,14 +137,21 @@ const LegalNews: React.FC = () => {
         return () => clearTimeout(timer);
     }, [searchTerm]);
 
-    // Fetch when search, filter or page change
+    // Combine search, filter, and page change logic
     useEffect(() => {
-        fetchNews(currentPage, debouncedSearch, selectedSource || '');
+        // When debouncedSearch or selectedSource changes, reset to page 1
+        const runFetch = async () => {
+            fetchNews(currentPage, debouncedSearch, selectedSource || '');
+        };
+        runFetch();
     }, [currentPage, debouncedSearch, selectedSource, fetchNews]);
 
-    // Reset pagination on search/filter change
+    // Reset pagination on search/filter change WITHOUT redundant fetch
+    // We only need to set CURRENT PAGE to 1; the effect above will handle the fetch properly.
     useEffect(() => {
-        setCurrentPage(1);
+        if (currentPage !== 1) {
+            setCurrentPage(1);
+        }
     }, [debouncedSearch, selectedSource]);
 
     const handleRefresh = () => {

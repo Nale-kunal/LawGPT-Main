@@ -448,7 +448,7 @@ app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/2fa', twoFactorRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/internal/admin', adminInternalLimiter, adminInternalRoutes);
-app.use('/api/news', newsRoutes);
+app.use('/api/v1/news', newsRoutes);
 app.use('/api/v1/legal', legalRoutes);
 
 // ─── Backward Compatibility /api/* → /api/v1/* (90-day window) ───────────────

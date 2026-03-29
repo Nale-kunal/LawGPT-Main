@@ -253,9 +253,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     window.addEventListener('pageshow', handlePageShow);
 
+    // 7. GLOBAL 401 UNAUTHORIZED LISTENER
+    // Triggered by apiFetch when a token refresh fails
+    const handleUnauthorized = () => {
+      console.warn('Handling global auth:unauthorized event');
+      persistUser(null, true);
+      if (!isLoggingOut.current) {
+        window.location.replace('/login');
+      }
+    };
+
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+
     return () => {
       mounted = false;
       window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
     };
   }, [refreshUser, persistUser]);
 

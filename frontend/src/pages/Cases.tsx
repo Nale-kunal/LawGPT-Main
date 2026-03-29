@@ -496,7 +496,7 @@ const Cases = () => {
                 <div>
                   <Label htmlFor="courtName">Court Name*</Label>
                   <Select
-                    value={courtSelectValue || undefined}
+                    value={courtSelectValue || ''}
                     onValueChange={handleCourtSelect}
                   >
                     <SelectTrigger>

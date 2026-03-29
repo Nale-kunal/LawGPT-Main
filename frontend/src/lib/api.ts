@@ -128,21 +128,50 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
 
   const resRequestId = response.headers.get("x-request-id");
   // Only log request IDs in dev, and skip noisy auth-check endpoints (401s there are expected)
-  const isAuthCheckEndpoint = url.includes('/auth/me') || url.includes('/auth/refresh');
+  const isAuthCheckEndpoint = url.includes('/auth/me') || url.includes('/auth/refresh') || url.includes('/auth/validate');
   if ((import.meta.env.DEV || process.env.NODE_ENV === "development") && !isAuthCheckEndpoint) {
     console.warn("Request ID:", resRequestId);
   }
 
-  // 401 Handling: Trigger centralized auth reset, clear tokens/state, do not reload.
-  // We skip intercepting 401s on the explicitly auth endpoints so refresh logic can handle it gracefully.
+  // 401 Handling: Automatically attempt token refresh on 401 from non-auth endpoints
   const isAuthEndpoint = url.includes('/api/v1/auth/') || url.includes('/api/auth/');
+
   if (response.status === 401 && !isAuthEndpoint) {
-    console.warn('API 401 Unauthorized encountered:', { url, method, isMutating });
-    // Dispatch centralized auth event for any listeners
-    window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+    console.warn('API 401 Unauthorized encountered. Attempting token refresh...', { url, method });
+
+    try {
+      // 1. Attempt to refresh the token using the refresh token cookie
+      const refreshRes = await fetch(getApiUrl('/api/v1/auth/refresh'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'x-request-id': requestId as string // Reuse same request ID for tracing
+        }
+      });
+
+      if (refreshRes.ok) {
+        console.info('Token refreshed successfully. Retrying original request.');
+        // 2. Retry the original request with the same parameters
+        const retryResponse = await fetchWithTimeout(url, {
+          ...options,
+          headers,
+          credentials: 'include',
+        }, 8000);
+
+        return retryResponse;
+      } else {
+        console.error('Token refresh failed. Dispatching auth:unauthorized.');
+        // If refresh fails, original 401 should trigger global unauthorized event
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+      }
+    } catch (refreshError) {
+      console.error('Error during token refresh:', refreshError);
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+    }
   }
 
   return response;
+
 }
 
 /**

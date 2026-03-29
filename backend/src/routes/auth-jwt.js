@@ -35,6 +35,21 @@ const router = express.Router();
 // Called by the frontend useCSRF hook on first render.
 router.get('/csrf-token', setCsrfToken);
 
+/**
+ * GET /api/v1/auth/validate
+ * Lightweight synchronous auth validation endpoint for BFCache recovery
+ */
+router.get('/validate', (req, res) => {
+  const token = req.cookies?.token;
+  if (!token) return res.json({ authenticated: false });
+  try {
+    jwt.verify(token, process.env.JWT_SECRET);
+    return res.json({ authenticated: true });
+  } catch (err) {
+    return res.json({ authenticated: false });
+  }
+});
+
 
 // Helper constants
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -106,6 +121,13 @@ function setAuthCookie(res, token) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 15 * 60 * 1000, // 15 minutes
+    path: '/'
+  });
+  res.cookie('is_authenticated', 'true', {
+    httpOnly: false, // Accessible by synchronous index.html JS
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: 15 * 60 * 1000,
     path: '/'
   });
 }
@@ -563,6 +585,13 @@ router.post('/logout', async (req, res) => {
   };
   // Clear access token (set at path '/')
   res.clearCookie('token', { ...base, path: '/' });
+  // Clear frontend script boundary cookie
+  res.clearCookie('is_authenticated', {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    path: '/'
+  });
   // Clear refresh token — use same path it is set with ('/')
   res.clearCookie('refreshToken', { ...base, path: '/' });
   // Belt-and-suspenders: also clear legacy '/api' path in case old cookies exist

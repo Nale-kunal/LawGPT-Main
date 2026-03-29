@@ -106,6 +106,13 @@ function setAuthCookie(res, token) {
     maxAge: 15 * 60 * 1000,
     path: '/',
   });
+  res.cookie('is_authenticated', 'true', {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: 15 * 60 * 1000,
+    path: '/',
+  });
 }
 function setRefreshCookie(res, refreshToken) {
   res.cookie('refreshToken', refreshToken, {

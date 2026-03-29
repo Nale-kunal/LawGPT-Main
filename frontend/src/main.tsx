@@ -56,5 +56,32 @@ window.onerror = async (message, source, lineno, colno, error) => {
   isSendingError = false;
 };
 
-createRoot(document.getElementById("root")!).render(<App />);
+async function initApp() {
+  const p = window.location.pathname;
+  const isAuthPage = ['/login', '/signup', '/forgot-password', '/reset-password'].includes(p) || p === '/';
 
+  // GLOBAL AUTH GUARD (RUN BEFORE RENDER)
+  if (isAuthPage) {
+    try {
+      const res = await fetch('/api/v1/auth/validate', {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      const data = await res.json();
+      if (data.authenticated) {
+        // HARD REDIRECT
+        window.location.replace('/dashboard');
+        return; // Prevent render
+      }
+    } catch (_err) {
+      // allow fallback to standard react behaviors
+    }
+  }
+
+  createRoot(document.getElementById("root")!).render(<App />);
+}
+
+initApp();

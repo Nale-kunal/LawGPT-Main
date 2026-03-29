@@ -11,6 +11,16 @@
     <meta name="keywords" content="legal case management, law firm software, Indian legal software, court calendar, legal AI" />
     <meta name="author" content="Juriq" />
 
+    <!-- Synchronous Auth Guard (BFCache / Boot Level) -->
+    <script>
+      (function() {
+        var p = window.location.pathname;
+        var isAuth = p === '/login' || p === '/signup' || p === '/forgot-password' || p === '/reset-password' || p === '/';
+        if (isAuth && document.cookie.indexOf('is_authenticated=true') !== -1) {
+          window.location.replace('/dashboard');
+        }
+      })();
+    </script>
 
     <link rel="icon" href="/favicon.ico" />
 

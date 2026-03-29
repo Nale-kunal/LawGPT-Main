@@ -92,9 +92,8 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-// Lightweight flag — set on login/register, cleared on logout.
-// Prevents /auth/me + /auth/refresh from firing when there is provably no session.
-const SESSION_FLAG = 'juriq_has_session';
+// Session boundaries are now strictly governed by secure backend cookies
+// and synchronous /validate calls, destroying old frontend fallbacks.
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -103,53 +102,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Guard: prevents refreshUser() from re-authenticating while logout is in progress
   const isLoggingOut = useRef(false);
   const hasInitialized = useRef(false);
-  const isInitializing = useRef(false); // Ref to prevent parallel initialization calls
 
   const persistUser = useCallback((userData: User | null, shouldClearCookies = false) => {
     if (userData) {
       setUser(userData);
       setAuthState("authenticated");
-      // Mark that a session exists so future page loads can skip the blind auth check
-      localStorage.setItem(SESSION_FLAG, '1');
     } else {
       setUser(null);
       setAuthState("unauthenticated");
       
-      // Only clear persistent storage and cookies if explicitly requested (e.g., logout or confirmed invalid session)
-      // This prevents a single failed check or transient network error from nuking the user's login.
       if (shouldClearCookies) {
-        localStorage.removeItem(SESSION_FLAG);
-        localStorage.removeItem('juriq_user');
-        // Clear cookies (belt-and-suspenders alongside httpOnly cookie cleared by backend)
+        // Clear cookies generically from frontend just in case backend fails
         document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + window.location.hostname + ';';
         document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-        const hostname = window.location.hostname;
-        const parts = hostname.split('.');
-        if (parts.length > 1) {
-          const domain = '.' + parts.slice(-2).join('.');
-          document.cookie = `token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${domain};`;
-        }
+        document.cookie = 'is_authenticated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
       }
     }
   }, []);
 
   const refreshUser = useCallback(async () => {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
       const res = await apiFetch(getApiUrl('/api/v1/auth/me'), {
         credentials: 'include',
         cache: 'no-store',
-        signal: controller.signal,
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
           'Expires': '0'
         }
       });
-
-      clearTimeout(timeoutId);
 
       if (res.status === 401) {
         // user not logged in → expected
@@ -190,144 +171,93 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     let mounted = true;
-    let visibilityTimeout: NodeJS.Timeout | null = null;
-    let focusTimeout: NodeJS.Timeout | null = null;
 
-    const init = async () => {
-      // Prevent parallel or redundant initializations
-      if (hasInitialized.current || isInitializing.current) return;
-      
-      isInitializing.current = true;
-      const hasSessionFlag = !!localStorage.getItem(SESSION_FLAG);
-
+    const runGlobalAuthGuard = async () => {
       try {
         setAuthState("loading");
-
-        if (!hasSessionFlag) {
-          // No prior session flag — could still be a Google OAuth redirect (JWT cookie
-          // was set by backend but localStorage flag not yet written).
-          try {
-            const fastRes = await apiFetch(getApiUrl('/api/v1/auth/me'), {
-              credentials: 'include',
-              cache: 'no-store',
-            });
-            if (fastRes.ok) {
-              const data = await fastRes.json();
-              if (mounted) persistUser(data.user ? data.user as User : null);
-            } else {
-              // 401/403: user is not logged in.
-              // We do NOT call persistUser(null, true) here to avoid deleting cookies
-              // that might still be valid but temporarily inaccessible.
-              if (mounted) persistUser(null);
-            }
-          } catch {
-            if (mounted) persistUser(null);
+        
+        // 1. Core verification against new /validate endpoint
+        const valRes = await apiFetch(getApiUrl('/api/v1/auth/validate'), {
+          credentials: 'include',
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        
+        const valData = await valRes.json();
+        
+        if (!valData.authenticated) {
+          if (mounted) {
+            persistUser(null);
+            setIsLoading(false);
           }
-        } else {
-          // Has session flag — do full refreshUser (includes /auth/refresh retry for expired sessions)
-          const fetchWithTimeoutLocal = async <T,>(promise: Promise<T>, timeoutMs = 8000): Promise<T> => {
-            const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Auth timeout")), timeoutMs));
-            return Promise.race([promise, timeout]);
-          };
-          await fetchWithTimeoutLocal(refreshUser(), 8000);
+          return;
         }
-      } catch (err: unknown) {
-        if (mounted) {
-            const message = err instanceof Error ? err.message : '';
-            if (message === 'Auth timeout' || message === 'timeout' || message.includes('fetch') || message.includes('Network')) {
-                setAuthState("unknown"); 
-            } else {
-                setAuthState("unauthenticated");
-                persistUser(null);
-            }
+
+        // 3. GLOBAL AUTH GUARD (IF AUTHENTICATED -> NO RENDER OF LOGIN)
+        const p = window.location.pathname;
+        if (['/login', '/signup', '/forgot-password', '/reset-password'].includes(p)) {
+           // 4. HARD REDIRECT
+           window.location.replace('/dashboard');
+           return;
         }
-      } finally {
+
+        // 2. We are validated. Fetch context profile memory.
+        const res = await apiFetch(getApiUrl('/api/v1/auth/me'), {
+          credentials: 'include',
+          cache: 'no-store'
+        });
+        
+        if (!res.ok) {
+           // if /me fails but /validate succeeds, try full refresh
+           await refreshUser();
+           if (mounted) setIsLoading(false);
+           return;
+        }
+        
+        const data = await res.json();
         if (mounted) {
-          hasInitialized.current = true;
-          isInitializing.current = false;
+          persistUser(data.user as User);
+          setIsLoading(false);
+        }
+      } catch (err) {
+        if (mounted) {
+          persistUser(null);
           setIsLoading(false);
         }
       }
     };
 
-    // Set a timeout to ensure loading doesn't hang forever
-    const timeout = setTimeout(() => {
-      if (mounted && authState !== 'unknown') {
-        setIsLoading(false);
-      }
-    }, 5000); // Max 5 seconds for initial load
+    runGlobalAuthGuard();
 
-    init();
-
-    // Handle browser back/forward cache (bfcache) restore
+    // 6. PAGE VISIBILITY + PAGESHOW HANDLING
     const handlePageShow = async (event: PageTransitionEvent) => {
-      if (!event.persisted || !mounted) return;
-      
-      // If BFCache restored a loading state or unauthenticated state but we have a session hint, re-init.
-      const needsInit = !hasInitialized.current || (authState !== 'authenticated' && !!localStorage.getItem(SESSION_FLAG));
-      if (needsInit) {
-        hasInitialized.current = false;
-        isInitializing.current = false; // <--- CRITICAL: release frozen memory lock so init() can run
-        setIsLoading(true);
-        await init();
-      } else {
-        // Just ensure loading is off if we are already initialized
-        setIsLoading(false);
-      }
-    };
-
-    // Also handle visibility change (tab switching) - debounced
-    const handleVisibilityChange = () => {
-      if (!document.hidden && mounted) {
-        // Debounce to prevent excessive calls
-        if (visibilityTimeout) clearTimeout(visibilityTimeout);
-        visibilityTimeout = setTimeout(async () => {
-          if (mounted) {
-            const needsLoader = authState !== 'authenticated' && !!localStorage.getItem(SESSION_FLAG);
-            if (needsLoader) setIsLoading(true);
-            await refreshUser();
-            if (needsLoader && mounted) setIsLoading(false);
+      if (event.persisted) {
+        // BFCache restored detected. Force aggressive revalidation.
+        try {
+          const res = await apiFetch(getApiUrl('/api/v1/auth/validate'), {
+             credentials: 'include',
+             cache: 'no-store'
+          });
+          const data = await res.json();
+          if (data.authenticated) {
+            const path = window.location.pathname;
+            if (['/login', '/signup', '/forgot-password'].includes(path) || path === '/') {
+              window.location.replace('/dashboard');
+            }
           }
-        }, 500);
-      }
-    };
-
-    // Handle focus events (window regains focus) - debounced
-    const handleFocus = () => {
-      if (focusTimeout) clearTimeout(focusTimeout);
-      focusTimeout = setTimeout(async () => {
-        if (mounted) {
-            const needsLoader = authState !== 'authenticated' && !!localStorage.getItem(SESSION_FLAG);
-            if (needsLoader) setIsLoading(true);
-            await refreshUser();
-            if (needsLoader && mounted) setIsLoading(false);
+        } catch {
+          // ignore background errors
         }
-      }, 500);
+      }
     };
 
     window.addEventListener('pageshow', handlePageShow);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
 
     return () => {
       mounted = false;
-      clearTimeout(timeout);
       window.removeEventListener('pageshow', handlePageShow);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-      if (visibilityTimeout) clearTimeout(visibilityTimeout);
-      if (focusTimeout) clearTimeout(focusTimeout);
     };
-  }, [refreshUser, persistUser, authState]);
-
-  useEffect(() => {
-    if (authState === "unknown") {
-      const timer = setTimeout(() => {
-        setAuthState("unauthenticated");
-      }, 8000);
-      return () => clearTimeout(timer);
-    }
-  }, [authState]);
+  }, [refreshUser, persistUser]);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; errorCode?: string }> => {
     setIsLoading(true);
@@ -358,9 +288,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       if (data.user) {
-        persistUser(data.user as User);
-        setIsLoading(false);
-        setAuthState("authenticated");
+        // 5. HISTORY STACK ELIMINATION
+        // We do NOT use React Router here to jump. We trigger a real hard redirect destroying backward trace natively.
+        window.location.replace('/dashboard');
         return { success: true };
       } else {
         persistUser(null);
@@ -483,7 +413,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated: !!user
   };
 
-  if (authState === "loading" || authState === "unknown") {
+  if (authState === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">

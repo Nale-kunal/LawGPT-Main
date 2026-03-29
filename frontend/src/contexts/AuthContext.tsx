@@ -265,9 +265,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // If BFCache restored a loading state or unauthenticated state but we have a session hint, re-init.
       const needsInit = !hasInitialized.current || (authState !== 'authenticated' && !!localStorage.getItem(SESSION_FLAG));
-      
       if (needsInit) {
         hasInitialized.current = false;
+        isInitializing.current = false; // <--- CRITICAL: release frozen memory lock so init() can run
         setIsLoading(true);
         await init();
       } else {

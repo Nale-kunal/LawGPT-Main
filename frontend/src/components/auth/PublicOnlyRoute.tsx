@@ -35,5 +35,11 @@ export default function PublicOnlyRoute({ children }: { children: React.ReactNod
         return <Navigate to="/dashboard" replace />;
     }
 
+    // Safety fallback: If AuthContext got stuck loading (e.g. from a BFCache lock)
+    // but the user clearly has a session, do not leave them stranded on the public page!
+    if (timedOut && !isAuthenticated && !!localStorage.getItem('juriq_has_session')) {
+        return <Navigate to="/dashboard" replace />;
+    }
+
     return <>{children}</>;
 }

@@ -482,6 +482,10 @@ const Settings = () => {
   };
 
   const handleImportData = () => {
+    setShowImportDialog(true);
+  };
+
+  const handleProcessImport = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
@@ -502,6 +506,7 @@ const Settings = () => {
           title: 'Import feature',
           description: 'Data import functionality is under development. Your file has been validated successfully.',
         });
+        setShowImportDialog(false);
       } catch (error) {
         toast({
           title: 'Import failed',

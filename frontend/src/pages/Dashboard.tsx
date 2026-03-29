@@ -55,6 +55,16 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Trap the back button when we are on the dashboard root
+    window.history.pushState(null, '', window.location.href);
+    
+    const handlePopState = () => {
+      // Prevent leaving the dashboard root by pushing the state right back
+      window.history.pushState(null, '', window.location.href);
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
@@ -81,6 +91,10 @@ const Dashboard = () => {
     };
 
     fetchDashboardData();
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
   }, []);
 
   const todaysCases = cases.filter(c => {

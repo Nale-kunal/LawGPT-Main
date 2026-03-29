@@ -45,14 +45,16 @@ const ALLOWED_MIME_TYPES = [
 const fileFilter = (_req, file, cb) => {
   const isAllowed =
     ALLOWED_MIME_TYPES.includes(file.mimetype) ||
-    file.mimetype.startsWith('image/');
+    file.mimetype.startsWith('image/') ||
+    file.mimetype.startsWith('video/') ||
+    file.mimetype.startsWith('audio/');
 
   if (isAllowed) {
     cb(null, true);
   } else {
     const err = new Error(
       `File type '${file.mimetype}' is not allowed. ` +
-      'Accepted types: PDF, images, Office documents, and plain text.'
+      'Accepted types: PDF, Images, Videos, Audio, Office documents, and plain text.'
     );
     err.status = 400;
     cb(err, false);
@@ -63,7 +65,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 50 * 1024 * 1024, // 50MB limit to support videos
   },
 });
 
@@ -509,14 +511,15 @@ router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array(
         logger.debug({ cloudinaryFolder }, '☁️ Cloudinary folder');
 
         // Determine resource type based on mimetype
-        // PDFs and other documents should be 'raw', images/videos use 'auto'
+        // PDFs and other documents should be 'raw', images/videos use 'auto' or 'video'
         const isDocument = file.mimetype === 'application/pdf' ||
           file.mimetype.startsWith('application/') ||
           file.mimetype === 'text/plain' ||
           file.mimetype.includes('document') ||
           file.mimetype.includes('spreadsheet');
 
-        const resourceType = isDocument ? 'raw' : 'auto';
+        const isVideo = file.mimetype.startsWith('video/');
+        const resourceType = isDocument ? 'raw' : (isVideo ? 'video' : 'auto');
         logger.debug({ mimetype: file.mimetype, resourceType }, '📄 File type determined');
 
         const uploadResult = await uploadToCloudinary(

@@ -86,6 +86,7 @@ const Settings = () => {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showRelinkDialog, setShowRelinkDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const [linkingError, setLinkingError] = useState<{ title: string; message: string } | null>(null);
 
   // Password change state
@@ -666,11 +667,11 @@ const Settings = () => {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label htmlFor="name" className="text-xs">Display Name *</Label>
-              <Input id="name" value={profileData.name} onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))} placeholder="Your display name" disabled={isSavingProfile} className="h-7 text-xs mt-0.5" />
+              <Input id="name" value={profileData.name || ''} onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))} placeholder="Your display name" disabled={isSavingProfile} className="h-7 text-xs mt-0.5" />
             </div>
             <div>
               <Label htmlFor="email" className="text-xs">Primary Email Address</Label>
-              <Input id="email" type="email" value={profileData.email} disabled placeholder="your@email.com" className="bg-muted h-7 text-xs mt-0.5" />
+              <Input id="email" type="email" value={profileData.email || ''} disabled placeholder="your@email.com" className="bg-muted h-7 text-xs mt-0.5" />
             </div>
           </div>
 
@@ -682,7 +683,7 @@ const Settings = () => {
               <Input
                 id="recoveryEmail"
                 type="email"
-                value={profileData.recoveryEmail}
+                value={profileData.recoveryEmail || ''}
                 onChange={(e) => setProfileData(prev => ({ ...prev, recoveryEmail: e.target.value }))}
                 placeholder="backup@email.com"
                 disabled={isSavingProfile || !!user?.authProviders?.includes('google')}
@@ -694,14 +695,14 @@ const Settings = () => {
             </div>
             <div>
               <Label htmlFor="phoneNumber" className="text-xs">Phone Number</Label>
-              <Input id="phoneNumber" value={profileData.phoneNumber} onChange={(e) => setProfileData(prev => ({ ...prev, phoneNumber: e.target.value }))} placeholder="+91 98765 43210" disabled={isSavingProfile} className="h-7 text-xs mt-0.5" />
+              <Input id="phoneNumber" value={profileData.phoneNumber || ''} onChange={(e) => setProfileData(prev => ({ ...prev, phoneNumber: e.target.value }))} placeholder="+91 98765 43210" disabled={isSavingProfile} className="h-7 text-xs mt-0.5" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label htmlFor="lawFirmName" className="text-xs">Law Firm/Organization</Label>
-              <Input id="lawFirmName" value={profileData.lawFirmName} onChange={(e) => setProfileData(prev => ({ ...prev, lawFirmName: e.target.value }))} placeholder="Your law firm name" disabled={isSavingProfile} className="h-7 text-xs mt-0.5" />
+              <Input id="lawFirmName" value={profileData.lawFirmName || ''} onChange={(e) => setProfileData(prev => ({ ...prev, lawFirmName: e.target.value }))} placeholder="Your law firm name" disabled={isSavingProfile} className="h-7 text-xs mt-0.5" />
             </div>
           </div>
 
@@ -729,21 +730,21 @@ const Settings = () => {
 
           <div>
             <Label htmlFor="address" className="text-xs">Office Address</Label>
-            <Textarea id="address" value={profileData.address} onChange={(e) => setProfileData(prev => ({ ...prev, address: e.target.value }))} placeholder="Street address" rows={2} disabled={isSavingProfile} className="text-xs mt-0.5" />
+            <Textarea id="address" value={profileData.address || ''} onChange={(e) => setProfileData(prev => ({ ...prev, address: e.target.value }))} placeholder="Street address" rows={2} disabled={isSavingProfile} className="text-xs mt-0.5" />
           </div>
 
           <div className="grid grid-cols-3 gap-2">
             <div>
               <Label htmlFor="city" className="text-xs">City</Label>
-              <Input id="city" value={profileData.city} onChange={(e) => setProfileData(prev => ({ ...prev, city: e.target.value }))} placeholder="City" disabled={isSavingProfile} className="h-7 text-xs mt-0.5" />
+              <Input id="city" value={profileData.city || ''} onChange={(e) => setProfileData(prev => ({ ...prev, city: e.target.value }))} placeholder="City" disabled={isSavingProfile} className="h-7 text-xs mt-0.5" />
             </div>
             <div>
               <Label htmlFor="state" className="text-xs">State</Label>
-              <Input id="state" value={profileData.state} onChange={(e) => setProfileData(prev => ({ ...prev, state: e.target.value }))} placeholder="State" disabled={isSavingProfile} className="h-7 text-xs mt-0.5" />
+              <Input id="state" value={profileData.state || ''} onChange={(e) => setProfileData(prev => ({ ...prev, state: e.target.value }))} placeholder="State" disabled={isSavingProfile} className="h-7 text-xs mt-0.5" />
             </div>
             <div>
               <Label htmlFor="country" className="text-xs">Country</Label>
-              <Input id="country" value={profileData.country} onChange={(e) => setProfileData(prev => ({ ...prev, country: e.target.value }))} placeholder="Country" disabled={isSavingProfile} className="h-7 text-xs mt-0.5" />
+              <Input id="country" value={profileData.country || ''} onChange={(e) => setProfileData(prev => ({ ...prev, country: e.target.value }))} placeholder="Country" disabled={isSavingProfile} className="h-7 text-xs mt-0.5" />
             </div>
           </div>
 
@@ -772,21 +773,21 @@ const Settings = () => {
                 <Label htmlFor="emailAlerts" className="text-xs font-medium">Email Alerts</Label>
                 <p className="text-[10px] text-muted-foreground">Notifications via email</p>
               </div>
-              <Switch id="emailAlerts" checked={notifications.emailAlerts} onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, emailAlerts: checked }))} disabled={isSavingNotifications} />
+              <Switch id="emailAlerts" checked={!!notifications.emailAlerts} onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, emailAlerts: checked }))} disabled={isSavingNotifications} />
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <Label htmlFor="smsAlerts" className="text-xs font-medium">SMS Alerts</Label>
                 <p className="text-[10px] text-muted-foreground">Notifications via SMS</p>
               </div>
-              <Switch id="smsAlerts" checked={notifications.smsAlerts} onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, smsAlerts: checked }))} disabled={isSavingNotifications} />
+              <Switch id="smsAlerts" checked={!!notifications.smsAlerts} onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, smsAlerts: checked }))} disabled={isSavingNotifications} />
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <Label htmlFor="pushNotifications" className="text-xs font-medium">Push Notifications</Label>
                 <p className="text-[10px] text-muted-foreground">Browser push notifications</p>
               </div>
-              <Switch id="pushNotifications" checked={notifications.pushNotifications} onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, pushNotifications: checked }))} disabled={isSavingNotifications} />
+              <Switch id="pushNotifications" checked={!!notifications.pushNotifications} onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, pushNotifications: checked }))} disabled={isSavingNotifications} />
             </div>
             <Separator />
             <div className="flex items-center justify-between">
@@ -794,28 +795,28 @@ const Settings = () => {
                 <Label htmlFor="hearingReminders" className="text-xs font-medium">Hearing Reminders</Label>
                 <p className="text-[10px] text-muted-foreground">Court hearing reminders</p>
               </div>
-              <Switch id="hearingReminders" checked={notifications.hearingReminders} onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, hearingReminders: checked }))} disabled={isSavingNotifications} />
+              <Switch id="hearingReminders" checked={!!notifications.hearingReminders} onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, hearingReminders: checked }))} disabled={isSavingNotifications} />
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <Label htmlFor="clientUpdates" className="text-xs font-medium">Client Updates</Label>
                 <p className="text-[10px] text-muted-foreground">Client case updates</p>
               </div>
-              <Switch id="clientUpdates" checked={notifications.clientUpdates} onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, clientUpdates: checked }))} disabled={isSavingNotifications} />
+              <Switch id="clientUpdates" checked={!!notifications.clientUpdates} onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, clientUpdates: checked }))} disabled={isSavingNotifications} />
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <Label htmlFor="billingAlerts" className="text-xs font-medium">Billing Alerts</Label>
                 <p className="text-[10px] text-muted-foreground">Payment & invoice alerts</p>
               </div>
-              <Switch id="billingAlerts" checked={notifications.billingAlerts} onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, billingAlerts: checked }))} disabled={isSavingNotifications} />
+              <Switch id="billingAlerts" checked={!!notifications.billingAlerts} onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, billingAlerts: checked }))} disabled={isSavingNotifications} />
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <Label htmlFor="weeklyReports" className="text-xs font-medium">Weekly Reports</Label>
                 <p className="text-[10px] text-muted-foreground">Weekly activity summary</p>
               </div>
-              <Switch id="weeklyReports" checked={notifications.weeklyReports} onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, weeklyReports: checked }))} disabled={isSavingNotifications} />
+              <Switch id="weeklyReports" checked={!!notifications.weeklyReports} onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, weeklyReports: checked }))} disabled={isSavingNotifications} />
             </div>
             <Button onClick={handleSaveNotifications} disabled={isSavingNotifications} size="sm" className="h-7 text-xs w-full">
               {isSavingNotifications && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
@@ -836,7 +837,7 @@ const Settings = () => {
           <CardContent className="px-3 pb-3 pt-0 space-y-2">
             <div>
               <Label htmlFor="theme" className="text-xs">Theme</Label>
-              <Select value={preferences.theme} onValueChange={(value) => setPreferences(prev => ({ ...prev, theme: value }))} disabled={isSavingPreferences}>
+              <Select value={String(preferences.theme || "light")} onValueChange={(value) => setPreferences(prev => ({ ...prev, theme: value }))} disabled={isSavingPreferences}>
                 <SelectTrigger className="h-7 text-xs mt-0.5"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="light">Light</SelectItem>
@@ -847,7 +848,7 @@ const Settings = () => {
             </div>
             <div>
               <Label htmlFor="language" className="text-xs">Language</Label>
-              <Select value={preferences.language} onValueChange={(value) => setPreferences(prev => ({ ...prev, language: value }))} disabled={isSavingPreferences}>
+              <Select value={String(preferences.language || "en-IN")} onValueChange={(value) => setPreferences(prev => ({ ...prev, language: value }))} disabled={isSavingPreferences}>
                 <SelectTrigger className="h-7 text-xs mt-0.5"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="en-IN">English (India)</SelectItem>
@@ -859,7 +860,7 @@ const Settings = () => {
             </div>
             <div>
               <Label htmlFor="timezone" className="text-xs">Timezone</Label>
-              <Select value={preferences.timezone} onValueChange={(value) => setPreferences(prev => ({ ...prev, timezone: value }))} disabled={isSavingPreferences}>
+              <Select value={String(preferences.timezone || "Asia/Kolkata")} onValueChange={(value) => setPreferences(prev => ({ ...prev, timezone: value }))} disabled={isSavingPreferences}>
                 <SelectTrigger className="h-7 text-xs mt-0.5"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Asia/Kolkata">Asia/Kolkata (IST)</SelectItem>
@@ -869,7 +870,7 @@ const Settings = () => {
             </div>
             <div>
               <Label htmlFor="dateFormat" className="text-xs">Date Format</Label>
-              <Select value={preferences.dateFormat} onValueChange={(value) => setPreferences(prev => ({ ...prev, dateFormat: value }))} disabled={isSavingPreferences}>
+              <Select value={String(preferences.dateFormat || "DD/MM/YYYY")} onValueChange={(value) => setPreferences(prev => ({ ...prev, dateFormat: value }))} disabled={isSavingPreferences}>
                 <SelectTrigger className="h-7 text-xs mt-0.5"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
@@ -896,7 +897,7 @@ const Settings = () => {
                   <p className="text-[10px] text-muted-foreground">🔒 Set during onboarding, cannot be changed.</p>
                 </div>
               ) : (
-                <Select value={preferences.currency} onValueChange={(value) => setPreferences(prev => ({ ...prev, currency: value }))} disabled={isSavingPreferences}>
+                <Select value={String(preferences.currency || "INR")} onValueChange={(value) => setPreferences(prev => ({ ...prev, currency: value }))} disabled={isSavingPreferences}>
                   <SelectTrigger className="h-7 text-xs mt-0.5"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="INR">₹ Indian Rupee (INR)</SelectItem>
@@ -930,11 +931,11 @@ const Settings = () => {
                 <Label htmlFor="twoFactor" className="text-xs font-medium">Two-Factor Auth</Label>
                 <p className="text-[10px] text-muted-foreground">Extra layer of security</p>
               </div>
-              <Switch id="twoFactor" checked={security.twoFactorEnabled} onCheckedChange={(checked) => setSecurity(prev => ({ ...prev, twoFactorEnabled: checked }))} disabled={isSavingSecurity} />
+              <Switch id="twoFactor" checked={!!security.twoFactorEnabled} onCheckedChange={(checked) => setSecurity(prev => ({ ...prev, twoFactorEnabled: checked }))} disabled={isSavingSecurity} />
             </div>
             <div>
               <Label htmlFor="sessionTimeout" className="text-xs">Session Timeout</Label>
-              <Select value={security.sessionTimeout} onValueChange={(value) => setSecurity(prev => ({ ...prev, sessionTimeout: value }))} disabled={isSavingSecurity}>
+              <Select value={String(security.sessionTimeout || "30")} onValueChange={(value) => setSecurity(prev => ({ ...prev, sessionTimeout: value }))} disabled={isSavingSecurity}>
                 <SelectTrigger className="h-7 text-xs mt-0.5"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="15">15 minutes</SelectItem>
@@ -950,7 +951,7 @@ const Settings = () => {
                 <Label htmlFor="loginNotifications" className="text-xs font-medium">Login Notifications</Label>
                 <p className="text-[10px] text-muted-foreground">Notified on account logins</p>
               </div>
-              <Switch id="loginNotifications" checked={security.loginNotifications} onCheckedChange={(checked) => setSecurity(prev => ({ ...prev, loginNotifications: checked }))} disabled={isSavingSecurity} />
+              <Switch id="loginNotifications" checked={!!security.loginNotifications} onCheckedChange={(checked) => setSecurity(prev => ({ ...prev, loginNotifications: checked }))} disabled={isSavingSecurity} />
             </div>
             <Button onClick={handleSaveSecurity} disabled={isSavingSecurity} size="sm" className="h-7 text-xs w-full">
               {isSavingSecurity && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
@@ -1190,6 +1191,39 @@ const Settings = () => {
             <Button onClick={handleRelinkGoogle} disabled={isRelinking}>
               {isRelinking && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Replace Recovery Email
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+      {/* Import Data Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5 text-primary" />
+              Import Data Repository
+            </DialogTitle>
+            <DialogDescription>
+              Select a valid Juriq JSON backup file to restore your account data. 
+              Currently, this feature is under development and will only validate the integrity of your file without mutating your live database.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-muted/30 border border-border p-4 rounded-md space-y-2">
+            <h4 className="text-sm font-semibold">Note before importing:</h4>
+            <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
+              <li>You must use a <code>.json</code> backup file generated by Juriq.</li>
+              <li>Data restoration might overwrite duplicate cases and documents.</li>
+              <li>Large backup files might take a few moments to validate.</li>
+            </ul>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowImportDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleProcessImport}>
+              Choose JSON Backup
             </Button>
           </DialogFooter>
         </DialogContent>

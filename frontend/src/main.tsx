@@ -60,9 +60,18 @@ async function initApp() {
   const p = window.location.pathname;
   const isAuthPage = ['/login', '/signup', '/forgot-password', '/reset-password'].includes(p) || p === '/';
 
+  // Update status text if it exists (placed in index.html)
+  const setStatus = (text: string) => {
+    const el = document.querySelector('.loader-text');
+    if (el) el.textContent = text;
+  };
+
   // GLOBAL AUTH GUARD (RUN BEFORE RENDER)
   if (isAuthPage) {
     try {
+      // If we take more than 1.5s, update the text to show we are waking up the vault
+      const wakeTimer = setTimeout(() => setStatus('Waking up secure vault...'), 1500);
+      
       const res = await fetch('/api/v1/auth/validate', {
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -70,14 +79,29 @@ async function initApp() {
           'Expires': '0'
         }
       });
+      
+      clearTimeout(wakeTimer);
+
+      // Check if we got HTML instead of JSON (Render Waking Up page)
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        setStatus('Server warming up... please wait');
+        // Retry once after 3s or just let it fall through to React
+        await new Promise(r => setTimeout(r, 3000));
+        window.location.reload(); // Hard reload is often the best recovery for Render's intercept
+        return;
+      }
+
       const data = await res.json();
       if (data.authenticated) {
         // HARD REDIRECT
+        setStatus('Redirecting to dashboard...');
         window.location.replace('/dashboard');
         return; // Prevent render
       }
     } catch (_err) {
       // allow fallback to standard react behaviors
+      console.warn('Auth validation failed, falling back to app render');
     }
   }
 

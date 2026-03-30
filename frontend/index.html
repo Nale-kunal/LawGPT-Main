@@ -11,12 +11,21 @@
     <meta name="keywords" content="legal case management, law firm software, Indian legal software, court calendar, legal AI" />
     <meta name="author" content="Juriq" />
 
-    <!-- Synchronous Auth Guard (BFCache / Boot Level) -->
+    <!-- Synchronous Theme Sync (Prevents Flash) -->
+    <!-- Synchronous Boot Controls (Theme Sync + Auth Guard) -->
     <script>
       (function() {
+        // 1. Theme Sync (Prevents Flash)
+        var sk = 'legal-pro-theme';
+        var t = localStorage.getItem(sk) || 'system';
+        var r = document.documentElement;
+        var d = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (d) r.classList.add('dark'); else r.classList.add('light');
+
+        // 2. Auth Guard (BFCache / Sync Redirect)
         var p = window.location.pathname;
-        var isAuth = p === '/login' || p === '/signup' || p === '/forgot-password' || p === '/reset-password' || p === '/';
-        if (isAuth && document.cookie.indexOf('is_authenticated=true') !== -1) {
+        var i = p === '/login' || p === '/signup' || p === '/forgot-password' || p === '/reset-password' || p === '/';
+        if (i && document.cookie.indexOf('is_authenticated=true') !== -1) {
           window.location.replace('/dashboard');
         }
       })();
@@ -34,7 +43,55 @@
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <style>
+        html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; }
+        html.dark .initial-loader { --p: #ffffff; --bg: #09090b; --txt: #a1a1aa; }
+        html.light .initial-loader { --p: #09090b; --bg: #ffffff; --txt: #71717a; }
+        
+        .initial-loader {
+          position: fixed; inset: 0;
+          background: var(--bg);
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          z-index: 9999; font-family: 'Inter', sans-serif;
+          height: 100dvh; width: 100vw;
+        }
+        .pulse-container { position: relative; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; }
+        .pulse-ring {
+          position: absolute; inset: 0;
+          border: 3px solid rgba(161, 161, 170, 0.1);
+          border-top: 3px solid var(--p);
+          border-radius: 50%;
+          animation: spin 1.5s linear infinite;
+        }
+        .pulse-icon {
+          position: absolute; inset: 0;
+          display: flex; align-items: center; justify-content: center;
+          animation: pulse 1.5s ease-in-out infinite;
+          color: var(--p);
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { transform: scale(0.9); opacity: 0.7; } 50% { transform: scale(1.1); opacity: 1; } }
+        .loader-text {
+          position: absolute; top: 100%; margin-top: 24px;
+          color: var(--txt); font-size: 10px; white-space: nowrap;
+          font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+          animation: text-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes text-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+      </style>
+      <div class="initial-loader">
+        <div class="pulse-container">
+          <div class="pulse-ring"></div>
+          <div class="pulse-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h18"/>
+            </svg>
+          </div>
+          <div class="loader-text">Initializing Juriq</div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -150,6 +150,23 @@ export async function deleteDocument(collection, id) {
 }
 
 /**
+ * Delete many documents with filters
+ * @param {string} collection - Collection name
+ * @param {Object} filter - Mongoose filter object
+ * @returns {Promise<number>} Number of deleted documents
+ */
+export async function deleteManyDocuments(collection, filter) {
+    try {
+        const Model = getModel(collection);
+        const result = await Model.deleteMany(filter);
+        return result.deletedCount;
+    } catch (error) {
+        console.error(`Error deleting documents from ${collection}:`, error);
+        throw error;
+    }
+}
+
+/**
  * Query documents with filters
  * @param {string} collection - Collection name
  * @param {Array} filters - Array of {field, operator, value} objects

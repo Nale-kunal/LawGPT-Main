@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import JuriqLoader from '@/components/ui/JuriqLoader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -221,7 +222,7 @@ const LegalNews: React.FC = () => {
                     onClick={handleRefresh}
                     disabled={isRefreshing || loading}
                 >
-                    <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    {isRefreshing ? <JuriqLoader size="sm" className="mr-1.5" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
                     {isRefreshing ? 'Updating...' : 'Refresh'}
                 </Button>
             </div>
@@ -280,10 +281,8 @@ const LegalNews: React.FC = () => {
             {apiDown ? (
                 <ErrorScreen message="Service temporarily unavailable. Try again later." />
             ) : loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                    {[1, 2, 3, 4, 5, 6].map(i => (
-                        <Card key={i} className="h-40 rounded-xl border border-transparent bg-muted/20 animate-pulse shadow-sm" />
-                    ))}
+                <div className="flex flex-col items-center justify-center py-20 bg-muted/5 rounded-xl border border-dashed">
+                    <JuriqLoader size="lg" text="Searching for legal updates..." />
                 </div>
             ) : error ? (
                 <Card className="text-center py-12 border border-transparent hover:border-accent hover:border-2 transition-all">

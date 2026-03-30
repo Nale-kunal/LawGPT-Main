@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { FileText, Sparkles, Copy, Download, RefreshCw } from 'lucide-react';
 import { useLegalData } from '@/contexts/LegalDataContext';
 import { useToast } from '@/hooks/use-toast';
+import JuriqLoader from '@/components/ui/JuriqLoader';
 
 interface CaseSummaryGeneratorProps {
   caseId: string;
@@ -145,7 +146,7 @@ ${case_.priority === 'urgent' ? '- URGENT: Immediate attention required' : ''}
             <Button onClick={generateSummary} disabled={isGenerating}>
               {isGenerating ? (
                 <>
-                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  <JuriqLoader size="sm" className="mr-2" />
                   Generating Summary...
                 </>
               ) : (

@@ -13,10 +13,10 @@ import {
   Database,
   Download,
   Upload,
-  Loader2,
   AlertTriangle,
   Lock
 } from 'lucide-react';
+import JuriqLoader from '@/components/ui/JuriqLoader';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -78,6 +78,7 @@ const Settings = () => {
   const [isSavingPreferences, setIsSavingPreferences] = useState(false);
   const [isSavingSecurity, setIsSavingSecurity] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [isUnlinking, setIsUnlinking] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
   const [isRelinking, setIsRelinking] = useState(false);
@@ -88,6 +89,7 @@ const Settings = () => {
   const [showRelinkDialog, setShowRelinkDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [linkingError, setLinkingError] = useState<{ title: string; message: string } | null>(null);
+  const [importData, setImportData] = useState<any>(null);
 
   // Password change state
   const [passwordData, setPasswordData] = useState({
@@ -495,18 +497,15 @@ const Settings = () => {
 
       try {
         const text = await file.text();
-        const data = JSON.parse(text);
+        const parsed = JSON.parse(text);
 
         // Validate data structure
-        if (!data.user || !data.data) {
+        if (!parsed.user || !parsed.data) {
           throw new Error('Invalid backup file format');
         }
 
-        toast({
-          title: 'Import feature',
-          description: 'Data import functionality is under development. Your file has been validated successfully.',
-        });
-        setShowImportDialog(false);
+        setImportData(parsed);
+        setShowImportDialog(true);
       } catch (error) {
         toast({
           title: 'Import failed',
@@ -516,6 +515,47 @@ const Settings = () => {
       }
     };
     input.click();
+  };
+
+  const handleConfirmImport = async () => {
+    if (!importData) return;
+
+    setIsImporting(true);
+    try {
+      const res = await apiFetch(getApiUrl('/api/v1/auth/import-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(importData)
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Import failed' }));
+        throw new Error(data.error || 'Failed to restore data');
+      }
+
+      toast({
+        title: 'Restoration successful',
+        description: 'All backup data has been restored. Refreshing app...',
+      });
+
+      // Clear state and close dialog
+      setShowImportDialog(false);
+      setImportData(null);
+
+      // Force a full page reload to ensure all contexts/states reflect the new data
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+
+    } catch (error) {
+      toast({
+        title: 'Import failed',
+        description: error instanceof Error ? error.message : 'Unable to restore data. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const handleDeleteAccount = async () => {
@@ -754,7 +794,7 @@ const Settings = () => {
           </div>
 
           <Button onClick={handleSaveProfile} disabled={isSavingProfile} size="sm" className="h-7 text-xs">
-            {isSavingProfile && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+            {isSavingProfile && <JuriqLoader size="sm" className="mr-1.5" />}
             Save Profile Changes
           </Button>
         </CardContent>
@@ -824,7 +864,7 @@ const Settings = () => {
               <Switch id="weeklyReports" checked={!!notifications.weeklyReports} onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, weeklyReports: checked }))} disabled={isSavingNotifications} />
             </div>
             <Button onClick={handleSaveNotifications} disabled={isSavingNotifications} size="sm" className="h-7 text-xs w-full">
-              {isSavingNotifications && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              {isSavingNotifications && <JuriqLoader size="sm" className="mr-1.5" />}
               Save Notifications
             </Button>
           </CardContent>
@@ -915,7 +955,7 @@ const Settings = () => {
               )}
             </div>
             <Button onClick={handleSavePreferences} disabled={isSavingPreferences} size="sm" className="h-7 text-xs w-full">
-              {isSavingPreferences && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              {isSavingPreferences && <JuriqLoader size="sm" className="mr-1.5" />}
               Save Preferences
             </Button>
           </CardContent>
@@ -959,7 +999,7 @@ const Settings = () => {
               <Switch id="loginNotifications" checked={!!security.loginNotifications} onCheckedChange={(checked) => setSecurity(prev => ({ ...prev, loginNotifications: checked }))} disabled={isSavingSecurity} />
             </div>
             <Button onClick={handleSaveSecurity} disabled={isSavingSecurity} size="sm" className="h-7 text-xs w-full">
-              {isSavingSecurity && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              {isSavingSecurity && <JuriqLoader size="sm" className="mr-1.5" />}
               Save Security Settings
             </Button>
             <Separator />
@@ -993,7 +1033,7 @@ const Settings = () => {
                     onClick={handleUnlinkGoogle}
                     disabled={isUnlinking}
                   >
-                    {isUnlinking && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                    {isUnlinking && <JuriqLoader size="sm" className="mr-1.5" />}
                     Unlink Recovery Email
                   </Button>
                 </div>
@@ -1020,7 +1060,7 @@ const Settings = () => {
             <div className="space-y-1.5">
               <Button variant="outline" className="w-full h-7 text-xs" onClick={() => setShowPasswordDialog(true)}>Change Password</Button>
               <Button variant="outline" className="w-full h-7 text-xs" onClick={handleExportData} disabled={isExporting}>
-                {isExporting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                {isExporting && <JuriqLoader size="sm" className="mr-1.5" />}
                 Download Account Data
               </Button>
               <Button variant="destructive" className="w-full h-7 text-xs" onClick={() => setShowDeleteDialog(true)}>
@@ -1047,7 +1087,7 @@ const Settings = () => {
               <h4 className="text-xs font-medium">Export Data</h4>
               <p className="text-[10px] text-muted-foreground">Download a complete backup of your cases, clients, and documents</p>
               <Button onClick={handleExportData} className="w-full h-7 text-xs" disabled={isExporting}>
-                {isExporting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-1.5 h-3.5 w-3.5" />}
+                {isExporting ? <JuriqLoader size="sm" className="mr-1.5" /> : <Download className="mr-1.5 h-3.5 w-3.5" />}
                 Export All Data
               </Button>
             </div>
@@ -1113,7 +1153,7 @@ const Settings = () => {
               Cancel
             </Button>
             <Button onClick={handleChangePassword} disabled={isChangingPassword}>
-              {isChangingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isChangingPassword && <JuriqLoader size="sm" className="mr-2" />}
               Change Password
             </Button>
           </DialogFooter>
@@ -1170,7 +1210,7 @@ const Settings = () => {
               onClick={handleDeleteAccount}
               disabled={isDeletingAccount}
             >
-              {isDeletingAccount && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isDeletingAccount && <JuriqLoader size="sm" className="mr-2" />}
               Delete Account Permanently
             </Button>
           </DialogFooter>
@@ -1194,7 +1234,7 @@ const Settings = () => {
               Cancel
             </Button>
             <Button onClick={handleRelinkGoogle} disabled={isRelinking}>
-              {isRelinking && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isRelinking && <JuriqLoader size="sm" className="mr-2" />}
               Replace Recovery Email
             </Button>
           </DialogFooter>
@@ -1208,28 +1248,66 @@ const Settings = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5 text-primary" />
-              Import Data Repository
+              {importData ? 'Confirm Data Restoration' : 'Import Data Repository'}
             </DialogTitle>
             <DialogDescription>
-              Select a valid Juriq JSON backup file to restore your account data. 
-              Currently, this feature is under development and will only validate the integrity of your file without mutating your live database.
+              {importData 
+                ? `Ready to restore ${importData.statistics?.totalCases || 0} cases and ${importData.statistics?.totalClients || 0} clients from backup.`
+                : 'Select a valid Juriq JSON backup file to restore your account data.'
+              }
             </DialogDescription>
           </DialogHeader>
-          <div className="bg-muted/30 border border-border p-4 rounded-md space-y-2">
-            <h4 className="text-sm font-semibold">Note before importing:</h4>
-            <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
-              <li>You must use a <code>.json</code> backup file generated by Juriq.</li>
-              <li>Data restoration might overwrite duplicate cases and documents.</li>
-              <li>Large backup files might take a few moments to validate.</li>
-            </ul>
-          </div>
+
+          {importData ? (
+            <div className="space-y-4">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-md p-4">
+                <p className="text-sm text-destructive font-medium flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  CRITICAL WARNING
+                </p>
+                <p className="text-xs text-destructive/80 mt-1">
+                  This operation will **PERMANENTLY DELETE** your existing Cases, Clients, Hearings, and Invoices and replace them with the data from the backup. This cannot be undone.
+                </p>
+              </div>
+              <div className="text-xs space-y-1 text-muted-foreground bg-muted/30 p-3 rounded-md border border-dashed">
+                <p>• Cases: {importData.statistics?.totalCases || 0}</p>
+                <p>• Clients: {importData.statistics?.totalClients || 0}</p>
+                <p>• Backup Date: {importData.exportDate ? new Date(importData.exportDate).toLocaleString() : 'Unknown'}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-muted/30 border border-border p-4 rounded-md space-y-2">
+              <h4 className="text-sm font-semibold">Note before importing:</h4>
+              <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
+                <li>You must use a <code>.json</code> backup file generated by Juriq.</li>
+                <li>This will restore your profile, preferences, and all business data.</li>
+                <li>Existing data will be replaced to ensure system integrity.</li>
+              </ul>
+            </div>
+          )}
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowImportDialog(false)}>
+            <Button 
+                variant="outline" 
+                onClick={() => { setShowImportDialog(false); setImportData(null); }}
+                disabled={isImporting}
+            >
               Cancel
             </Button>
-            <Button onClick={handleProcessImport}>
-              Choose JSON Backup
-            </Button>
+            {importData ? (
+              <Button 
+                variant="destructive" 
+                onClick={handleConfirmImport}
+                disabled={isImporting}
+              >
+                {isImporting && <JuriqLoader size="sm" className="mr-2" />}
+                Restore Now
+              </Button>
+            ) : (
+              <Button onClick={handleProcessImport} disabled={isImporting}>
+                Choose JSON Backup
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

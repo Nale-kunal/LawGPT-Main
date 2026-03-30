@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { getApiUrl, apiFetch } from '@/lib/api';
-import { Check, AlertCircle, Lock, Loader2, ChevronRight, ChevronLeft, LogOut } from 'lucide-react';
+import { Check, AlertCircle, Lock, ChevronRight, ChevronLeft, LogOut } from 'lucide-react';
+import JuriqLoader from '@/components/ui/JuriqLoader';
 
 interface FormData {
     // Step 1: Identity Verification (Immutable)
@@ -252,7 +253,7 @@ const Onboarding = () => {
                         >
                             {isAborting ? (
                                 <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    <JuriqLoader size="sm" className="mr-2" />
                                     Aborting...
                                 </>
                             ) : (
@@ -720,7 +721,7 @@ const Onboarding = () => {
                                 <Button onClick={handleSubmit} disabled={isSubmitting || !finalConfirmed} className="gap-2">
                                     {isSubmitting ? (
                                         <>
-                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            <JuriqLoader size="sm" className="mr-2" />
                                             Completing Setup...
                                         </>
                                     ) : (

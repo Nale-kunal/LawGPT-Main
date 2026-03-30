@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, XCircle, ArrowRight, RefreshCw } from 'lucide-react';
+import JuriqLoader from '@/components/ui/JuriqLoader';
 
 const EmailVerificationSuccess = () => {
     const [searchParams] = useSearchParams();
@@ -54,14 +55,17 @@ const EmailVerificationSuccess = () => {
         <div className="min-h-screen flex items-center justify-center bg-background p-4">
             <Card className="w-full max-w-md">
                 <CardHeader className="text-center">
-                    <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 ${status === 'success' ? 'bg-green-100 text-green-600' :
-                        status === 'error' ? 'bg-red-100 text-red-600' :
-                            'bg-blue-100 text-blue-600'
-                        }`}>
-                        {status === 'success' ? <CheckCircle className="h-6 w-6" /> :
-                            status === 'error' ? <XCircle className="h-6 w-6" /> :
-                                <RefreshCw className="h-6 w-6 animate-spin" />}
-                    </div>
+                    {status === 'verifying' ? (
+                        <div className="mb-4">
+                            <JuriqLoader size="lg" />
+                        </div>
+                    ) : (
+                        <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 ${status === 'success' ? 'bg-green-100 text-green-600' :
+                            'bg-red-100 text-red-600'
+                            }`}>
+                            {status === 'success' ? <CheckCircle className="h-6 w-6" /> : <XCircle className="h-6 w-6" />}
+                        </div>
+                    )}
                     <CardTitle className="text-2xl">
                         {status === 'success' ? 'Email Verified' :
                             status === 'error' ? 'Verification Failed' :

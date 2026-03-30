@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useFormatting } from '@/contexts/FormattingContext';
 import { apiFetch } from '@/lib/api';
+import JuriqLoader from '@/components/ui/JuriqLoader';
 
 interface DashboardNotifications {
     alerts: Alert[];
@@ -334,7 +335,7 @@ export const NotificationDropdown = ({ unreadCount }: NotificationDropdownProps)
                             <div className="space-y-2 text-xs">
                                 {loading ? (
                                     <div className="flex items-center justify-center py-6">
-                                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                                        <JuriqLoader size="md" />
                                     </div>
                                 ) : (
                                     <>

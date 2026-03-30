@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Scale, Loader2, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { Scale, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import JuriqLoader from '@/components/ui/JuriqLoader';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getApiUrl, apiFetch } from '@/lib/api';
@@ -253,7 +254,7 @@ const Signup = () => {
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <JuriqLoader size="sm" className="mr-2" />
                   Creating Account...
                 </>
               ) : (
@@ -277,7 +278,7 @@ const Signup = () => {
             onClick={handleGoogleLogin}
             disabled={isSubmitting || isGoogleLoading}
           >
-            {isGoogleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
+            {isGoogleLoading ? <JuriqLoader size="sm" /> : <GoogleIcon />}
             {isGoogleLoading ? 'Connecting...' : 'Continue with Google'}
           </Button>
 
@@ -329,7 +330,7 @@ const Signup = () => {
             >
               {isReactivating ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <JuriqLoader size="sm" className="mr-2" />
                   Reactivating...
                 </>
               ) : (

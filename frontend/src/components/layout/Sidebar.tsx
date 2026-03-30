@@ -13,7 +13,8 @@ import {
   Scale,
   Newspaper,
   ChevronsLeftRight,
-  MessageSquare
+  MessageSquare,
+  LayoutGrid
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useLegalData } from '@/contexts/LegalDataContext';
@@ -39,6 +40,7 @@ const navigation = [
   { name: 'Legal Research', href: '/dashboard/legal-research', icon: BookOpen },
   { name: 'Billing', href: '/dashboard/billing', icon: Receipt },
   { name: 'Documents', href: '/dashboard/documents', icon: FolderOpen },
+  { name: 'Legal Templates', href: '/dashboard/templates', icon: LayoutGrid },
   { name: 'Notes', href: '/dashboard/notes', icon: MessageSquare },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];

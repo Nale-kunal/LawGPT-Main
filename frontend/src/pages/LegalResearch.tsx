@@ -15,13 +15,13 @@ import {
   Filter,
   SortAsc,
   Sparkles,
-  Loader2,
   Landmark,
   X,
   Zap,
   Brain,
   ServerCrash,
 } from 'lucide-react';
+import JuriqLoader from '@/components/ui/JuriqLoader';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const ErrorScreen = ({ message }: { message: string }) => (
@@ -183,7 +183,7 @@ function ResultCard({
               onClick={() => onAiAssist(item)}
               disabled={aiLoading}
             >
-              {aiLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Brain className="h-3.5 w-3.5 text-primary" />}
+              {aiLoading ? <JuriqLoader size="sm" /> : <Brain className="h-3.5 w-3.5 text-primary" />}
               {aiExplanation ? 'Hide Insight' : 'Get AI Insight'}
             </Button>
             {item.sourceLink && (
@@ -364,7 +364,7 @@ const LegalResearch = () => {
           <div className="space-y-4">
             <div className="relative">
               <div className="absolute left-3 top-3 text-muted-foreground">
-                {isApiLoading ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : <Search className="h-5 w-5" />}
+                {isApiLoading ? <JuriqLoader size="sm" /> : <Search className="h-5 w-5" />}
               </div>
               <Input
                 placeholder="Search by legal concepts, sections, or case names (e.g., 'right to privacy', 'IPC 302', 'Kesavananda')..."

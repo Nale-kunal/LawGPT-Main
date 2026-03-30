@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Scale, Loader2, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { Scale, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import JuriqLoader from '@/components/ui/JuriqLoader';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getApiUrl } from '@/lib/api';
@@ -259,7 +260,7 @@ const Login = () => {
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <JuriqLoader size="sm" className="mr-2" />
                   Logging in...
                 </>
               ) : (
@@ -277,16 +278,16 @@ const Login = () => {
               <span className="bg-background px-2 text-muted-foreground">or</span>
             </div>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full flex items-center justify-center gap-2"
-            onClick={handleGoogleLogin}
-            disabled={isSubmitting || lockoutTimer > 0 || isGoogleLoading}
-          >
-            {isGoogleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
-            {isGoogleLoading ? 'Connecting…' : 'Continue with Google'}
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full flex items-center justify-center gap-2"
+              onClick={handleGoogleLogin}
+              disabled={isSubmitting || lockoutTimer > 0 || isGoogleLoading}
+            >
+              {isGoogleLoading ? <JuriqLoader size="sm" /> : <GoogleIcon />}
+              {isGoogleLoading ? 'Connecting…' : 'Continue with Google'}
+            </Button>
 
           <div className="mt-4 text-center text-sm space-y-2">
             <div>

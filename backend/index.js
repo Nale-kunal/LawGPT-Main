@@ -29,6 +29,8 @@ import ClientErrorLog from './src/models/ClientErrorLog.js';
 
 import authRoutes from './src/routes/auth-jwt.js';
 import googleAuthRoutes from './src/routes/google-auth.js';
+import { startKeepAlive } from './src/utils/keepAlive.js';
+// ... existing imports ...
 import caseRoutes from './src/routes/cases.js';
 import caseNotesRoutes from './src/routes/caseNotes.js';
 import clientRoutes from './src/routes/clients.js';
@@ -44,6 +46,7 @@ import adminRoutes from './src/routes/admin.js';
 import adminInternalRoutes from './src/routes/adminInternal.js';
 import newsRoutes from './routes/news.js';
 import legalRoutes from './src/routes/legal.routes.js';
+import templatesRoutes from './src/routes/templates.routes.js';
 import { startLegalCron } from './src/jobs/legalCron.js';
 import { startTokenCleanup } from './src/jobs/tokenCleanup.js';
 import { requestId } from './src/middleware/requestId.js';
@@ -453,6 +456,7 @@ app.use('/internal/admin', adminInternalLimiter, adminInternalRoutes);
 app.use('/api/v1/news', newsRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/v1/legal', legalRoutes);
+app.use('/api/v1/templates', templatesRoutes);
 
 // ─── Backward Compatibility /api/* → /api/v1/* (90-day window) ───────────────
 app.use('/api/auth', authRoutes);
@@ -527,6 +531,7 @@ async function startServer() {
 
     // ── 5. Start legal data cron job + token cleanup (non-blocking) ────────────
     startLegalCron();
+    startKeepAlive(); // Keep Render awake in production
     startTokenCleanup();
     
     // Log Retention Policy Cleanup

@@ -1,6 +1,7 @@
 import React, { type ReactNode, createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 
 import { getApiUrl, apiFetch } from '@/lib/api';
+import JuriqLoader from '@/components/ui/JuriqLoader';
 
 interface NotificationSettings {
   emailAlerts: boolean;
@@ -428,12 +429,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   if (authState === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-sm font-medium text-foreground">Checking session...</p>
-        </div>
-      </div>
+      <JuriqLoader size="full" text="Checking session..." />
     );
   }
 

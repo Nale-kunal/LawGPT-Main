@@ -190,3 +190,19 @@ export async function apiRequest<T = any>( // eslint-disable-line @typescript-es
 
   return response.json();
 }
+
+/**
+ * Convenience object for API requests
+ */
+const api = {
+  get: <T = any>(path: string, options?: RequestInit) => apiRequest<T>(path, { ...options, method: 'GET' }),
+  post: <T = any>(path: string, body?: any, options?: RequestInit) => 
+    apiRequest<T>(path, { ...options, method: 'POST', body: JSON.stringify(body) }),
+  put: <T = any>(path: string, body?: any, options?: RequestInit) => 
+    apiRequest<T>(path, { ...options, method: 'PUT', body: JSON.stringify(body) }),
+  patch: <T = any>(path: string, body?: any, options?: RequestInit) => 
+    apiRequest<T>(path, { ...options, method: 'PATCH', body: JSON.stringify(body) }),
+  delete: <T = any>(path: string, options?: RequestInit) => apiRequest<T>(path, { ...options, method: 'DELETE' }),
+};
+
+export default api;

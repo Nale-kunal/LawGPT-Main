@@ -21,6 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useFormatting } from '@/contexts/FormattingContext';
 import { useNavigate } from 'react-router-dom';
 import { getApiUrl, apiFetch } from '@/lib/api';
+import JuriqLoader from '@/components/ui/JuriqLoader';
 
 interface DashboardStats {
   totalCases: number;
@@ -387,7 +388,7 @@ const Dashboard = () => {
               <div className="space-y-2 text-xs max-h-48 overflow-y-auto">
                 {loading ? (
                   <div className="flex items-center justify-center py-3">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                    <JuriqLoader size="sm" />
                   </div>
                 ) : recentActivity.length > 0 ? (
                   recentActivity.map((activity) => (

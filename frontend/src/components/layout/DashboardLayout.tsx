@@ -5,6 +5,7 @@ import { Header } from './Header';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { useState, useEffect } from 'react';
 import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay';
+import JuriqLoader from '@/components/ui/JuriqLoader';
 
 const DashboardLayout = () => {
   const { user, isAuthenticated, isLoading, refreshUser } = useAuth();
@@ -52,11 +53,7 @@ const DashboardLayout = () => {
   }, [refreshUser]);
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <JuriqLoader size="full" />;
   }
 
   if (!isAuthenticated) {

@@ -1,6 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import JuriqLoader from '../ui/JuriqLoader';
 import { useState, useEffect } from 'react';
 
 /**
@@ -25,11 +25,8 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
 
     if (isLoading && !timedOut) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
-                <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                    <p className="text-sm">Verifying session…</p>
-                </div>
+            <div className="flex items-center justify-center min-h-screen bg-background">
+                <JuriqLoader size="lg" />
             </div>
         );
     }

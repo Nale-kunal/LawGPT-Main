@@ -10,7 +10,6 @@ import { FormattingProvider } from "./contexts/FormattingContext";
 import React, { Suspense } from "react";
 import RequireAuth from "./components/auth/RequireAuth";
 import PublicOnlyRoute from "./components/auth/PublicOnlyRoute";
-import { Loader2 } from "lucide-react";
 
 // ── Consolidated Landing Pages ─────────────────────────────────────────────
 const Home = React.lazy(() => import("./pages/Home"));
@@ -46,17 +45,16 @@ const DataProcessing = React.lazy(() => import("./pages/DataProcessing"));
 const CookiePolicy = React.lazy(() => import("./pages/CookiePolicy"));
 const ClientPortalLanding = React.lazy(() => import("./pages/ClientPortalLanding"));
 const LegalNotesLanding = React.lazy(() => import("./pages/LegalNotesLanding"));
+const TemplatesDashboard = React.lazy(() => import("./modules/legalTemplates/pages/TemplatesDashboard"));
+const TemplateWorkspace = React.lazy(() => import("./modules/legalTemplates/pages/TemplateWorkspace"));
 
 // Import Layout (not lazy — needed immediately for dashboard shell)
 import DashboardLayout from "./components/layout/DashboardLayout";
 import ScrollToHash from "./components/ScrollToHash";
+import JuriqLoader from "./components/ui/JuriqLoader";
 
 // Suspense fallback loader
-const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background">
-    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-  </div>
-);
+const PageLoader = () => <JuriqLoader size="full" />;
 
 
 const DynamicCanonical = () => {
@@ -142,6 +140,8 @@ const App = () => (
                       <Route path="settings" element={<Settings />} />
                       <Route path="news" element={<News />} />
                       <Route path="notes" element={<Notes />} />
+                      <Route path="templates" element={<TemplatesDashboard />} />
+                      <Route path="templates/:id" element={<TemplateWorkspace />} />
                     </Route>
 
                     {/* Catch All */}

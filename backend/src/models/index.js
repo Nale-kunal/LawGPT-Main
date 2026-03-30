@@ -17,3 +17,4 @@ export { default as CaseLaws } from './CaseLaws.js';
 export { default as PasswordReset } from './PasswordReset.js';
 export { default as Activity } from './Activity.js';
 export { default as AuditLog } from './AuditLog.js';
+export { default as TemplateDocument } from './TemplateDocument.js';

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Mail, ArrowLeft, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import JuriqLoader from '@/components/ui/JuriqLoader';
 
 const EmailVerificationPending = () => {
     const { resendVerificationEmail, logout, user } = useAuth();
@@ -99,7 +100,7 @@ const EmailVerificationPending = () => {
                         disabled={isResending || countdown > 0}
                     >
                         {isResending ? (
-                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                            <JuriqLoader size="sm" className="mr-2" />
                         ) : (
                             <Mail className="mr-2 h-4 w-4" />
                         )}

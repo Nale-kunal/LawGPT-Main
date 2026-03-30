@@ -9,6 +9,7 @@ import {
   getDocumentById,
   updateDocument,
   queryDocuments,
+  deleteManyDocuments,
   MODELS
 } from '../services/mongodb.js';
 import logger from '../utils/logger.js';
@@ -1153,6 +1154,90 @@ router.get('/export-data', requireAuth, async (req, res) => {
   } catch (error) {
     logger.error({ error }, 'Export data error');
     return res.status(500).json({ error: 'Failed to export data' });
+  }
+});
+
+/**
+ * POST /api/auth/import-data
+ * Import user data from a backup file
+ */
+router.post('/import-data', requireAuth, async (req, res) => {
+  logger.info('🚀 DATA IMPORT INITIATED for user: %s', req.user.userId);
+  try {
+    const { user: importedUser, data: importedData } = req.body;
+
+    if (!importedUser || !importedData) {
+      return res.status(400).json({ error: 'Invalid backup file format' });
+    }
+
+    // 1. Restore User Profile & Settings
+    const updateQuery = {};
+    if (importedUser.name) updateQuery.name = importedUser.name;
+    if (importedUser.profile) updateQuery.profile = importedUser.profile;
+    if (importedUser.notifications) updateQuery.notifications = importedUser.notifications;
+    if (importedUser.preferences) updateQuery.preferences = importedUser.preferences;
+    if (importedUser.security) updateQuery.security = importedUser.security;
+
+    if (Object.keys(updateQuery).length > 0) {
+      await User.findByIdAndUpdate(req.user.userId, { $set: updateQuery });
+    }
+
+    // 2. Destructive Restoration of Business Data
+    // We clear existing data to ensure the state exactly matches the backup
+    const userIdFilter = { userId: req.user.userId };
+    
+    const collectionsToRestore = [
+      { key: 'cases', collection: MODELS.CASES },
+      { key: 'clients', collection: MODELS.CLIENTS },
+      { key: 'documents', collection: MODELS.DOCUMENTS },
+      { key: 'hearings', collection: MODELS.HEARINGS },
+      { key: 'invoices', collection: MODELS.INVOICES }
+    ];
+
+    for (const item of collectionsToRestore) {
+      // Clear existing
+      await deleteManyDocuments(item.collection, userIdFilter);
+      
+      // Insert new if available
+      const dataToInsert = importedData[item.key];
+      if (Array.isArray(dataToInsert) && dataToInsert.length > 0) {
+        // Sanitize: ensure all records point to the CURRENT userId
+        // (This prevents cases where a backup from User A is imported into User B's account)
+        const sanitizedData = dataToInsert.map(record => {
+          const { id, _id, createdAt, updatedAt, ...rest } = record; // eslint-disable-line @typescript-eslint/no-unused-vars
+          return {
+            ...rest,
+            userId: req.user.userId,
+            // We let Mongo generate new IDs to avoid conflicts with existing objects in the DB
+            // that might have been deleted but cached, or simply to follow system consistency.
+          };
+        });
+
+        for (const record of sanitizedData) {
+          await createDocument(item.collection, record);
+        }
+      }
+    }
+
+    logger.info('✅ DATA IMPORT COMPLETED for user: %s', req.user.userId);
+    
+    // Emit activity event
+    await activityEmitter.emit({
+      userId: req.user.userId,
+      eventType: 'data_import',
+      req,
+      metadata: {
+        timestamp: new Date().toISOString()
+      }
+    });
+
+    return res.json({ 
+      success: true, 
+      message: 'Data restored successfully. Refreshing application...' 
+    });
+  } catch (error) {
+    logger.error({ error }, 'Import data error');
+    return res.status(500).json({ error: 'Failed to import data. Please ensure the file is a valid Juriq backup.' });
   }
 });
 

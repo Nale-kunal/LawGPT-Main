@@ -70,11 +70,6 @@ export const JuriqLoader = ({ size = 'md', className, text }: JuriqLoaderProps) 
           )}>
             {text || (size === 'full' ? "Initializing Juriq" : "Juriq")}
           </span>
-          {size === 'full' && (
-            <span className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] mt-1">
-              Legal Intelligence
-            </span>
-          )}
         </div>
       )}
 

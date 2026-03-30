@@ -191,7 +191,7 @@ const TemplateWorkspace = () => {
       </div>
       
       <div className="mt-auto py-2 text-center text-[10px] text-muted-foreground flex items-center justify-center gap-2">
-        <span>© 2026 Juriq Legal Intelligence</span>
+        <span>© 2026 Juriq</span>
         <span className="h-1 w-1 bg-muted-foreground rounded-full"></span>
         <span className="italic">This is a draft template. Please review before use.</span>
       </div>

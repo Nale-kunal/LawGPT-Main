@@ -53,10 +53,10 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Document not found' });
     }
     
-    res.json(doc);
+    return res.json(doc);
   } catch (error) {
     logger.error({ err: error }, 'Get template document by ID error');
-    res.status(500).json({ error: 'Failed to fetch document' });
+    return res.status(500).json({ error: 'Failed to fetch document' });
   }
 });
 
@@ -82,10 +82,10 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    res.json(doc);
+    return res.json(doc);
   } catch (error) {
     logger.error({ err: error }, 'Update template document error');
-    res.status(500).json({ error: 'Failed to update document' });
+    return res.status(500).json({ error: 'Failed to update document' });
   }
 });
 
@@ -101,10 +101,10 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    res.json({ message: 'Document deleted successfully' });
+    return res.json({ message: 'Document deleted successfully' });
   } catch (error) {
     logger.error({ err: error }, 'Delete template document error');
-    res.status(500).json({ error: 'Failed to delete document' });
+    return res.status(500).json({ error: 'Failed to delete document' });
   }
 });
 

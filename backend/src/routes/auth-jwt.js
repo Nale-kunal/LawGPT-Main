@@ -42,11 +42,11 @@ router.get('/csrf-token', setCsrfToken);
  */
 router.get('/validate', (req, res) => {
   const token = req.cookies?.token;
-  if (!token) return res.json({ authenticated: false });
+  if (!token) { return res.json({ authenticated: false }); }
   try {
     jwt.verify(token, process.env.JWT_SECRET);
     return res.json({ authenticated: true });
-  } catch (err) {
+  } catch (_err) {
     return res.json({ authenticated: false });
   }
 });
@@ -1172,11 +1172,11 @@ router.post('/import-data', requireAuth, async (req, res) => {
 
     // 1. Restore User Profile & Settings
     const updateQuery = {};
-    if (importedUser.name) updateQuery.name = importedUser.name;
-    if (importedUser.profile) updateQuery.profile = importedUser.profile;
-    if (importedUser.notifications) updateQuery.notifications = importedUser.notifications;
-    if (importedUser.preferences) updateQuery.preferences = importedUser.preferences;
-    if (importedUser.security) updateQuery.security = importedUser.security;
+    if (importedUser.name) { updateQuery.name = importedUser.name; }
+    if (importedUser.profile) { updateQuery.profile = importedUser.profile; }
+    if (importedUser.notifications) { updateQuery.notifications = importedUser.notifications; }
+    if (importedUser.preferences) { updateQuery.preferences = importedUser.preferences; }
+    if (importedUser.security) { updateQuery.security = importedUser.security; }
 
     if (Object.keys(updateQuery).length > 0) {
       await User.findByIdAndUpdate(req.user.userId, { $set: updateQuery });
@@ -1204,7 +1204,7 @@ router.post('/import-data', requireAuth, async (req, res) => {
         // Sanitize: ensure all records point to the CURRENT userId
         // (This prevents cases where a backup from User A is imported into User B's account)
         const sanitizedData = dataToInsert.map(record => {
-          const { id, _id, createdAt, updatedAt, ...rest } = record; // eslint-disable-line @typescript-eslint/no-unused-vars
+          const { id: _id_orig, _id: _id_mongo, createdAt: _ca, updatedAt: _ua, ...rest } = record; // eslint-disable-line no-unused-vars
           return {
             ...rest,
             userId: req.user.userId,

@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 
 let cachedTransport = null;
 
-async function getTransport() {
+function getTransport() {
   if (cachedTransport) { return cachedTransport; }
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT || 587);

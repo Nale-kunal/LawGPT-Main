@@ -126,7 +126,7 @@ function setRefreshCookie(res, refreshToken) {
 
 // ── LINKING STATE HELPERS ────────────────────────────────────────────────────
 const LINK_STATE_COOKIE = 'oauth_link_state';
-const _LINK_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes — kept for documentation
+// _LINK_STATE_TTL_MS constant removed as it was unused per ESLint
 
 function verifyLinkState(cookieValue) {
   try {
@@ -735,8 +735,6 @@ router.get('/google/callback', async (req, res) => {
 
 import { requireAuth } from '../middleware/auth-jwt.js';
 
-// Function removed from here and moved above
-
 // ── Limiter for Google Linking ───────────────────────────────────────────────
 const linkLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -798,8 +796,6 @@ router.get('/google/link/callback', async (req, res) => {
     logger.warn({ errorCode, ip: req.ip }, `Google link callback rejected: ${errorCode}`);
     return res.redirect(`${settingsUrl}?link_error=${encodeURIComponent(errorCode)}`);
   };
-
-// Function removed from here and moved above
 
   let emailForAudit = 'unknown';
 

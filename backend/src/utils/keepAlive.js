@@ -1,3 +1,4 @@
+/* global setInterval */
 import logger from './logger.js';
 import https from 'https';
 import http from 'http';

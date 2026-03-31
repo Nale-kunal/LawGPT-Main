@@ -3,36 +3,34 @@
  */
 
 /**
- * Get the API base URL
- * In development: uses Vite proxy or VITE_API_URL
- * In production: returns relative path to leverage Vercel Proxy
+ * Get the API base URL for fetch() calls.
+ *
+ * Priority:
+ *  1. VITE_API_URL env var (set to https://api.juriq.in in production)
+ *     → browser makes request DIRECTLY to api.juriq.in with its own cookies
+ *  2. Relative path fallback (Vercel proxy) when VITE_API_URL is not set
+ *     NOTE: Vercel proxy is server-side — it cannot forward browser cookies
+ *     for api.juriq.in, so auth will fail. Always set VITE_API_URL in prod.
  */
 export function getApiUrl(path: string): string {
-  // Use relative paths in production to leverage Vercel Proxy (vercel.json rewrites)
-  if (import.meta.env.PROD) {
-    // Ensure path starts with / if it doesn't already
-    return path.startsWith('/') ? path : `/${path}`;
-  }
-
-  // In development, we might use an absolute URL or a relative path (Vite proxy)
-  const baseUrl = import.meta.env.VITE_API_URL || '';
-
-  // If the path already includes the base URL or is an absolute URL, return it
+  // If path is already an absolute URL, return it as-is
   if (path.startsWith('http')) return path;
 
-  // Ensure we don't have double slashes
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const baseUrl = import.meta.env.VITE_API_URL || '';
 
-  return baseUrl ? `${baseUrl}${cleanPath}` : cleanPath;
+  // Use absolute URL when VITE_API_URL is configured (production & dev with env set)
+  // This ensures the browser sends its own cookies directly to the backend host.
+  if (baseUrl) return `${baseUrl}${cleanPath}`;
+
+  // Fallback: relative path (works only if frontend and backend are same-origin)
+  return cleanPath;
 }
 
 /**
  * Build an absolute backend URL for OAuth browser redirects (window.location.replace).
- * Unlike getApiUrl(), this ALWAYS returns a full https://... URL because the browser
- * must navigate to the backend host directly, not the frontend host.
- *
- * In production: uses VITE_API_URL (e.g. https://api.juriq.in)
- * In development: falls back to VITE_API_URL or http://localhost:5000
+ * Always returns a full https://... URL — the browser must navigate directly to the
+ * backend host, never through the Vercel proxy.
  */
 export function getOAuthUrl(path: string): string {
   const backendBase =

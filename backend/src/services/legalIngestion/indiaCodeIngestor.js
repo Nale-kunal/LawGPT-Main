@@ -29,9 +29,10 @@ async function safeFetch(url) {
 async function upsertAct(data) {
     const norm = normalizeAct(data);
     if (!norm) { return; }
+    // $setOnInsert must NOT repeat fields already in $set — MongoDB error code 40
     await LegalActs.updateOne(
         { actName: norm.actName, section: norm.section },
-        { $set: norm, $setOnInsert: { actName: norm.actName, section: norm.section } },
+        { $set: norm },
         { upsert: true }
     );
 }

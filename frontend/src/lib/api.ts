@@ -26,6 +26,24 @@ export function getApiUrl(path: string): string {
   return baseUrl ? `${baseUrl}${cleanPath}` : cleanPath;
 }
 
+/**
+ * Build an absolute backend URL for OAuth browser redirects (window.location.replace).
+ * Unlike getApiUrl(), this ALWAYS returns a full https://... URL because the browser
+ * must navigate to the backend host directly, not the frontend host.
+ *
+ * In production: uses VITE_API_URL (e.g. https://api.juriq.in)
+ * In development: falls back to VITE_API_URL or http://localhost:5000
+ */
+export function getOAuthUrl(path: string): string {
+  const backendBase =
+    import.meta.env.VITE_API_URL ||
+    (import.meta.env.PROD ? '' : 'http://localhost:5000');
+
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${backendBase}${cleanPath}`;
+}
+
+
 export const fetchWithTimeout = (url: string | URL, options = {}, timeout = 8000) => {
   return Promise.race([
     fetch(url, options as RequestInit),

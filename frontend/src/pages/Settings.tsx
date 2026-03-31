@@ -23,7 +23,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { getApiUrl, apiFetch } from '@/lib/api';
+import { getApiUrl, getOAuthUrl, apiFetch } from '@/lib/api';
 import {
   Dialog,
   DialogContent,
@@ -621,7 +621,7 @@ const Settings = () => {
     // Use replace() so the OAuth initiation URL is NOT added to browser history.
     // This ensures that hitting 'Back' from Google's screen returns to Settings,
     // rather than hitting the link-initiation endpoint again.
-    window.location.replace(getApiUrl('/api/v1/auth/google/link'));
+    window.location.replace(getOAuthUrl('/api/v1/auth/google/link'));
   };
 
   const handleRelinkGoogle = async () => {

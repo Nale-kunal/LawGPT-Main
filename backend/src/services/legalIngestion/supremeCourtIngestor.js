@@ -11,9 +11,10 @@ import { normalizeCase } from './normalizer.js';
 async function upsertCase(data) {
     const norm = normalizeCase(data);
     if (!norm) {return;}
+    // $setOnInsert must NOT repeat fields already in $set — MongoDB error code 40
     await CaseLaws.updateOne(
         { caseTitle: norm.caseTitle, court: norm.court },
-        { $set: norm, $setOnInsert: { caseTitle: norm.caseTitle, court: norm.court } },
+        { $set: norm },
         { upsert: true }
     );
 }

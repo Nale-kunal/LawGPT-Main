@@ -9,7 +9,7 @@ import { Scale, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import JuriqLoader from '@/components/ui/JuriqLoader';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { getApiUrl } from '@/lib/api';
+import { getApiUrl, getOAuthUrl } from '@/lib/api';
 
 // Minimal Google "G" logo SVG — no external dependency
 const GoogleIcon = () => (
@@ -165,7 +165,9 @@ const Login = () => {
     // Use replace() so the OAuth initiation URL is NOT added to browser history.
     // If we used href=, the browser would store the /api/v1/auth/google URL and
     // pressing Back from /dashboard would navigate there, re-starting the OAuth flow.
-    window.location.replace(getApiUrl('/api/v1/auth/google?action=login'));
+    // getOAuthUrl() always returns a full https://api.juriq.in/... URL (not relative)
+    // because the browser must navigate to the backend host, not the frontend.
+    window.location.replace(getOAuthUrl('/api/v1/auth/google?action=login'));
   };
 
   const handleCreateNewAccount = () => {

@@ -334,19 +334,28 @@ router.get('/google', (req, res) => {
   // just send them straight to the dashboard instead of triggering Google's UI
   if (req.cookies?.token) {
     const frontendUrl = getFrontendUrl();
-    return res.redirect(`${frontendUrl || 'https://juriq.app'}/dashboard`);
+    return res.redirect(`${frontendUrl}/dashboard`);
   }
 
   // Cryptographically secure state — stored httpOnly, expires in 10 min
   const intent = req.query.action === 'signup' ? 'signup' : 'login';
   const stateVal = crypto.randomBytes(32).toString('hex');
   const state = `${stateVal}|${intent}`;
+
+  // domain: '.juriq.in' ensures the cookie is sent on BOTH juriq.in (frontend)
+  // AND api.juriq.in (callback), which are different subdomains.
+  // Without this, the browser treats them as separate origins and drops the cookie.
+  const cookieDomain = process.env.NODE_ENV === 'production'
+    ? (process.env.COOKIE_DOMAIN || undefined)
+    : undefined;
+
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: OAUTH_STATE_TTL_MS,
     path: '/',
+    ...(cookieDomain ? { domain: cookieDomain } : {}),
   };
   res.cookie(OAUTH_STATE_COOKIE, state, cookieOptions);
 
@@ -489,11 +498,15 @@ router.get('/google/callback', async (req, res) => {
       const storedState = req.cookies?.[OAUTH_STATE_COOKIE];
 
       // Always clear the state cookie immediately — one-time use regardless of outcome
+      const clearDomain = process.env.NODE_ENV === 'production'
+        ? (process.env.COOKIE_DOMAIN || undefined)
+        : undefined;
       res.clearCookie(OAUTH_STATE_COOKIE, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         path: '/',
+        ...(clearDomain ? { domain: clearDomain } : {}),
       });
 
       if (!storedState) {

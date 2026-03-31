@@ -330,24 +330,30 @@ router.get('/google', (req, res) => {
     });
   }
 
-  // FAILSAFE: If a user hits this while already authenticated (e.g. via back button),
-  // just send them straight to the dashboard instead of triggering Google's UI
+  // FAILSAFE: If a user hits this while already authenticated (AND the token is
+  // still valid), redirect to dashboard. We MUST verify — not just check presence
+  // — because an expired token cookie will still be present in the browser.
+  // On split-domain setups (juriq.in frontend + api.juriq.in backend) the JWT
+  // SameSite=none cookies travel with direct browser navigations to api.juriq.in.
   if (req.cookies?.token) {
-    const frontendUrl = getFrontendUrl();
-    return res.redirect(`${frontendUrl}/dashboard`);
+    try {
+      jwt.verify(req.cookies.token, process.env.JWT_SECRET);
+      // Token is valid — user is genuinely authenticated, redirect to dashboard
+      const frontendUrl = getFrontendUrl();
+      return res.redirect(`${frontendUrl}/dashboard`);
+    } catch {
+      // Token present but expired or invalid — clear it and proceed with OAuth
+      res.clearCookie('token', { path: '/' });
+      res.clearCookie('is_authenticated', { path: '/' });
+    }
   }
 
   // Cryptographically secure state — stored httpOnly, expires in 10 min
+  // The oauth_state cookie is set here on api.juriq.in and read back on the
+  // GET /google/callback route — same host, so no cross-subdomain domain needed.
   const intent = req.query.action === 'signup' ? 'signup' : 'login';
   const stateVal = crypto.randomBytes(32).toString('hex');
   const state = `${stateVal}|${intent}`;
-
-  // domain: '.juriq.in' ensures the cookie is sent on BOTH juriq.in (frontend)
-  // AND api.juriq.in (callback), which are different subdomains.
-  // Without this, the browser treats them as separate origins and drops the cookie.
-  const cookieDomain = process.env.NODE_ENV === 'production'
-    ? (process.env.COOKIE_DOMAIN || undefined)
-    : undefined;
 
   const cookieOptions = {
     httpOnly: true,
@@ -355,7 +361,6 @@ router.get('/google', (req, res) => {
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: OAUTH_STATE_TTL_MS,
     path: '/',
-    ...(cookieDomain ? { domain: cookieDomain } : {}),
   };
   res.cookie(OAUTH_STATE_COOKIE, state, cookieOptions);
 
@@ -498,15 +503,11 @@ router.get('/google/callback', async (req, res) => {
       const storedState = req.cookies?.[OAUTH_STATE_COOKIE];
 
       // Always clear the state cookie immediately — one-time use regardless of outcome
-      const clearDomain = process.env.NODE_ENV === 'production'
-        ? (process.env.COOKIE_DOMAIN || undefined)
-        : undefined;
       res.clearCookie(OAUTH_STATE_COOKIE, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         path: '/',
-        ...(clearDomain ? { domain: clearDomain } : {}),
       });
 
       if (!storedState) {

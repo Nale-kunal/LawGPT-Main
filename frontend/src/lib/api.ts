@@ -123,7 +123,7 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
           token = data.csrfToken;
           if (token) {
             // Manually cache it in document.cookie so subsequent requests don't need to fetch it
-            document.cookie = `csrf-token=${encodeURIComponent(token)}; path=/; max-age=86400; samesite=strict`;
+            document.cookie = `csrf-token=${encodeURIComponent(token)}; path=/; max-age=86400; samesite=lax`;
           }
         }
       } catch (_e) { // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -136,11 +136,47 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
     }
   }
 
-  const response = await fetchWithTimeout(url, {
+  let response = await fetchWithTimeout(url, {
     ...options,
     headers,
     credentials: 'include', // ALWAYS set
   }, 8000);
+
+  // CSRF Handling: If we get a 403 with CSRF error, the cached frontend token is stale.
+  // We need to clear it, fetch a new one, and retry the request exactly once.
+  if (response.status === 403 && isMutating) {
+    try {
+      const clonedRes = response.clone();
+      const errBody = await clonedRes.json().catch(() => ({}));
+      if (errBody.error === 'CSRF validation failed' || errBody.message?.includes('CSRF')) {
+        console.warn('API 403 CSRF validation failed. Clearing stale token cache and retrying...');
+        
+        // 1. Clear the stale frontend cookie
+        document.cookie = 'csrf-token=; path=/; max-age=0; samesite=strict';
+        document.cookie = 'csrf-token=; path=/; max-age=0; samesite=none; secure';
+        
+        // 2. Fetch a fresh token
+        const freshCsrfRes = await fetch(getApiUrl('/api/v1/auth/csrf-token'), { credentials: 'include' });
+        if (freshCsrfRes.ok) {
+          const freshData = await freshCsrfRes.json();
+          const freshToken = freshData.csrfToken;
+          if (freshToken) {
+            document.cookie = `csrf-token=${encodeURIComponent(freshToken)}; path=/; max-age=86400; samesite=lax`;
+            headers.set('X-CSRF-Token', freshToken);
+            
+            // 3. Retry the exactly identical robust request
+            response = await fetchWithTimeout(url, {
+              ...options,
+              headers,
+              credentials: 'include',
+            }, 8000);
+          }
+        }
+      }
+    } catch (_csrfErr) {
+      console.error('Failed to auto-recover from CSRF error.', _csrfErr);
+    }
+  }
 
   const resRequestId = response.headers.get("x-request-id");
   // Only log request IDs in dev, and skip noisy auth-check endpoints (401s there are expected)

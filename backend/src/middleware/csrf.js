@@ -76,7 +76,7 @@ export function csrfProtection(req, res, next) {
     const headerToken = req.headers?.['x-csrf-token'];
 
     if (!cookieToken || !headerToken) {
-        logger.warn({ path: req.path, method: req.method }, 'CSRF: missing token');
+        logger.warn({ path: req.path, method: req.method, hasCookie: !!cookieToken, hasHeader: !!headerToken, hdrs: req.headers, cks: req.cookies }, 'CSRF: missing token');
         return res.status(403).json({
             error: 'CSRF validation failed',
             message: 'Missing CSRF token. Ensure X-CSRF-Token header is set.',
@@ -91,7 +91,7 @@ export function csrfProtection(req, res, next) {
         cookieBuf.length !== headerBuf.length ||
         !crypto.timingSafeEqual(cookieBuf, headerBuf)
     ) {
-        logger.warn({ path: req.path, method: req.method, ip: req.ip }, 'CSRF: token mismatch');
+        logger.warn({ path: req.path, method: req.method, ip: req.ip, cookieMatchMsg: cookieToken === headerToken ? 'MATCH' : 'MISMATCH', cLen: cookieToken.length, hLen: headerToken.length }, 'CSRF: token mismatch');
         return res.status(403).json({
             error: 'CSRF validation failed',
             message: 'Invalid CSRF token.',

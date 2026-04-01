@@ -1078,7 +1078,9 @@ const Settings = () => {
 
             <Separator />
             <div className="space-y-1.5">
-              <Button variant="outline" className="w-full h-7 text-xs" onClick={() => setShowPasswordDialog(true)}>Change Password</Button>
+              <Button variant="outline" className="w-full h-7 text-xs" onClick={() => setShowPasswordDialog(true)}>
+                {user?.hasPassword !== false ? 'Change Password' : 'Set Password'}
+              </Button>
               <Button variant="outline" className="w-full h-7 text-xs" onClick={handleExportData} disabled={isExporting}>
                 {isExporting && <JuriqLoader size="sm" className="mr-1.5" />}
                 Download Account Data

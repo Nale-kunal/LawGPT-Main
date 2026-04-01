@@ -38,7 +38,7 @@ export const resetPasswordSchema = z.object({
 });
 
 export const changePasswordSchema = z.object({
-    currentPassword: z.string({ required_error: 'Current password is required' }).min(1),
+    currentPassword: z.string().min(1).optional(),
     newPassword: passwordSchema,
 });
 

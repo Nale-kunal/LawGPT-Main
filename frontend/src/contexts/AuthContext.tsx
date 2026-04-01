@@ -37,6 +37,7 @@ interface User {
   authProviders?: string[];
   role: 'lawyer' | 'assistant' | 'admin';
   emailVerified?: boolean;
+  hasPassword?: boolean;
   onboardingCompleted?: boolean;
   immutableFieldsLocked?: boolean;
   profile?: {

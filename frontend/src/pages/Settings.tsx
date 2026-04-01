@@ -384,10 +384,12 @@ const Settings = () => {
 
   const handleChangePassword = async () => {
     // Validate inputs
-    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+    const needsCurrentPassword = user?.hasPassword !== false;
+    
+    if ((needsCurrentPassword && !passwordData.currentPassword) || !passwordData.newPassword || !passwordData.confirmPassword) {
       toast({
         title: 'All fields required',
-        description: 'Please fill in all password fields',
+        description: needsCurrentPassword ? 'Please fill in all password fields' : 'Please provide and confirm your new password',
         variant: 'destructive'
       });
       return;
@@ -413,27 +415,35 @@ const Settings = () => {
 
     setIsChangingPassword(true);
     try {
+      const payload: any = {
+        newPassword: passwordData.newPassword
+      };
+      
+      if (needsCurrentPassword) {
+        payload.currentPassword = passwordData.currentPassword;
+      }
+
       const res = await apiFetch(getApiUrl('/api/v1/auth/change-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword
-        })
+        body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: 'Failed to change password' }));
-        throw new Error(data.error || 'Failed to change password');
+        const data = await res.json().catch(() => ({ error: 'Failed to set password' }));
+        throw new Error(data.error || 'Failed to set password');
       }
 
       toast({
-        title: 'Password changed successfully'
+        title: needsCurrentPassword ? 'Password changed successfully' : 'Password set successfully'
       });
 
       // Reset form and close dialog
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setShowPasswordDialog(false);
+      
+      // Refresh user to update the hasPassword flag in context
+      await refreshUser();
     } catch (error) {
       toast({
         title: 'Password change failed',
@@ -560,7 +570,9 @@ const Settings = () => {
 
   const handleDeleteAccount = async () => {
     // Validate inputs
-    if (!deleteData.password) {
+    const needsPassword = user?.hasPassword !== false;
+    
+    if (needsPassword && !deleteData.password) {
       toast({
         title: 'Password required',
         description: 'Please enter your password to confirm deletion',
@@ -580,10 +592,18 @@ const Settings = () => {
 
     setIsDeletingAccount(true);
     try {
+      const payload: any = {
+        confirmation: deleteData.confirmation
+      };
+      
+      if (needsPassword) {
+        payload.password = deleteData.password;
+      }
+
       const res = await apiFetch(getApiUrl('/api/v1/auth/delete-account'), {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(deleteData)
+        body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
@@ -1175,17 +1195,19 @@ const Settings = () => {
                 ⚠️ Warning: All your cases, clients, documents, and other data will be permanently deleted.
               </p>
             </div>
-            <div>
-              <Label htmlFor="deletePassword">Password</Label>
-              <Input
-                id="deletePassword"
-                type="password"
-                value={deleteData.password}
-                onChange={(e) => setDeleteData(prev => ({ ...prev, password: e.target.value }))}
-                disabled={isDeletingAccount}
-                placeholder="Enter your password"
-              />
-            </div>
+            {user?.hasPassword !== false && (
+              <div>
+                <Label htmlFor="deletePassword">Password</Label>
+                <Input
+                  id="deletePassword"
+                  type="password"
+                  value={deleteData.password}
+                  onChange={(e) => setDeleteData(prev => ({ ...prev, password: e.target.value }))}
+                  disabled={isDeletingAccount}
+                  placeholder="Enter your password"
+                />
+              </div>
+            )}
             <div>
               <Label htmlFor="deleteConfirmation">Type DELETE to confirm</Label>
               <Input

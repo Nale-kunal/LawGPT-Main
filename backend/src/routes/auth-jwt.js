@@ -154,6 +154,7 @@ function buildUserResponse(userId, profile) {
     id: userId,
     name: profile.name,
     email: profile.email,
+    hasPassword: !!profile.passwordHash,
     recoveryEmail: profile.recoveryEmail || null,
     recoveryGoogleId: profile.recoveryGoogleId || null,
     authProviders: profile.authProviders || ['email'],
@@ -1059,15 +1060,6 @@ router.post('/change-password', requireAuth, validate({ body: changePasswordSche
   try {
     const { currentPassword, newPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: 'Current and new password are required' });
-    }
-
-    // Validate new password strength
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters long' });
-    }
-
     // Get user with password
     const userDoc = await User.findById(req.user.userId);
 
@@ -1075,16 +1067,40 @@ router.post('/change-password', requireAuth, validate({ body: changePasswordSche
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Verify current password
-    const isPasswordValid = await userDoc.verifyPassword(currentPassword);
+    // Verify current password, but ONLY if they actually have one (e.g., they didn't sign up via Google-only)
+    if (userDoc.passwordHash) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Current password is required' });
+      }
+      
+      const isPasswordValid = await userDoc.verifyPassword(currentPassword);
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: 'Current password is incorrect' });
+      }
+    }
 
-    if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Current password is incorrect' });
+    if (!newPassword) {
+       return res.status(400).json({ error: 'New password is required' });
+    }
+
+    // Validate new password strength
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters long' });
     }
 
     // Hash and update new password
     const passwordHash = await User.hashPassword(newPassword);
-    await updateDocument(MODELS.USERS, req.user.userId, { passwordHash });
+    
+    // If they previously didn't have a password (Google user), ensure 'email' is in authProviders
+    const updatePayload = { passwordHash };
+    if (!userDoc.authProviders || !userDoc.authProviders.includes('email')) {
+      updatePayload.authProviders = [...(userDoc.authProviders || []), 'email'];
+      if (userDoc.authProvider === 'google') {
+        updatePayload.authProvider = 'hybrid';
+      }
+    }
+
+    await updateDocument(MODELS.USERS, req.user.userId, updatePayload);
 
     return res.json({ message: 'Password changed successfully' });
   } catch (error) {
@@ -1249,16 +1265,6 @@ router.delete('/delete-account', requireAuth, async (req, res) => {
   try {
     const { password, confirmation } = req.body;
 
-    // Require password confirmation
-    if (!password) {
-      return res.status(400).json({ error: 'Password is required to delete account' });
-    }
-
-    // Require explicit confirmation
-    if (confirmation !== 'DELETE') {
-      return res.status(400).json({ error: 'Please type DELETE to confirm account deletion' });
-    }
-
     // Get user with password
     const userDoc = await User.findById(req.user.userId);
 
@@ -1266,12 +1272,24 @@ router.delete('/delete-account', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Verify password
-    const isPasswordValid = await userDoc.verifyPassword(password);
-
-    if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Incorrect password' });
+    // Require explicit confirmation
+    if (confirmation !== 'DELETE') {
+      return res.status(400).json({ error: 'Please type DELETE to confirm account deletion' });
     }
+
+    // Require password confirmation ONLY if user has a password set
+    if (userDoc.passwordHash) {
+      if (!password) {
+        return res.status(400).json({ error: 'Password is required to delete account' });
+      }
+      
+      const isPasswordValid = await userDoc.verifyPassword(password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: 'Incorrect password' });
+      }
+    }
+
+    // Passwords are valid or bypassed. Proceed with sending audit log and soft-deleting the user.
 
     // Hard delete: Remove user and all associated data from the system permanently
     // This replaces the previous soft-delete logic to prevent data reappearing on re-signup

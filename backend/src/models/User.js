@@ -50,7 +50,6 @@ const userSchema = new mongoose.Schema({
     fullName: { type: String, default: null, index: true },
     barCouncilNumber: {
       type: String,
-      default: null,
       unique: true,
       sparse: true, // Only enforce uniqueness when value exists
       index: true
@@ -164,8 +163,8 @@ const userSchema = new mongoose.Schema({
   dataResidency: { type: String, default: 'IN-MUM-1' },
 
   // OAuth providers (additive — null for local users)
-  googleId: { type: String, default: null, sparse: true, unique: true },
-  recoveryGoogleId: { type: String, default: null, sparse: true, unique: true },
+  googleId: { type: String, sparse: true, unique: true },
+  recoveryGoogleId: { type: String, sparse: true, unique: true },
   authProvider: { type: String, enum: ['local', 'google', 'hybrid'], default: 'local' },
   authProviders: { type: [String], default: ['email'] },
 }, { timestamps: true });

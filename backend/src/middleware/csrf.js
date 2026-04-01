@@ -52,11 +52,11 @@ export function setCsrfToken(req, res) {
         token = generateToken();
     }
 
-    // Non-httpOnly so JS can read it; SameSite=strict to prevent CSRF from other origins
+    // Non-httpOnly so JS can read it; SameSite=none required for cross-domain POSTs
     res.cookie('csrf-token', token, {
         httpOnly: false,   // Must be JS-readable
         secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Changed to 'none'
         maxAge: 24 * 60 * 60 * 1000, // 1 day
         path: '/',
     });

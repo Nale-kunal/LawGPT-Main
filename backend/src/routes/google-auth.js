@@ -676,22 +676,29 @@ router.get('/google/callback', async (req, res) => {
           return redirectError('USER_NOT_FOUND', 'No account exists linked with this email');
         }
 
-        user = new User({
+        // Use findOneAndUpdate upsert instead of new User().save() to safely handle
+        // duplicate key race conditions (E11000) — e.g. a previous partial
+        // signup left a document with this email but no googleId.
+        const newUserData = {
           name: (name || '').trim() || normalizedEmail.split('@')[0],
-          email: normalizedEmail,
-          passwordHash: null,       // Google-only: no password
           googleId,
           authProvider: 'google',
           role: 'lawyer',
-          emailVerified: true,      // Google guarantees this above
+          emailVerified: true,
           onboardingCompleted: false,
           immutableFieldsLocked: false,
           deleted: false,
           notifications: DEFAULT_NOTIFICATIONS,
           preferences: DEFAULT_PREFERENCES,
           security: DEFAULT_SECURITY,
-        });
-        await user.save();
+          passwordHash: null,
+        };
+
+        user = await User.findOneAndUpdate(
+          { email: normalizedEmail },
+          { $setOnInsert: { email: normalizedEmail, ...newUserData } },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
         logger.info({ userId: user._id, email }, 'Google OAuth: created new user via Google');
 
         await auditOAuthAttempt(req, { userId: user._id.toString(), email, action: 'register', success: true });

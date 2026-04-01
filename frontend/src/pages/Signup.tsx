@@ -9,7 +9,7 @@ import { Scale, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import JuriqLoader from '@/components/ui/JuriqLoader';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { getApiUrl, apiFetch } from '@/lib/api';
+import { getApiUrl, getOAuthUrl, apiFetch } from '@/lib/api';
 
 // Minimal Google "G" logo SVG — no external dependency
 const GoogleIcon = () => (
@@ -159,7 +159,7 @@ const Signup = () => {
     // Use replace() so the OAuth initiation URL is NOT added to browser history.
     // If we used href=, the browser would store the /api/v1/auth/google URL and
     // pressing Back from /dashboard would navigate there, re-starting the OAuth flow.
-    window.location.replace(getApiUrl('/api/v1/auth/google?action=signup'));
+    window.location.replace(getOAuthUrl('/api/v1/auth/google?action=signup'));
   };
 
   return (

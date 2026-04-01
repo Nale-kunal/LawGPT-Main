@@ -1127,22 +1127,26 @@ const Settings = () => {
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Change Password</DialogTitle>
+            <DialogTitle>{user?.hasPassword !== false ? 'Change Password' : 'Set Password'}</DialogTitle>
             <DialogDescription>
-              Enter your current password and choose a new one
+              {user?.hasPassword !== false 
+                ? 'Enter your current password and choose a new one' 
+                : 'Choose a new password for your account'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="currentPassword">Current Password</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                value={passwordData.currentPassword}
-                onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                disabled={isChangingPassword}
-              />
-            </div>
+            {user?.hasPassword !== false && (
+              <div>
+                <Label htmlFor="currentPassword">Current Password</Label>
+                <Input
+                  id="currentPassword"
+                  type="password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                  disabled={isChangingPassword}
+                />
+              </div>
+            )}
             <div>
               <Label htmlFor="newPassword">New Password</Label>
               <Input
@@ -1174,7 +1178,7 @@ const Settings = () => {
             </Button>
             <Button onClick={handleChangePassword} disabled={isChangingPassword}>
               {isChangingPassword && <JuriqLoader size="sm" className="mr-2" />}
-              Change Password
+              {user?.hasPassword !== false ? 'Change Password' : 'Set Password'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -94,7 +94,7 @@ export const Sidebar = () => {
     >
       <SidebarHeader className="border-b border-sidebar-border px-3">
         <div className="flex items-center gap-2 py-3">
-          <div className="flex items-center justify-center h-9 w-9 rounded-md bg-secondary/30">
+          <div className="flex items-center justify-center h-9 w-9 rounded-md bg-black">
             <BrandLogo size={22} className="rounded-none transition-transform group-hover:scale-105" />
           </div>
           {state !== "collapsed" && (

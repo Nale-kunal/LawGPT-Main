@@ -51,7 +51,7 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
             <nav className="lp-nav lp-anim-fade" ref={el => { navRef.current = el; }}>
                 <Link className="lp-nav-logo" to="/" aria-label="Juriq">
                     <div className="lp-nav-logo-icon">
-                        <BrandLogo size={20} className="rounded-none bg-transparent" />
+                        <BrandLogo size={20} className="rounded-none bg-black" />
                     </div>
                     <div>
                         <span className="lp-nav-logo-text">Juriq</span>
@@ -84,7 +84,7 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                             <div className="lp-nav-logo-icon" style={{ width: 28, height: 28 }}>
-                                <BrandLogo size={18} className="rounded-none bg-transparent" />
+                                <BrandLogo size={18} className="rounded-none bg-black" />
                             </div>
                             <div><span className="lp-footer-brand-name">Juriq</span><span className="lp-footer-sub">Indian Law Management</span></div>
                         </div>

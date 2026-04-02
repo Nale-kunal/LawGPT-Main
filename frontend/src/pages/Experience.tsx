@@ -88,7 +88,7 @@ const Experience = () => {
                         <div className="lp-screen-card">
                             <div className="lp-app-mock">
                                 <div className="lp-app-sidebar">
-                                    <div className="lp-app-logo-row"><BrandLogo size={14} className="rounded-none bg-transparent" /><div className="lp-app-logo-text">Juriq</div></div>
+                                    <div className="lp-app-logo-row"><BrandLogo size={14} className="rounded-none bg-black" /><div className="lp-app-logo-text">Juriq</div></div>
                                     <div className="lp-app-nav-label">Navigation</div>
                                     {['Dashboard', 'Cases', 'Calendar', 'Clients', 'Legal Research', 'Billing', 'Documents', 'Notes'].map((item, i) => (
                                         <div key={item} className={`lp-app-nav-item${i === 0 ? ' active' : ''}`}><div className="lp-app-nav-dot" />{item}</div>
@@ -126,7 +126,7 @@ const Experience = () => {
                         <div className="lp-screen-card">
                             <div className="lp-app-mock">
                                 <div className="lp-app-sidebar">
-                                    <div className="lp-app-logo-row"><BrandLogo size={14} className="rounded-none bg-transparent" /><div className="lp-app-logo-text">Juriq</div></div>
+                                    <div className="lp-app-logo-row"><BrandLogo size={14} className="rounded-none bg-black" /><div className="lp-app-logo-text">Juriq</div></div>
                                     <div className="lp-app-nav-label">Navigation</div>
                                     {['Dashboard', 'Cases', 'Calendar', 'Clients', 'Legal Research', 'Billing', 'Documents', 'Notes'].map((item, i) => (
                                         <div key={item} className={`lp-app-nav-item${i === 2 ? ' active' : ''}`}><div className="lp-app-nav-dot" />{item}</div>

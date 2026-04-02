@@ -7,7 +7,7 @@ interface BrandLogoProps {
 
 export function BrandLogo({ className, size = 32 }: BrandLogoProps) {
   return (
-    <div className={cn("relative flex items-center justify-center overflow-hidden rounded-sm", className)}>
+    <div className={cn("relative flex items-center justify-center overflow-hidden rounded-sm bg-black", className)}>
       <img
         src="/logo.png"
         alt="Juriq Logo"

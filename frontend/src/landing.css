@@ -337,7 +337,7 @@ html.light {
   /* Matches: h-9 w-9 rounded-md bg-primary/10 text-primary */
   width: 36px;
   height: 36px;
-  background: hsl(var(--primary) / 0.1);
+  background: #000000;
   border-radius: var(--radius-md, 6px);
   display: flex;
   align-items: center;

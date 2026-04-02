@@ -26,6 +26,7 @@ import activityEmitter from '../utils/eventEmitter.js';
 import { rateLimit } from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
 import { redis } from '../utils/redis.js';
+import { env } from '../config/env.js';
 
 const router = express.Router();
 
@@ -62,7 +63,7 @@ const oauthLimiter = rateLimit({
     : undefined,
   handler(req, res) {
     logger.warn({ ip: req.ip, path: req.originalUrl }, 'OAuth Rate Limit triggered');
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
+    const frontendUrl = env.FRONTEND_URL || 'http://localhost:8080';
     
     // Always redirect GET requests (browser initiations/callbacks) back to login
     if (req.method === 'GET') {
@@ -79,7 +80,7 @@ router.use(oauthLimiter);
 
 // ── OAuth Client (lazy — returns null if not configured) ───────────────────
 function getOAuthClient() {
-  const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL } = process.env;
+  const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL } = env;
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_CALLBACK_URL) {
     return null;
   }
@@ -88,39 +89,42 @@ function getOAuthClient() {
 
 // ── JWT/Cookie helpers (identical to auth-jwt.js) ──────────────────────────
 function generateJWT(userId, email, role) {
-  const secret = process.env.JWT_SECRET;
+  const secret = env.JWT_SECRET;
   if (!secret) {
     throw new Error('JWT_SECRET not configured');
   }
   return jwt.sign({ userId, email, role }, secret, { expiresIn: '15m' });
 }
 function generateRefreshToken(userId) {
-  const refreshSecret = process.env.JWT_REFRESH_SECRET || (process.env.JWT_SECRET + '_refresh');
+  const refreshSecret = env.JWT_REFRESH_SECRET || (env.JWT_SECRET + '_refresh');
   return jwt.sign({ userId, type: 'refresh' }, refreshSecret, { expiresIn: '7d' });
 }
 function setAuthCookie(res, token) {
   res.cookie('token', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: env.NODE_ENV === 'production',
+    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 15 * 60 * 1000,
     path: '/',
+    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
   });
   res.cookie('is_authenticated', 'true', {
     httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: env.NODE_ENV === 'production',
+    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 15 * 60 * 1000,
     path: '/',
+    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
   });
 }
 function setRefreshCookie(res, refreshToken) {
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: env.NODE_ENV === 'production',
+    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: '/',
+    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
   });
 }
 

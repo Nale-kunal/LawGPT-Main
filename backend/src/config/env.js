@@ -25,6 +25,7 @@ const envSchema = z.object({
 
     // CORS
     CORS_ORIGIN: z.string().default('http://localhost:5173'),
+    COOKIE_DOMAIN: z.string().optional(),
 
     // Redis — required in production unless fallback is explicitly allowed
     REDIS_URL: z.string().optional(),

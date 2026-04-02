@@ -10,7 +10,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { getApiUrl, apiFetch } from '@/lib/api';
-import { Check, AlertCircle, Lock, ChevronRight, ChevronLeft, LogOut } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Check, AlertCircle, Lock, ChevronRight, ChevronLeft, LogOut, Shield } from 'lucide-react';
 import JuriqLoader from '@/components/ui/JuriqLoader';
 
 interface FormData {
@@ -40,6 +41,10 @@ interface FormData {
 
     // Step 5: Preferences
     timezone: string;
+
+    // Step 6: Security Question
+    securityQuestion: string;
+    securityAnswer: string;
 }
 
 interface FormErrors {
@@ -54,6 +59,14 @@ const CURRENCIES = [
     { value: 'EUR', label: '€ EUR - Euro' },
     { value: 'GBP', label: '£ GBP - British Pound' },
     { value: 'AED', label: 'د.إ AED - UAE Dirham' },
+];
+
+const SECURITY_QUESTIONS = [
+    "What is your mother's maiden name?",
+    "What was the name of your first pet?",
+    "What is your birthplace?",
+    "What was your first school name?",
+    "Who is your favorite sports player?"
 ];
 
 const Onboarding = () => {
@@ -83,6 +96,8 @@ const Onboarding = () => {
         state: '',
         country: '',
         timezone: 'Asia/Kolkata',
+        securityQuestion: '',
+        securityAnswer: '',
     });
 
     const [errors, setErrors] = useState<FormErrors>({});
@@ -126,9 +141,16 @@ const Onboarding = () => {
         if (!formData.currencyConfirm) newErrors.currencyConfirm = 'Please confirm your currency selection';
         else if (formData.currency !== formData.currencyConfirm) newErrors.currencyConfirm = 'Currency selections do not match';
 
+        // Security Question validation (now merged from Step 6)
+        if (!formData.securityQuestion) newErrors.securityQuestion = 'Please select a security question';
+        if (!formData.securityAnswer.trim()) newErrors.securityAnswer = 'Security answer is required';
+        else if (formData.securityAnswer.trim().length < 2) newErrors.securityAnswer = 'Answer is too short';
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
+
+
 
     const handleNext = () => {
         if (currentStep === 1 && !validateStep1()) return;
@@ -228,7 +250,7 @@ const Onboarding = () => {
 
     const steps = [
         { number: 1, title: 'Identity' },
-        { number: 2, title: 'Currency' },
+        { number: 2, title: 'Currency' }, // Security question now merged here
         { number: 3, title: 'Professional' },
         { number: 4, title: 'Contact' },
         { number: 5, title: 'Preferences' },
@@ -290,7 +312,7 @@ const Onboarding = () => {
 
                     {/* Step Counter */}
                     <div className="text-center">
-                        <p className="text-sm text-muted-foreground font-medium">Step {currentStep} of {steps.length}</p>
+                        <p className="text-sm text-muted-foreground font-medium">Step {currentStep} of 6</p>
                     </div>
                 </CardHeader>
 
@@ -414,6 +436,54 @@ const Onboarding = () => {
                                         </SelectContent>
                                     </Select>
                                     {errors.currencyConfirm && <p className="text-sm text-destructive mt-1">{errors.currencyConfirm}</p>}
+                                </div>
+
+                                <Separator className="my-4" />
+
+                                <div className="space-y-4 pt-2">
+                                    <Label className="flex items-center gap-2 text-primary">
+                                        <Shield className="h-4 w-4" />
+                                        Security Setup
+                                    </Label>
+                                    <p className="text-[10px] text-muted-foreground -mt-2">
+                                        Protect your account during sensitive actions like account deletion.
+                                    </p>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <Label htmlFor="securityQuestion" className="text-xs">Security Question</Label>
+                                            <Select 
+                                                value={formData.securityQuestion} 
+                                                onValueChange={(value) => updateField('securityQuestion', value)}
+                                            >
+                                                <SelectTrigger className={`h-9 text-xs ${errors.securityQuestion ? 'border-destructive' : ''}`}>
+                                                    <SelectValue placeholder="Select question" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {SECURITY_QUESTIONS.map(q => (
+                                                        <SelectItem key={q} value={q} className="text-xs">{q}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {errors.securityQuestion && <p className="text-[10px] text-destructive mt-1">{errors.securityQuestion}</p>}
+                                        </div>
+
+                                        <div>
+                                            <Label htmlFor="securityAnswer" className="text-xs">Your Answer</Label>
+                                            <Input
+                                                id="securityAnswer"
+                                                type="text"
+                                                value={formData.securityAnswer}
+                                                onChange={(e) => updateField('securityAnswer', e.target.value)}
+                                                placeholder="Enter secret answer"
+                                                className={`h-9 text-xs ${errors.securityAnswer ? 'border-destructive' : ''}`}
+                                            />
+                                            {errors.securityAnswer && <p className="text-[10px] text-destructive mt-1">{errors.securityAnswer}</p>}
+                                        </div>
+                                    </div>
+                                    <p className="text-[9px] text-muted-foreground text-center italic">
+                                        Answer is case-insensitive and hashed securely.
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -582,6 +652,8 @@ const Onboarding = () => {
                         </div>
                     )}
 
+
+
                     {/* Step 6: Confirmation */}
                     {currentStep === 6 && (
                         <div className="space-y-5">
@@ -667,6 +739,18 @@ const Onboarding = () => {
                                         )}
                                     </div>
                                 )}
+
+                                <div className="border-t pt-3">
+                                    <h3 className="font-semibold mb-2">Security Setup</h3>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Question</p>
+                                        <p className="font-medium">{formData.securityQuestion}</p>
+                                    </div>
+                                    <div className="mt-2">
+                                        <p className="text-sm text-muted-foreground">Answer</p>
+                                        <p className="font-medium">•••••••• (Hashed)</p>
+                                    </div>
+                                </div>
                             </div>
 
                             <Alert className="border-destructive bg-destructive/10">
@@ -713,20 +797,27 @@ const Onboarding = () => {
                             )}
 
                             {currentStep < 6 ? (
-                                <Button onClick={handleNext} className="gap-2">
-                                    Next Step
+                                <Button
+                                    onClick={handleNext}
+                                    className="gap-2"
+                                >
+                                    Next
                                     <ChevronRight className="h-4 w-4" />
                                 </Button>
                             ) : (
-                                <Button onClick={handleSubmit} disabled={isSubmitting || !finalConfirmed} className="gap-2">
+                                <Button
+                                    onClick={handleSubmit}
+                                    disabled={isSubmitting || !finalConfirmed}
+                                    className="gap-2 bg-primary hover:bg-primary/90"
+                                >
                                     {isSubmitting ? (
                                         <>
                                             <JuriqLoader size="sm" className="mr-2" />
-                                            Completing Setup...
+                                            Completing...
                                         </>
                                     ) : (
                                         <>
-                                            <Check className="h-4 w-4" />
+                                            <Check className="h-4 w-4 mr-2" />
                                             Complete Setup
                                         </>
                                     )}

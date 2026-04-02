@@ -102,9 +102,18 @@ const Settings = () => {
   // Delete account state
   const [deleteData, setDeleteData] = useState({
     password: '',
-    confirmation: ''
+    confirmation: '',
+    securityAnswer: ''
   });
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [userSecurityQuestion, setUserSecurityQuestion] = useState('');
+  const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
+
+  // Derived state for legacy account deletion support
+  const hasSecurityQuestion = userSecurityQuestion && 
+                               userSecurityQuestion !== 'Security question not found' && 
+                               userSecurityQuestion !== 'Failed to load security question' &&
+                               userSecurityQuestion !== 'No security question set';
 
   // Profile settings
   const [profileData, setProfileData] = useState({
@@ -155,29 +164,49 @@ const Settings = () => {
       ...(user.notifications || {})
     });
 
-    // Load preferences from user data
-    // IMPORTANT: for theme, use localStorage as source of truth (reflects navbar toggle)
-    // so we never overwrite a theme the user just set via the header toggle.
     const lsTheme = localStorage.getItem('juriq-theme') as 'light' | 'dark' | 'system' | null;
     const userPreferences = {
       ...defaultPreferenceSettings,
       ...(user.preferences || {}),
-      // Theme: prefer localStorage (live) over DB value to avoid overwriting navbar toggle
       theme: lsTheme || user.preferences?.theme || defaultPreferenceSettings.theme,
-      // Fallback: if preferences.timezone not set, use profile.timezone
       timezone: user.preferences?.timezone || user.profile?.timezone || defaultPreferenceSettings.timezone,
-      // Fallback: if preferences.currency not set, use profile.currency
       currency: user.preferences?.currency || user.profile?.currency || defaultPreferenceSettings.currency,
     };
     setPreferences(userPreferences);
-    // Do NOT call setTheme here — ThemeContext already reads localStorage on init.
-    // Calling setTheme would overwrite the theme the navbar toggle just set.
 
     setSecurity({
       ...defaultSecuritySettings,
       ...(user.security || {})
     });
   }, [user]);
+
+  // Load security question when delete dialog opens
+  useEffect(() => {
+    if (showDeleteDialog) {
+      const fetchQuestion = async () => {
+        setIsLoadingQuestion(true);
+        try {
+          const res = await apiFetch(getApiUrl('/api/v1/auth/security-question'), {
+            method: 'GET',
+            credentials: 'include'
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setUserSecurityQuestion(data.question);
+          } else {
+            setUserSecurityQuestion('Security question not found');
+          }
+        } catch (err) {
+          setUserSecurityQuestion('Failed to load security question');
+        } finally {
+          setIsLoadingQuestion(false);
+        }
+      };
+      fetchQuestion();
+    } else {
+      setDeleteData(prev => ({ ...prev, securityAnswer: '' }));
+    }
+  }, [showDeleteDialog]);
 
   // Handle Google linking redirect results (?linkSuccess=true or ?linkError=CODE)
   useEffect(() => {
@@ -590,8 +619,33 @@ const Settings = () => {
       return;
     }
 
+    // Step 1: Optional Security Answer verification (Legacy Users check)
+    if (hasSecurityQuestion && !deleteData.securityAnswer.trim()) {
+      toast({
+        title: 'Security answer required',
+        description: 'Please answer your security question',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     setIsDeletingAccount(true);
     try {
+      // Only verify if the user has a question set
+      if (hasSecurityQuestion) {
+        const verifyRes = await apiFetch(getApiUrl('/api/v1/auth/verify-security-answer'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ answer: deleteData.securityAnswer })
+        });
+
+        const verifyData = await verifyRes.json();
+        if (!verifyRes.ok) {
+          throw new Error(verifyData.error || 'Incorrect security answer');
+        }
+      }
+
+      // Step 2: Proceed with Deletion
       const payload: any = {
         confirmation: deleteData.confirmation
       };
@@ -1224,6 +1278,46 @@ const Settings = () => {
                 placeholder="DELETE"
               />
             </div>
+
+            <Separator className="my-2" />
+            
+            {hasSecurityQuestion ? (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2 text-primary">
+                  <Shield className="h-4 w-4" />
+                  Security Verification
+                </Label>
+                <div className="bg-muted/50 p-3 rounded-md border text-sm italic">
+                  {isLoadingQuestion ? (
+                    <div className="flex items-center gap-2">
+                      <JuriqLoader size="xs" />
+                      <span>Loading question...</span>
+                    </div>
+                  ) : (
+                    userSecurityQuestion
+                  )}
+                </div>
+                <Input
+                  id="securityAnswer"
+                  value={deleteData.securityAnswer}
+                  onChange={(e) => setDeleteData(prev => ({ ...prev, securityAnswer: e.target.value }))}
+                  disabled={isDeletingAccount || isLoadingQuestion}
+                  placeholder="Enter your security answer"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Your answer is case-insensitive.
+                </p>
+              </div>
+            ) : (
+              !isLoadingQuestion && (
+                <div className="p-3 bg-muted/30 border rounded-md">
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                    <Shield className="h-3.5 w-3.5 text-orange-500/70" />
+                    Security question not set. Proceeding with password verification only.
+                  </p>
+                </div>
+              )
+            )}
           </div>
           <DialogFooter>
             <Button

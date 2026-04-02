@@ -117,7 +117,7 @@ const App = () => (
                     <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
                     <Route path="/signup" element={<PublicOnlyRoute><Signup /></PublicOnlyRoute>} />
                     <Route path="/forgot-password" element={<PublicOnlyRoute><ForgotPassword /></PublicOnlyRoute>} />
-                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/reset-password/:token" element={<ResetPassword />} />
                     <Route path="/verify-email" element={<EmailVerificationSuccess />} />
                     <Route path="/verification-pending" element={<EmailVerificationPending />} />
 

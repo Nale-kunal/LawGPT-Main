@@ -1,6 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
 import AdminAuditLog from '../models/AdminAuditLog.js';
 import PasswordReset from '../models/PasswordReset.js';
@@ -28,6 +29,7 @@ import {
 import { blacklistToken, isTokenBlacklisted } from '../services/tokenService.js';
 import activityEmitter from '../utils/eventEmitter.js';
 import userDeletionService from '../services/userDeletionService.js';
+import { env } from '../config/env.js';
 
 const router = express.Router();
 
@@ -57,7 +59,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || (JWT_SECRET + '_refresh');
 const JWT_EXPIRES_IN = '15m'; // Short-lived access token
 const JWT_REFRESH_EXPIRES_IN = '7d'; // Long-lived refresh token
-const PASSWORD_RESET_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+const PASSWORD_RESET_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 const ALLOWED_ROLES = ['lawyer', 'assistant'];
 
 // Default settings
@@ -119,27 +121,30 @@ function generateRefreshToken(userId) {
 function setAuthCookie(res, token) {
   res.cookie('token', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: env.NODE_ENV === 'production',
+    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 15 * 60 * 1000, // 15 minutes
-    path: '/'
+    path: '/',
+    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
   });
   res.cookie('is_authenticated', 'true', {
     httpOnly: false, // Accessible by synchronous index.html JS
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: env.NODE_ENV === 'production',
+    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 15 * 60 * 1000,
-    path: '/'
+    path: '/',
+    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
   });
 }
 
 function setRefreshCookie(res, refreshToken) {
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: env.NODE_ENV === 'production',
+    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    path: '/' // Must be '/' so clearCookie('/', ...) reliably removes it on logout
+    path: '/', // Must be '/' so clearCookie('/', ...) reliably removes it on logout
+    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
   });
 }
 
@@ -582,17 +587,19 @@ router.post('/logout', async (req, res) => {
 
   const base = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'lax',
+    secure: env.NODE_ENV === 'production',
+    sameSite: env.NODE_ENV === 'production' ? 'lax' : 'lax',
+    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
   };
   // Clear access token (set at path '/')
   res.clearCookie('token', { ...base, path: '/' });
   // Clear frontend script boundary cookie
   res.clearCookie('is_authenticated', {
     httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    path: '/'
+    secure: env.NODE_ENV === 'production',
+    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+    path: '/',
+    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
   });
   // Clear refresh token — use same path it is set with ('/')
   res.clearCookie('refreshToken', { ...base, path: '/' });
@@ -815,7 +822,7 @@ router.post('/forgot-password', validate({ body: forgotPasswordSchema }), async 
     });
 
     // Send email to the PRIMARY email ALWAYS (never to recovery email)
-    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/reset-password?token=${resetToken}`;
+    const resetUrl = `${process.env.RESET_PASSWORD_BASE_URL || 'https://juriq.in'}/reset-password/${resetToken}`;
 
     try {
       await sendPasswordResetEmail({ to: user.email, resetUrl });
@@ -1340,7 +1347,9 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
       city,
       state,
       country,
-      timezone
+      timezone,
+      securityQuestion,
+      securityAnswer
     } = req.body;
 
     // Get current user
@@ -1426,6 +1435,31 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
     if (!validCurrencies.includes(currency)) {
       return res.status(400).json({ error: 'Invalid currency selection' });
     }
+    
+    // Validate Security Question & Answer
+    if (!securityQuestion || !securityQuestion.trim()) {
+      return res.status(400).json({ error: 'Security question is required' });
+    }
+    if (!securityAnswer || !securityAnswer.trim()) {
+      return res.status(400).json({ error: 'Security answer is required' });
+    }
+
+    // Fix: Use exact strings for questions as per list
+    const validQuestions = [
+      "What is your mother's maiden name?",
+      "What was the name of your first pet?",
+      "What is your birthplace?",
+      "What was your first school name?",
+      "Who is your favorite sports player?"
+    ];
+
+    if (!validQuestions.includes(securityQuestion)) {
+      return res.status(400).json({ error: 'Invalid security question selected' });
+    }
+
+    // Hash the security answer (normalize it first)
+    const normalizedAnswer = securityAnswer.toLowerCase().trim();
+    const securityAnswerHash = await bcrypt.hash(normalizedAnswer, 10);
 
     // Build audit trail entries for all fields
     const auditEntries = [];
@@ -1469,6 +1503,9 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
     if (timezone) {
       auditEntries.push({ fieldName: 'timezone', value: timezone, enteredAt: now });
     }
+    
+    // Audit security question (we do NOT audit the hash or answer for security)
+    auditEntries.push({ fieldName: 'securityQuestion', value: securityQuestion, enteredAt: now });
 
     const updateQuery = {
       $set: {
@@ -1488,6 +1525,8 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
         'profile.timezone': timezone || 'Asia/Kolkata',
         'preferences.timezone': timezone || 'Asia/Kolkata',
         'preferences.currency': currency,
+        securityQuestion: securityQuestion,
+        securityAnswerHash: securityAnswerHash,
       },
       $push: {
         onboardingDataAudit: { $each: auditEntries }

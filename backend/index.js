@@ -29,6 +29,7 @@ import ClientErrorLog from './src/models/ClientErrorLog.js';
 
 import authRoutes from './src/routes/auth-jwt.js';
 import googleAuthRoutes from './src/routes/google-auth.js';
+import securityQuestionRoutes from './src/routes/securityQuestion.js';
 import { startKeepAlive } from './src/utils/keepAlive.js';
 // ... existing imports ...
 import caseRoutes from './src/routes/cases.js';
@@ -440,6 +441,7 @@ app.post('/api/v1/logs/client-error', clientErrorLimiter, async (req, res) => {
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/auth', googleAuthRoutes); // Google OAuth (limiter now inside)
+app.use('/api/v1/auth', securityQuestionRoutes);
 app.use('/api/v1/cases/:caseId/notes', caseNotesRoutes);
 app.use('/api/v1/cases', caseRoutes);
 app.use('/api/v1/clients', clientRoutes);

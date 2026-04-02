@@ -167,6 +167,10 @@ const userSchema = new mongoose.Schema({
   recoveryGoogleId: { type: String, sparse: true, unique: true },
   authProvider: { type: String, enum: ['local', 'google', 'hybrid'], default: 'local' },
   authProviders: { type: [String], default: ['email'] },
+
+  // Security question (set during onboarding, used to protect account deletion)
+  securityQuestion: { type: String, default: null },
+  securityAnswerHash: { type: String, default: null },
 }, { timestamps: true });
 
 // Indexes (email already has unique index from field definition)

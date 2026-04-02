@@ -17,6 +17,7 @@ import {
   LayoutGrid
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { BrandLogo } from '@/components/ui/BrandLogo';
 import { useLegalData } from '@/contexts/LegalDataContext';
 import {
   Sidebar as SidebarComponent,
@@ -93,8 +94,8 @@ export const Sidebar = () => {
     >
       <SidebarHeader className="border-b border-sidebar-border px-3">
         <div className="flex items-center gap-2 py-3">
-          <div className="flex items-center justify-center h-9 w-9 rounded-md bg-primary/10">
-            <Scale className="h-5 w-5 text-primary" />
+          <div className="flex items-center justify-center h-9 w-9 rounded-md bg-secondary/30">
+            <BrandLogo size={22} className="rounded-none transition-transform group-hover:scale-105" />
           </div>
           {state !== "collapsed" && (
             <div className="min-w-0 text-left">

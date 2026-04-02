@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
-import { Scale } from 'lucide-react';
+import { BrandLogo } from '@/components/ui/BrandLogo';
 import { Ic } from '@/components/landing/LandingIcons';
 import '../../landing.css';
 
@@ -51,7 +51,7 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
             <nav className="lp-nav lp-anim-fade" ref={el => { navRef.current = el; }}>
                 <Link className="lp-nav-logo" to="/" aria-label="Juriq">
                     <div className="lp-nav-logo-icon">
-                        <Scale className="lp-logo-icon" />
+                        <BrandLogo size={20} className="rounded-none bg-transparent" />
                     </div>
                     <div>
                         <span className="lp-nav-logo-text">Juriq</span>
@@ -83,7 +83,9 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
                 <div className="lp-footer-top">
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                            <div className="lp-nav-logo-icon" style={{ width: 28, height: 28 }}><Scale className="lp-logo-icon" /></div>
+                            <div className="lp-nav-logo-icon" style={{ width: 28, height: 28 }}>
+                                <BrandLogo size={18} className="rounded-none bg-transparent" />
+                            </div>
                             <div><span className="lp-footer-brand-name">Juriq</span><span className="lp-footer-sub">Indian Law Management</span></div>
                         </div>
                         <p className="lp-footer-brand-tag">Professional case management for Indian advocates and legal professionals.</p>

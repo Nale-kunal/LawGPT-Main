@@ -324,7 +324,7 @@ function verifyRecoveryData(cookieValue) {
 // GET /api/v1/auth/google
 // Redirect user to Google consent screen with a one-time CSRF state param.
 // ═══════════════════════════════════════════════════════════════════════════
-router.get('/google', (req, res) => {
+router.get('/google', async (req, res) => {
   const client = getOAuthClient();
   if (!client) {
     logger.warn('Google OAuth attempted but credentials not configured');
@@ -338,19 +338,34 @@ router.get('/google', (req, res) => {
   // FAILSAFE: If a user hits this while already authenticated (AND the token is
   // still valid), redirect to dashboard. We MUST verify — not just check presence
   // — because an expired token cookie will still be present in the browser.
-  // On split-domain setups (juriq.in frontend + api.juriq.in backend) the JWT
-  // SameSite=none cookies travel with direct browser navigations to api.juriq.in.
   if (req.cookies?.token) {
     try {
-      jwt.verify(req.cookies.token, process.env.JWT_SECRET);
-      // Token is valid — user is genuinely authenticated, redirect to dashboard
-      const frontendUrl = getFrontendUrl();
-      return res.redirect(`${frontendUrl}/dashboard`);
+      const decoded = jwt.verify(req.cookies.token, env.JWT_SECRET);
+      
+      // HARDENING: Verify the user actually exists and is active.
+      // This prevents redirect loops for deleted users with stale but valid-looking tokens.
+      const user = await User.findById(decoded.userId).select('status deleted');
+      if (user && user.status === 'active' && !user.deleted) {
+        logger.info({ userId: decoded.userId }, 'Google OAuth: User already authenticated and active. Redirecting to dashboard.');
+        const frontendUrl = getFrontendUrl();
+        return res.redirect(`${frontendUrl}/dashboard`);
+      }
+      
+      // If user checks fail, we continue to clear cookies and start fresh OAuth
     } catch {
-      // Token present but expired or invalid — clear it and proceed with OAuth
-      res.clearCookie('token', { path: '/' });
-      res.clearCookie('is_authenticated', { path: '/' });
+      // Token present but expired or invalid — silent fallthrough to clear below
     }
+    
+    // Always clear potentially stale cookies before starting a fresh OAuth flow
+    const clearOptions = {
+      path: '/',
+      secure: env.NODE_ENV === 'production',
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+      ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
+    };
+    res.clearCookie('token', clearOptions);
+    res.clearCookie('is_authenticated', clearOptions);
+    res.clearCookie('refreshToken', clearOptions);
   }
 
   // Cryptographically secure state — stored httpOnly, expires in 10 min
@@ -510,9 +525,10 @@ router.get('/google/callback', async (req, res) => {
       // Always clear the state cookie immediately — one-time use regardless of outcome
       res.clearCookie(OAUTH_STATE_COOKIE, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        secure: env.NODE_ENV === 'production',
+        sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
         path: '/',
+        ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
       });
 
       if (!storedState) {
@@ -864,9 +880,10 @@ router.get('/google/link/callback', async (req, res) => {
     // Always clear immediately — one-time use
     res.clearCookie(LINK_STATE_COOKIE, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: env.NODE_ENV === 'production',
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/',
+      ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
     });
 
     if (!signedStateCookie) {
@@ -945,7 +962,13 @@ router.get('/google/link/callback', async (req, res) => {
     }
 
     // Use the consolidated helper
-    res.clearCookie(LINK_STATE_COOKIE);
+    res.clearCookie(LINK_STATE_COOKIE, {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
+      ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
+    });
     return handleLinkingLogic(req, res, userId, googleId, googleEmail, name);
 
   } catch (err) {
@@ -982,7 +1005,11 @@ router.post('/google/relink', requireAuth, async (req, res) => {
 
     // Clear the pending cookie
     res.clearCookie(RECOVERY_PENDING_COOKIE, {
-      httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/'
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
+      ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
     });
 
     await auditOAuthAttempt(req, { userId, email: user.email, action: 'replace_recovery_email', success: true, metadata: { oldEmail, newEmail: pending.email } });

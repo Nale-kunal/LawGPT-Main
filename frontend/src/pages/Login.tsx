@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +34,8 @@ const Login = () => {
   const { login, isAuthenticated, user, isLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const hasProcessedOAuth = useRef(false);
 
   // Handle redirect in useEffect to prevent flicker
   useEffect(() => {
@@ -51,24 +53,32 @@ const Login = () => {
   // Success needs no handling: backend sets cookies and redirects to /dashboard;
   // AuthContext.refreshUser() on mount reads the cookies and authenticates.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('oauth') !== 'error') return;
+    // 1. Check if we have oauth=error in URL
+    const params = new URLSearchParams(location.search);
+    if (params.get('oauth') !== 'error' || hasProcessedOAuth.current) return;
 
-    window.history.replaceState(null, '', window.location.pathname);
+    // 2. Mark as processed to prevent loops
+    hasProcessedOAuth.current = true;
 
     const reason = params.get('reason') || 'UNKNOWN';
     const errmsg = params.get('errmsg') || '';
 
+    // 3. Handle Rate Limit
     if (reason === 'RATE_LIMIT_EXCEEDED') {
       setLockoutTimer(60);
+      navigate(location.pathname, { replace: true });
       return;
     }
 
+    // 4. Handle Account Deletion (Dialog Case)
     if (reason === 'ACCOUNT_DELETED') {
       setShowDeletedDialog(true);
+      // We clear URL *internally* to keep URL clean, but state is already setShowDeletedDialog
+      navigate(location.pathname, { replace: true });
       return;
     }
 
+    // 5. Handle Other Failures (Toast Case)
     const friendlyMessages: Record<string, string> = {
       ACCESS_DENIED: 'Google sign-in was cancelled.',
       EMAIL_NOT_VERIFIED: 'Your Google account email is not verified. Please verify it with Google first.',
@@ -80,14 +90,17 @@ const Login = () => {
       STATE_MISMATCH: 'Security check failed. Please try again.',
       SERVER_ERROR: `An unexpected error occurred: ${errmsg || 'Please try again.'}`,
     };
+
     toast({
       title: 'Google Sign-In Failed',
       description: friendlyMessages[reason] ?? 'Google sign-in failed. Please try again.',
       variant: 'destructive',
     });
-  // Run once on mount only
+
+    // 6. Final cleanup: clear URL params
+    navigate(location.pathname, { replace: true });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [location.search, navigate]);
 
   // Countdown timer for rate limiting
   useEffect(() => {

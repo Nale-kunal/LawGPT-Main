@@ -21,6 +21,7 @@ import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import AdminAuditLog from '../models/AdminAuditLog.js';
 import logger from '../utils/logger.js';
 import activityEmitter from '../utils/eventEmitter.js';
 import { rateLimit } from 'express-rate-limit';
@@ -673,6 +674,21 @@ router.get('/google/callback', async (req, res) => {
 
       } else {
         // ── Case D: New user — create Google account ─────────────────────
+        
+        // SECURITY: Check if this email was previously permanently deleted (hard-deleted)
+        // This log check prevents re-registration or generic "not found" errors for 
+        // accounts we want the user to know are "deleted".
+        const hardDeletionLog = await AdminAuditLog.findOne({
+          action: 'user_delete_hard',
+          'details.email': normalizedEmail
+        }).sort({ timestamp: -1 });
+
+        if (hardDeletionLog) {
+          logger.warn({ email: normalizedEmail }, 'Google OAuth: signup/login attempt for hard-deleted account');
+          await auditOAuthAttempt(req, { email: normalizedEmail, action: 'login', success: false, reason: 'ACCOUNT_DELETED' });
+          return redirectError('ACCOUNT_DELETED', 'This account has been deleted');
+        }
+
         const intent = typeof returnedState === 'string' ? returnedState.split('|')[1] : 'login';
         if (intent !== 'signup') {
           logger.warn({ email: normalizedEmail }, 'Google OAuth: Prevented unauthorized google login for unknown account');

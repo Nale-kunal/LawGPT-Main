@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { getDocumentById, MODELS } from '../services/mongodb.js';
 import { isTokenBlacklisted } from '../services/tokenService.js';
 import logger from '../utils/logger.js';
+import { env } from '../config/env.js';
 
 /**
  * JWT-based authentication middleware
@@ -28,9 +29,10 @@ export async function requireAuth(req, res, next) {
             }
             res.clearCookie('token', {
                 httpOnly: true,
-                sameSite: 'lax',
-                secure: process.env.NODE_ENV === 'production',
-                path: '/'
+                secure: env.NODE_ENV === 'production',
+                sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+                path: '/',
+                ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
             });
             return res.status(401).json({
                 error: 'No authentication token provided',
@@ -47,9 +49,10 @@ export async function requireAuth(req, res, next) {
             logger.error('Blacklisted token used: %s', token.substring(0, 20));
             res.clearCookie('token', {
                 httpOnly: true,
-                sameSite: 'lax',
-                secure: process.env.NODE_ENV === 'production',
-                path: '/'
+                secure: env.NODE_ENV === 'production',
+                sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+                path: '/',
+                ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
             });
             return res.status(401).json({
                 error: 'Token has been revoked',
@@ -80,9 +83,10 @@ export async function requireAuth(req, res, next) {
 
             res.clearCookie('token', {
                 httpOnly: true,
-                sameSite: 'lax',
-                secure: process.env.NODE_ENV === 'production',
-                path: '/'
+                secure: env.NODE_ENV === 'production',
+                sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+                path: '/',
+                ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
             });
 
             return res.status(401).json({
@@ -101,9 +105,10 @@ export async function requireAuth(req, res, next) {
             logger.error({ userId: decodedToken.userId }, 'User profile not found - returning 401');
             res.clearCookie('token', {
                 httpOnly: true,
-                sameSite: 'lax',
-                secure: process.env.NODE_ENV === 'production',
-                path: '/'
+                secure: env.NODE_ENV === 'production',
+                sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+                path: '/',
+                ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
             });
             return res.status(401).json({
                 error: 'User profile not found',
@@ -119,9 +124,10 @@ export async function requireAuth(req, res, next) {
             logger.error({ userId: decodedToken.userId }, 'Deleted user attempted to access protected route');
             res.clearCookie('token', {
                 httpOnly: true,
-                sameSite: 'lax',
-                secure: process.env.NODE_ENV === 'production',
-                path: '/'
+                secure: env.NODE_ENV === 'production',
+                sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+                path: '/',
+                ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
             });
             return res.status(403).json({
                 error: 'Account has been deleted',
@@ -152,12 +158,13 @@ export async function requireAuth(req, res, next) {
         logger.error({ stack: error.stack }, 'Auth middleware stack');
 
         // Clear invalid cookies
-        res.clearCookie('token', {
-            httpOnly: true,
-            sameSite: 'lax',
-            secure: process.env.NODE_ENV === 'production',
-            path: '/'
-        });
+            res.clearCookie('token', {
+                httpOnly: true,
+                secure: env.NODE_ENV === 'production',
+                sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+                path: '/',
+                ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
+            });
 
         return res.status(401).json({
             error: 'Authentication failed',

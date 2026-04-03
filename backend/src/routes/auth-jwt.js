@@ -40,13 +40,21 @@ router.get('/csrf-token', setCsrfToken);
 
 /**
  * GET /api/v1/auth/validate
- * Lightweight synchronous auth validation endpoint for BFCache recovery
+ * Lightweight auth validation endpoint for BFCache recovery and mount checks.
+ * Hardened to verify user existence and status in addition to JWT signature.
  */
-router.get('/validate', (req, res) => {
+router.get('/validate', async (req, res) => {
   const token = req.cookies?.token;
   if (!token) { return res.json({ authenticated: false }); }
   try {
-    jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Check if user still exists and is active (prevents /me 401 loop on deleted accounts)
+    const user = await User.findById(decoded.userId).select('status deleted');
+    if (!user || user.status === 'deleted' || user.deleted) {
+      return res.json({ authenticated: false });
+    }
+    
     return res.json({ authenticated: true });
   } catch (_err) {
     return res.json({ authenticated: false });

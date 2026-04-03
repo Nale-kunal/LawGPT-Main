@@ -64,6 +64,11 @@ const Login = () => {
       return;
     }
 
+    if (reason === 'ACCOUNT_DELETED') {
+      setShowDeletedDialog(true);
+      return;
+    }
+
     const friendlyMessages: Record<string, string> = {
       ACCESS_DENIED: 'Google sign-in was cancelled.',
       EMAIL_NOT_VERIFIED: 'Your Google account email is not verified. Please verify it with Google first.',

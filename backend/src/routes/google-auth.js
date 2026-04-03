@@ -589,6 +589,15 @@ router.get('/google/callback', async (req, res) => {
     const { sub: googleId, email, name, email_verified } = payload;
 
     // ── 5. MANDATORY: email and email_verified checks ────────────────────
+    
+    // Determine the user's INTENT (login vs signup) early for case handling.
+    // If it's a link flow, intent is technically 'link', otherwise it's in the state.
+    const intent = isLinkFlow 
+      ? 'link' 
+      : (typeof storedState === 'string' && storedState.includes('|') ? storedState.split('|')[1] : 'login');
+    
+    // Correctly categorize the action for auditing
+    const auditAction = intent === 'signup' ? 'register' : 'login';
     if (!email) {
       logger.warn({ googleId }, 'Google OAuth: no email in token payload — rejecting');
       await auditOAuthAttempt(req, { email: 'NO_EMAIL', action: 'login', success: false, reason: 'NO_EMAIL' });
@@ -610,6 +619,9 @@ router.get('/google/callback', async (req, res) => {
     emailForAudit = email;
     const normalizedEmail = email.toLowerCase().trim();
 
+    // ── 5.5: Audit categorisation ────────────────────────────────────────────
+    const actionAuditStr = auditAction;
+
     // ── 6. LINKING CHECK — is this a link attempt from settings? ──────────
     if (isLinkFlow && linkUserId) {
       logger.info({ userId: linkUserId, email }, 'Google OAuth: detected LINK request in main callback via encrypted state');
@@ -627,9 +639,18 @@ router.get('/google/callback', async (req, res) => {
     if (user) {
       // ── Case A: Returning Google user (Primary or Recovery) ────────────
       if (user.status === 'deleted' || user.deleted) {
-        logger.warn({ email: normalizedEmail }, 'Google OAuth: login attempt for deleted account');
-        await auditOAuthAttempt(req, { userId: user._id.toString(), email, action: 'login', success: false, reason: 'ACCOUNT_DELETED' });
-        return redirectError('ACCOUNT_DELETED', 'This account has been deleted');
+        if (intent === 'signup') {
+          // REACTIVATION: User explicitly wants to start over/reuse this account
+          logger.info({ userId: user._id, email: normalizedEmail }, 'Google OAuth: Reactivating soft-deleted account via signup intent');
+          user.status = 'active';
+          user.deleted = false;
+          // We can optionally clear old data here, but for now we just reactivate
+          await user.save();
+        } else {
+          logger.warn({ email: normalizedEmail }, 'Google OAuth: login attempt for deleted account');
+          await auditOAuthAttempt(req, { userId: user._id.toString(), email, action: 'login', success: false, reason: 'ACCOUNT_DELETED' });
+          return redirectError('ACCOUNT_DELETED', 'This account has been deleted');
+        }
       }
 
       // Paranoia check: email on token must match either primary or recovery email
@@ -657,8 +678,16 @@ router.get('/google/callback', async (req, res) => {
       if (emailUser) {
         // ── Case B: Email collision handling ────────────────────────────
         if (emailUser.status === 'deleted' || emailUser.deleted) {
-          await auditOAuthAttempt(req, { email, action: 'login', success: false, reason: 'ACCOUNT_DELETED' });
-          return redirectError('ACCOUNT_DELETED', 'This account has been deleted');
+          if (intent === 'signup') {
+            // REACTIVATION: User explicitly wants to start over/reuse this account
+            logger.info({ userId: emailUser._id, email: normalizedEmail }, 'Google OAuth: Reactivating soft-deleted account (email-match) via signup intent');
+            emailUser.status = 'active';
+            emailUser.deleted = false;
+            await emailUser.save();
+          } else {
+            await auditOAuthAttempt(req, { email, action: 'login', success: false, reason: 'ACCOUNT_DELETED' });
+            return redirectError('ACCOUNT_DELETED', 'This account has been deleted');
+          }
         }
 
         const provider = emailUser.authProvider || 'local';
@@ -690,9 +719,7 @@ router.get('/google/callback', async (req, res) => {
 
       } else {
         // ── Case D: New user — create Google account ─────────────────────
-        const stateStr = typeof returnedState === 'string' ? returnedState : '';
-        const intent = stateStr.includes('|') ? stateStr.split('|')[1] : 'login';
-
+        
         // SECURITY: Check if this email was previously permanently deleted (hard-deleted)
         // Only block if the intent is 'login'. If 'signup', allow them to start over.
         const hardDeletionLog = await AdminAuditLog.findOne({

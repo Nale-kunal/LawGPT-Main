@@ -28,6 +28,7 @@ import logger from './src/utils/logger.js';
 import ClientErrorLog from './src/models/ClientErrorLog.js';
 
 import authRoutes from './src/routes/auth-jwt.js';
+import forgotPasswordRoutes from './src/routes/forgotPasswordRoutes.js';
 import googleAuthRoutes from './src/routes/google-auth.js';
 import securityQuestionRoutes from './src/routes/securityQuestion.js';
 import { startKeepAlive } from './src/utils/keepAlive.js';
@@ -439,6 +440,7 @@ app.post('/api/v1/logs/client-error', clientErrorLimiter, async (req, res) => {
   res.json({ ok: true });
 });
 
+app.use('/api/v1/auth', forgotPasswordRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/auth', googleAuthRoutes); // Google OAuth (limiter now inside)
 app.use('/api/v1/auth', securityQuestionRoutes);
@@ -461,6 +463,7 @@ app.use('/api/v1/legal', legalRoutes);
 app.use('/api/v1/templates', templatesRoutes);
 
 // ─── Backward Compatibility /api/* → /api/v1/* (90-day window) ───────────────
+app.use('/api/auth', forgotPasswordRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/auth', googleAuthRoutes); // Google OAuth compat path
 app.use('/api/cases', caseRoutes);

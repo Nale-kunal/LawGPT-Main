@@ -88,8 +88,8 @@ const userSchema = new mongoose.Schema({
   verifiedAt: { type: Date },
 
   // Password reset
-  resetPasswordToken: { type: String },
-  resetPasswordExpires: { type: Date },
+  resetPasswordToken: { type: String, default: null },
+  resetPasswordExpires: { type: Date, default: null },
 
   // Notification settings (embedded document)
   notifications: {

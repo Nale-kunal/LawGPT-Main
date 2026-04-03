@@ -690,22 +690,22 @@ router.get('/google/callback', async (req, res) => {
 
       } else {
         // ── Case D: New user — create Google account ─────────────────────
-        
+        const stateStr = typeof returnedState === 'string' ? returnedState : '';
+        const intent = stateStr.includes('|') ? stateStr.split('|')[1] : 'login';
+
         // SECURITY: Check if this email was previously permanently deleted (hard-deleted)
-        // This log check prevents re-registration or generic "not found" errors for 
-        // accounts we want the user to know are "deleted".
+        // Only block if the intent is 'login'. If 'signup', allow them to start over.
         const hardDeletionLog = await AdminAuditLog.findOne({
           action: 'user_delete_hard',
           'details.email': normalizedEmail
         }).sort({ timestamp: -1 });
 
-        if (hardDeletionLog) {
-          logger.warn({ email: normalizedEmail }, 'Google OAuth: signup/login attempt for hard-deleted account');
+        if (hardDeletionLog && intent !== 'signup') {
+          logger.warn({ email: normalizedEmail }, 'Google OAuth: login attempt for hard-deleted account');
           await auditOAuthAttempt(req, { email: normalizedEmail, action: 'login', success: false, reason: 'ACCOUNT_DELETED' });
           return redirectError('ACCOUNT_DELETED', 'This account has been deleted');
         }
 
-        const intent = typeof returnedState === 'string' ? returnedState.split('|')[1] : 'login';
         if (intent !== 'signup') {
           logger.warn({ email: normalizedEmail }, 'Google OAuth: Prevented unauthorized google login for unknown account');
           await auditOAuthAttempt(req, { email: normalizedEmail, action: 'login', success: false, reason: 'USER_NOT_FOUND' });

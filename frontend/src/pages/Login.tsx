@@ -29,6 +29,7 @@ const Login = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [showDeletedDialog, setShowDeletedDialog] = useState(false);
+  const [isOAuthDeleted, setIsOAuthDeleted] = useState(false);
   const [deletedEmail, setDeletedEmail] = useState('');
   const [lockoutTimer, setLockoutTimer] = useState(0);
   const { login, isAuthenticated, user, isLoading } = useAuth();
@@ -72,6 +73,7 @@ const Login = () => {
 
     // 4. Handle Account Deletion (Dialog Case)
     if (reason === 'ACCOUNT_DELETED') {
+      setIsOAuthDeleted(true);
       setShowDeletedDialog(true);
       // We clear URL *internally* to keep URL clean, but state is already setShowDeletedDialog
       navigate(location.pathname, { replace: true });
@@ -170,27 +172,28 @@ const Login = () => {
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleLogin = async (action: 'login' | 'signup' = 'login') => {
     setIsGoogleLoading(true);
     try {
       // Silently wake up the Render backend if it's sleeping.
-      // This prevents the browser from showing the "Welcome to Render" HTML loading page 
-      // when navigating via window.location.href.
       await fetch(getApiUrl('/api/v1/health'));
     } catch {
       // proceed anyway if the health check fails
     }
     // Use replace() so the OAuth initiation URL is NOT added to browser history.
-    // If we used href=, the browser would store the /api/v1/auth/google URL and
-    // pressing Back from /dashboard would navigate there, re-starting the OAuth flow.
-    // getOAuthUrl() always returns a full https://api.juriq.in/... URL (not relative)
-    // because the browser must navigate to the backend host, not the frontend.
-    window.location.replace(getOAuthUrl('/api/v1/auth/google?action=login'));
+    window.location.replace(getOAuthUrl(`/api/v1/auth/google?action=${action}`));
   };
 
   const handleCreateNewAccount = () => {
     setShowDeletedDialog(false);
-    // Navigate to signup with email as query parameter
+    
+    // If it was an OAuth error, trigger Google signup flow directly
+    if (isOAuthDeleted) {
+      handleGoogleLogin('signup');
+      return;
+    }
+
+    // Otherwise (manual login), navigate to signup with email as query parameter
     navigate(`/signup?email=${encodeURIComponent(deletedEmail)}`);
   };
 

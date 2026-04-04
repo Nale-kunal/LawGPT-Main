@@ -2,16 +2,7 @@ import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import User from '../models/User.js';
 
-// Setup Nodemailer transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.hostinger.com', // Replace with your SMTP host
-  port: parseInt(process.env.SMTP_PORT || '465', 10),
-  secure: true, // true for 465, false for other ports
-  auth: {
-    user: 'contact@juriq.in',
-    pass: process.env.SMTP_PASS, // from environment variables ONLY
-  },
-});
+
 
 export const requestPasswordReset = async (req, res) => {
   try {
@@ -47,11 +38,24 @@ export const requestPasswordReset = async (req, res) => {
     user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000);
     await user.save();
 
+    // Configure transport dynamically using current environment variables
+    const smtpPort = parseInt(process.env.SMTP_PORT || '465', 10);
+    const smtpUser = process.env.SMTP_USER || 'contact@juriq.in';
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.hostinger.com',
+      port: smtpPort,
+      secure: smtpPort === 465, // true for 465, false for 587/other ports
+      auth: {
+        user: smtpUser,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
     // Use environment variable for frontend URL to support local testing vs production
     const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const resetUrl = `${frontendBaseUrl}/reset-password/${rawToken}`;
     const mailOptions = {
-      from: '"Juriq Support" <contact@juriq.in>',
+      from: `"Juriq Support" <${smtpUser}>`,
       to: user.email,
       subject: 'Password Reset Request — Juriq',
       text: [

@@ -43,12 +43,13 @@ export const requestPasswordReset = async (req, res) => {
     const smtpPort = parseInt(process.env.SMTP_PORT || '465', 10);
     const smtpUser = process.env.SMTP_USER || 'contact@juriq.in';
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.hostinger.com',
+      host: (process.env.SMTP_HOST || 'smtp.hostinger.com').trim(),
       port: smtpPort,
       secure: smtpPort === 465, // true for 465, false for 587/other ports
+      family: 4, // Force IPv4 routing (Bypasses rendering ENETUNREACH IPv6 routing bugs)
       auth: {
-        user: smtpUser,
-        pass: process.env.SMTP_PASS,
+        user: smtpUser.trim(),
+        pass: (process.env.SMTP_PASS || '').trim(),
       },
       tls: {
         // Bypass strict cloud SSL checking that GoDaddy typically drops

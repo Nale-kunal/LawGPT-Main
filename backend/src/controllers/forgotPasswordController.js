@@ -49,6 +49,10 @@ export const requestPasswordReset = async (req, res) => {
         user: smtpUser,
         pass: process.env.SMTP_PASS,
       },
+      tls: {
+        // Bypass strict cloud SSL checking that GoDaddy typically drops
+        rejectUnauthorized: false
+      }
     });
 
     // Use environment variable for frontend URL to support local testing vs production

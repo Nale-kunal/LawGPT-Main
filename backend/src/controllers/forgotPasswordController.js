@@ -159,7 +159,11 @@ export const requestPasswordReset = async (req, res) => {
       `.trim(),
     };
 
-    await transporter.sendMail(mailOptions);
+    // Send email asynchronously so we don't hit the 8-second frontend API timeout
+    // if the SMTP server is slow to respond.
+    transporter.sendMail(mailOptions).catch(err => {
+      console.error('Async email sending failed:', err);
+    });
 
     return res.json(successMessage);
   } catch (error) {

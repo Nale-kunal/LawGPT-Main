@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import User from '../models/User.js';
+import ClientErrorLog from '../models/ClientErrorLog.js';
 
 
 
@@ -169,8 +170,18 @@ export const requestPasswordReset = async (req, res) => {
 
     // Send email asynchronously so we don't hit the 8-second frontend API timeout
     // if the SMTP server is slow to respond.
-    transporter.sendMail(mailOptions).catch(err => {
+    transporter.sendMail(mailOptions).catch(async err => {
       console.error('Async email sending failed:', err);
+      try {
+        await ClientErrorLog.create({
+          message: 'SMTP Error: ' + err.message,
+          source: 'forgotPassword',
+          stack: err.stack,
+          userId: user._id ? user._id.toString() : 'unknown'
+        });
+      } catch (logErr) {
+        // silent fallback if logging fails
+      }
     });
 
     return res.json(successMessage);

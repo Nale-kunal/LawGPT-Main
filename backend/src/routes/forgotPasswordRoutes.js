@@ -11,7 +11,8 @@ const forgotPasswordLimiter = rateLimit({
   message: { error: 'Too many requests from this IP, please try again after 15 minutes' },
 });
 
-router.post('/forgot-password', forgotPasswordLimiter, requestPasswordReset);
+// Temporarily disabled for debugging
+router.post('/forgot-password', requestPasswordReset);
 router.post('/reset-password/:token', resetPassword);
 
 export default router;

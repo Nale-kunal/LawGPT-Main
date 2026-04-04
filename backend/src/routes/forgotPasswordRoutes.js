@@ -1,6 +1,6 @@
 import express from 'express';
 import { requestPasswordReset, resetPassword } from '../controllers/forgotPasswordController.js';
-import rateLimit from 'express-rate-limit';
+import { rateLimit } from 'express-rate-limit';
 
 const router = express.Router();
 

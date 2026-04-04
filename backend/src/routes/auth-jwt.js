@@ -790,7 +790,7 @@ router.patch('/settings/preferences', requireAuth, async (req, res) => {
  * POST /api/auth/forgot-password
  * Request password reset
  */
-router.post('/forgot-password', validate({ body: forgotPasswordSchema }), async (req, res) => {
+router.post('/_deprecated-forgot-password', validate({ body: forgotPasswordSchema }), async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -856,7 +856,7 @@ router.post('/forgot-password', validate({ body: forgotPasswordSchema }), async 
  * POST /api/auth/reset-password
  * Reset password with token
  */
-router.post('/reset-password', validate({ body: resetPasswordSchema }), async (req, res) => {
+router.post('/_deprecated-reset-password', validate({ body: resetPasswordSchema }), async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 

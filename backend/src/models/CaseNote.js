@@ -52,10 +52,23 @@ const caseNoteSchema = new mongoose.Schema({
         default: null
     },
     attachments: [{
+        // ── Existing fields (kept for backward compatibility) ──
         fileUrl: String,
         fileName: String,
         fileSize: Number,
-        mimeType: String
+        mimeType: String,
+        // ── New fields added for WhatsApp-like media support ──
+        attachmentId: {
+            type: String,
+            default: () => new mongoose.Types.ObjectId().toString()
+        },
+        type: {
+            type: String,
+            enum: ['image', 'video', 'document', 'audio'],
+            default: 'document'
+        },
+        cloudinaryPublicId: { type: String },
+        uploadedAt: { type: Date, default: Date.now }
     }],
     editedAt: {
         type: Date

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Draggable from 'react-draggable';
 import { useNavigate } from 'react-router-dom';
 import { generateCaseNoteDocument, type CaseNoteExportData } from '@/lib/export/export-engine';
+import { NoteAttachmentUploader, uploadStagedFiles, type StagedAttachment, type UploadedAttachment } from './NoteAttachmentUploader';
+import { NoteAttachmentViewer } from './NoteAttachmentViewer';
 
 import { getApiUrl, apiRequest } from '@/lib/api';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -42,7 +44,17 @@ export interface Note {
     isPinned: boolean;
     isPrivate: boolean;
     parentNoteId?: string;
-    attachments: { fileUrl: string; fileName: string; fileSize: number; mimeType: string }[];
+    attachments: {
+        fileUrl: string;
+        fileName: string;
+        fileSize?: number;
+        mimeType?: string;
+        // New attachment fields (optional for backward compat)
+        attachmentId?: string;
+        type?: 'image' | 'video' | 'document' | 'audio';
+        uploadedAt?: string;
+        cloudinaryPublicId?: string;
+    }[];
     createdAt: string;
     editedAt?: string;
     isDeleted: boolean;
@@ -288,6 +300,12 @@ const ReplyCard = ({
                 </div>
                 {/* Reply Body */}
                 <p className="text-xs leading-relaxed text-foreground/90 whitespace-pre-wrap pl-7">{note.content}</p>
+                {/* Reply Attachments */}
+                {note.attachments && note.attachments.length > 0 && (
+                    <div className="pl-7 mt-1.5">
+                        <NoteAttachmentViewer attachments={note.attachments} canDelete={false} />
+                    </div>
+                )}
             </div>
 
             {/* Nested replies */}
@@ -589,6 +607,10 @@ const AddNoteModal = ({
     const [isPrivate, setIsPrivate] = useState(true);
     const [isPinned, setIsPinned] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    // ── Attachment staging (new, non-breaking) ──────────────────────────
+    const [stagedAttachments, setStagedAttachments] = useState<StagedAttachment[]>([]);
+    const [uploadedAttachments, setUploadedAttachments] = useState<UploadedAttachment[]>([]);
+    // ───────────────────────────────────────────────────────────────────
     const { toast } = useToast();
 
     useEffect(() => {
@@ -610,6 +632,9 @@ const AddNoteModal = ({
                 setIsPrivate(true);
                 setIsPinned(false);
             }
+            // Reset attachment staging on each open
+            setStagedAttachments([]);
+            setUploadedAttachments([]);
         }
     }, [isOpen, initialData, parentNote]);
 
@@ -631,12 +656,18 @@ const AddNoteModal = ({
         e.preventDefault();
         if (!content.trim()) return;
         setIsSubmitting(true);
-        /* console.log('[AddNoteModal] Submitting note data:', {
-            title: title.trim(),
-            noteType,
-            hearingId
-        }); */
         try {
+            // Build the already-uploaded attachments to pass with the note
+            const attachmentsPayload = uploadedAttachments.map(u => ({
+                fileUrl: u.fileUrl,
+                fileName: u.fileName,
+                fileSize: u.fileSize,
+                mimeType: u.mimeType,
+                attachmentId: u.attachmentId,
+                type: u.type,
+                uploadedAt: u.uploadedAt,
+            }));
+
             await onSubmit({
                 title: title.trim(),
                 content: content.trim(),
@@ -645,7 +676,11 @@ const AddNoteModal = ({
                 evidenceTags: tagsInput.split(',').map(t => t.trim()).filter(Boolean),
                 isPrivate,
                 isPinned,
-                parentNoteId: parentNote?._id
+                parentNoteId: parentNote?._id,
+                // Pass already-uploaded attachments so the note is created with them
+                attachments: attachmentsPayload.length > 0 ? attachmentsPayload : undefined,
+                // Staged-but-not-yet-uploaded files will be handled by the parent after note creation
+                _stagedFiles: stagedAttachments.filter(s => s.status === 'pending'),
             });
             onClose();
         } catch (_error) {
@@ -771,6 +806,19 @@ const AddNoteModal = ({
                                     <Label htmlFor="isPinned" className="text-sm font-medium cursor-pointer text-foreground/80">Pin to Top</Label>
                                 </div>
                             </div>
+
+                            {/* ── Attachment Uploader (new, non-breaking) ── */}
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Attachments <span className="font-normal normal-case">(optional)</span></Label>
+                                <NoteAttachmentUploader
+                                    caseId={_caseId}
+                                    noteId={initialData?._id}
+                                    staged={stagedAttachments}
+                                    onChange={setStagedAttachments}
+                                    onUploaded={(atts) => setUploadedAttachments(prev => [...prev, ...atts])}
+                                    disabled={isSubmitting}
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -825,6 +873,10 @@ export const CaseNotesPanel = ({
     const positionRef = React.useRef(position);
     const [directReplyText, setDirectReplyText] = useState('');
     const [isSendingReply, setIsSendingReply] = useState(false);
+    // ── Staged attachments for the inline reply bar ───────────────────────────
+    const [directReplyStagedFiles, setDirectReplyStagedFiles] = useState<StagedAttachment[]>([]);
+    const directReplyFileRef = React.useRef<HTMLInputElement>(null);
+    // ───────────────────────────────────────────────────────────
 
     const { user } = useAuth();
     const { cases } = useLegalData();
@@ -878,13 +930,17 @@ export const CaseNotesPanel = ({
         let url = getApiUrl(`/api/v1/cases/${caseId}/notes`);
         if (editingNote) { method = 'PUT'; url += `/${editingNote._id}`; }
 
-        // console.log(`[CaseNotesPanel] Saving note. Method: ${method}, Type: ${data.noteType}`);
+        // Extract staged files (not sent to backend as part of the note body)
+        const stagedFiles: StagedAttachment[] = data._stagedFiles || [];
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { _stagedFiles: _sf, ...notePayload } = data;
+
         try {
             const response = await apiRequest(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify(data)
+                body: JSON.stringify(notePayload)
             });
 
             toast({ title: 'Success', description: `Note ${editingNote ? 'updated' : 'created'} successfully` });
@@ -900,30 +956,76 @@ export const CaseNotesPanel = ({
                 setDetailNote(response);
             }
 
-            fetchNotes();
+            // Upload any pending staged files (new note only) — non-blocking
+            if (!editingNote && stagedFiles.length > 0 && response._id) {
+                uploadStagedFiles(
+                    stagedFiles,
+                    caseId,
+                    response._id,
+                    () => { /* per-file done — refresh on completion */ },
+                    (localId, err) => {
+                        console.warn(`[NoteAttachment] Staged upload failed for ${localId}:`, err);
+                    }
+                ).finally(() => fetchNotes());
+            } else {
+                fetchNotes();
+            }
         } catch {
             toast({ title: 'Error Saving Note', description: 'Failed to save case note.', variant: 'destructive' });
         }
     };
 
+
     const handleDirectReply = async () => {
-        if (!directReplyText.trim() || !detailNote || isSendingReply) return;
+        if ((!directReplyText.trim() && directReplyStagedFiles.length === 0) || !detailNote || isSendingReply) return;
         setIsSendingReply(true);
         try {
-            await apiRequest(getApiUrl(`/api/v1/cases/${caseId}/notes`), {
+            // Use a placeholder if text is empty but files are being sent
+            const replyContent = directReplyText.trim() || '📎 Attachment';
+            const response = await apiRequest(getApiUrl(`/api/v1/cases/${caseId}/notes`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ content: directReplyText.trim(), noteType: 'internal', parentNoteId: detailNote._id })
+                body: JSON.stringify({ content: replyContent, noteType: 'internal', parentNoteId: detailNote._id })
             });
             setDirectReplyText('');
-            const updated = findNoteByIdRecursive(notes, detailNote._id);
-            if (updated) setDetailNote(updated);
+
+            // Upload any staged files to the newly created reply note
+            const pendingFiles = directReplyStagedFiles.filter(s => s.status === 'pending');
+            setDirectReplyStagedFiles([]);
+            if (pendingFiles.length > 0 && response._id) {
+                await uploadStagedFiles(
+                    pendingFiles,
+                    caseId,
+                    response._id,
+                    () => { },
+                    (localId, err) => console.warn(`[DirectReply] File upload failed ${localId}:`, err)
+                );
+            }
+
+            fetchNotes();
         } catch {
             toast({ title: 'Error', description: 'Failed to send reply', variant: 'destructive' });
         } finally {
             setIsSendingReply(false);
         }
+    };
+
+    /** Add files to the inline reply staged list (client-side validation) */
+    const addDirectReplyFiles = (files: FileList | null) => {
+        if (!files || files.length === 0) return;
+        const ALLOWED = new Set(['image/jpeg','image/jpg','image/png','image/webp','image/gif',
+            'video/mp4','video/quicktime','video/webm','application/pdf',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/msword','text/plain','audio/mpeg','audio/wav','audio/ogg']);
+        const MAX_BYTES = 10 * 1024 * 1024;
+        const newItems: StagedAttachment[] = [];
+        for (const file of Array.from(files)) {
+            if (!ALLOWED.has(file.type)) { alert(`"${file.name}" is not a supported type.`); continue; }
+            if (file.size > MAX_BYTES) { alert(`"${file.name}" exceeds 10 MB.`); continue; }
+            newItems.push({ localId: Math.random().toString(36).slice(2), file, status: 'pending', progress: 0 });
+        }
+        if (newItems.length > 0) setDirectReplyStagedFiles(prev => [...prev, ...newItems]);
     };
 
     const handleDelete = async (note: Note) => {
@@ -1391,21 +1493,27 @@ export const CaseNotesPanel = ({
                                                     </div>
                                                 )}
 
-                                                {/* -- Attachments --------------------- */}
-                                                {detailNote.attachments && detailNote.attachments.length > 0 && (
-                                                    <div className="mt-4 pt-4 border-t border-border/30">
-                                                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2.5">Attachments</p>
-                                                        <div className="grid grid-cols-2 gap-2">
-                                                            {detailNote.attachments.map((att, i) => (
-                                                                <a key={i} href={att.fileUrl} target="_blank" rel="noreferrer"
-                                                                    className="flex items-center gap-2 p-2 rounded-md border border-border/40 bg-muted/20 hover:bg-muted/40 transition-colors text-xs text-foreground/80">
-                                                                    <Paperclip size={11} className="text-primary shrink-0" />
-                                                                    <span className="truncate">{att.fileName}</span>
-                                                                </a>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
+                                                {/* -- Attachments (rich viewer) -------- */}
+                                                <NoteAttachmentViewer
+                                                    attachments={detailNote.attachments}
+                                                    canDelete={
+                                                        !!user?.id &&
+                                                        typeof detailNote.authorId === 'object' &&
+                                                        detailNote.authorId._id === user.id
+                                                    }
+                                                    onDelete={async (att) => {
+                                                        if (!att.attachmentId) return;
+                                                        try {
+                                                            await apiRequest(
+                                                                getApiUrl(`/api/v1/cases/${caseId}/notes/${detailNote._id}/attachments/${att.attachmentId}`),
+                                                                { method: 'DELETE', credentials: 'include' }
+                                                            );
+                                                            fetchNotes();
+                                                        } catch {
+                                                            toast({ title: 'Error', description: 'Failed to remove attachment', variant: 'destructive' });
+                                                        }
+                                                    }}
+                                                />
                                             </div>
 
                                             {/* -- Reply Thread Section ----------------- */}
@@ -1451,6 +1559,27 @@ export const CaseNotesPanel = ({
                                 {/* -- Inline Reply Editor (sticky bottom) --------- */}
                                 <div className="border-t border-border/10 bg-background/95 backdrop-blur sticky bottom-0 z-10">
                                     <div className="max-w-[900px] mx-auto px-6 py-3">
+                                        {/* Staged attachment chips above the input */}
+                                        {directReplyStagedFiles.length > 0 && (
+                                            <div className="flex flex-wrap gap-1.5 mb-2 px-1">
+                                                {directReplyStagedFiles.map(item => (
+                                                    <div
+                                                        key={item.localId}
+                                                        className="flex items-center gap-1.5 text-[11px] bg-muted/40 border border-border/40 rounded-full px-2.5 py-0.5"
+                                                    >
+                                                        <Paperclip size={10} className="text-primary" />
+                                                        <span className="max-w-[120px] truncate text-foreground/70">{item.file.name}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setDirectReplyStagedFiles(prev => prev.filter(s => s.localId !== item.localId))}
+                                                            className="text-muted-foreground hover:text-destructive transition-colors"
+                                                        >
+                                                            <X size={11} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                         <div className="flex items-end gap-2 bg-muted/20 border border-border/40 rounded-2xl px-4 py-2 min-h-[48px] focus-within:border-primary/40 transition-colors shadow-sm">
                                             <Textarea
                                                 placeholder="Write a reply…"
@@ -1472,6 +1601,26 @@ export const CaseNotesPanel = ({
                                                 disabled={isSendingReply}
                                             />
                                             <div className="flex items-center gap-1.5 pl-2 pb-0.5 self-end">
+                                                {/* Attach button */}
+                                                <input
+                                                    ref={directReplyFileRef}
+                                                    type="file"
+                                                    multiple
+                                                    accept="image/*,video/mp4,video/quicktime,video/webm,application/pdf,.docx,.doc,text/plain,audio/mpeg,audio/wav,audio/ogg"
+                                                    className="hidden"
+                                                    onChange={(e) => addDirectReplyFiles(e.target.files)}
+                                                    disabled={isSendingReply}
+                                                    id="direct-reply-file-input"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    title="Attach file"
+                                                    onClick={() => directReplyFileRef.current?.click()}
+                                                    disabled={isSendingReply}
+                                                    className="p-1.5 rounded-full hover:bg-muted/50 text-muted-foreground hover:text-primary transition-colors"
+                                                >
+                                                    <Paperclip size={15} />
+                                                </button>
                                                 <button
                                                     type="button"
                                                     title="Bold"
@@ -1496,7 +1645,7 @@ export const CaseNotesPanel = ({
                                                     variant="ghost"
                                                     className="shrink-0 h-9 w-9 text-primary hover:text-primary hover:bg-primary/10 rounded-full"
                                                     onClick={handleDirectReply}
-                                                    disabled={!directReplyText.trim() || isSendingReply}
+                                                    disabled={((!directReplyText.trim() && directReplyStagedFiles.length === 0)) || isSendingReply}
                                                 >
                                                     {isSendingReply
                                                         ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />

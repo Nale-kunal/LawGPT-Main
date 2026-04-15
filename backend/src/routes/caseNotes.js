@@ -185,7 +185,8 @@ router.put('/:noteId', async (req, res) => {
             return res.status(403).json({ error: 'Unauthorized to edit this note' });
         }
 
-        const { title, content, evidenceTags, isPinned, noteType, hearingId, isPrivate } = req.body;
+        const { title, content, evidenceTags, isPinned, noteType, hearingId, isPrivate,
+                addAttachments, removeAttachmentIds } = req.body;
         logger.debug({ noteId, title, noteType, hearingId, isPrivate }, '[CaseNotes] Updating note');
 
         if (content !== undefined) {
@@ -210,6 +211,24 @@ router.put('/:noteId', async (req, res) => {
         if (hearingId !== undefined) { note.hearingId = hearingId === 'none' ? null : hearingId; }
 
         if (isPrivate !== undefined) { note.isPrivate = !!isPrivate; }
+
+        // ── Attachment mutations (new, non-breaking) ──────────────────────────────
+        // addAttachments: pre-validated attachment objects from the noteAttachments route
+        if (Array.isArray(addAttachments) && addAttachments.length > 0) {
+            const MAX = 10;
+            const slots = MAX - (note.attachments ? note.attachments.length : 0);
+            const toAdd = addAttachments.slice(0, Math.max(0, slots));
+            if (toAdd.length > 0) {
+                note.attachments.push(...toAdd);
+            }
+        }
+        // removeAttachmentIds: remove by attachmentId (UI sends these before submitting edit)
+        if (Array.isArray(removeAttachmentIds) && removeAttachmentIds.length > 0) {
+            note.attachments = note.attachments.filter(
+                a => !removeAttachmentIds.includes(a.attachmentId)
+            );
+        }
+        // ─────────────────────────────────────────────────────────────────────────
 
         note.editedAt = Date.now();
 

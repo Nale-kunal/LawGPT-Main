@@ -35,6 +35,7 @@ import { startKeepAlive } from './src/utils/keepAlive.js';
 // ... existing imports ...
 import caseRoutes from './src/routes/cases.js';
 import caseNotesRoutes from './src/routes/caseNotes.js';
+import noteAttachmentsRoute from './src/routes/noteAttachments.js';
 import clientRoutes from './src/routes/clients.js';
 import alertRoutes from './src/routes/alerts.js';
 import timeEntryRoutes from './src/routes/timeEntries.js';
@@ -444,6 +445,7 @@ app.use('/api/v1/auth', forgotPasswordRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/auth', googleAuthRoutes); // Google OAuth (limiter now inside)
 app.use('/api/v1/auth', securityQuestionRoutes);
+app.use('/api/v1/cases/:caseId/notes/:noteId/attachments', noteAttachmentsRoute);
 app.use('/api/v1/cases/:caseId/notes', caseNotesRoutes);
 app.use('/api/v1/cases', caseRoutes);
 app.use('/api/v1/clients', clientRoutes);
@@ -467,6 +469,7 @@ app.use('/api/auth', forgotPasswordRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/auth', googleAuthRoutes); // Google OAuth compat path
 app.use('/api/cases', caseRoutes);
+app.use('/api/cases/:caseId/notes/:noteId/attachments', noteAttachmentsRoute);
 app.use('/api/cases/:caseId/notes', caseNotesRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/alerts', alertRoutes);

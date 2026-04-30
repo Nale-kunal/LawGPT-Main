@@ -14,7 +14,10 @@ const envSchema = z.object({
     PORT: z.coerce.number().min(1).max(65535).default(5000),
 
     // Database
-    MONGODB_URI: z.string().url('MONGODB_URI must be a valid connection string'),
+    MONGODB_URI: z.string().regex(
+        /^mongodb(\+srv)?:\/\/.+/,
+        'MONGODB_URI must be a valid MongoDB connection string (mongodb:// or mongodb+srv://)'
+    ),
 
     // Auth — minimum 32 chars enforced
     JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),

@@ -13,6 +13,7 @@ import {
 } from '../services/mongodb.js';
 import activityEmitter from '../utils/eventEmitter.js';
 import { enforcePlanLimits } from '../middleware/planEnforcement.js';
+import { checkPlanAccess }   from '../middleware/checkPlanAccess.js';
 import { uploadToCloudinary, deleteFromCloudinary, extractPublicIdFromUrl } from '../config/cloudinary.js';
 
 const router = express.Router();
@@ -70,7 +71,7 @@ const upload = multer({
 });
 
 // Folders CRUD - All routes require authentication
-router.get('/folders', requireAuth, async (req, res) => {
+router.get('/folders', requireAuth, checkPlanAccess('documents'), async (req, res) => {
   try {
     const ownerId = req.user.userId;
     if (!ownerId) {
@@ -98,7 +99,7 @@ router.get('/folders', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/folders', requireAuth, async (req, res) => {
+router.post('/folders', requireAuth, checkPlanAccess('documents'), async (req, res) => {
   try {
     const { name, parentId, caseId } = req.body;
     const ownerId = req.user.userId;
@@ -158,7 +159,7 @@ router.post('/folders', requireAuth, async (req, res) => {
   }
 });
 
-router.put('/folders/:id', requireAuth, async (req, res) => {
+router.put('/folders/:id', requireAuth, checkPlanAccess('documents'), async (req, res) => {
   try {
     const { name, caseId } = req.body;
     const ownerId = req.user.userId;
@@ -227,7 +228,7 @@ router.put('/folders/:id', requireAuth, async (req, res) => {
   }
 });
 
-router.delete('/folders/:id', requireAuth, async (req, res) => {
+router.delete('/folders/:id', requireAuth, checkPlanAccess('documents'), async (req, res) => {
   try {
     const folderId = req.params.id;
     const ownerId = req.user.userId;
@@ -282,7 +283,7 @@ router.delete('/folders/:id', requireAuth, async (req, res) => {
 });
 
 // Documents CRUD - All routes require authentication
-router.get('/files', requireAuth, async (req, res) => {
+router.get('/files', requireAuth, checkPlanAccess('documents'), async (req, res) => {
   try {
     const { folderId, all } = req.query;
     const ownerId = req.user.userId;

@@ -27,13 +27,6 @@ export async function requireAuth(req, res, next) {
             if (process.env.NODE_ENV === 'development') {
                 logger.debug('No token found in request');
             }
-            res.clearCookie('token', {
-                httpOnly: true,
-                secure: env.NODE_ENV === 'production',
-                sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
-                path: '/',
-                ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
-            });
             return res.status(401).json({
                 error: 'No authentication token provided',
                 ...(process.env.NODE_ENV === 'development' && {
@@ -103,13 +96,6 @@ export async function requireAuth(req, res, next) {
 
         if (!userProfile) {
             logger.error({ userId: decodedToken.userId }, 'User profile not found - returning 401');
-            res.clearCookie('token', {
-                httpOnly: true,
-                secure: env.NODE_ENV === 'production',
-                sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
-                path: '/',
-                ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
-            });
             return res.status(401).json({
                 error: 'User profile not found',
                 ...(process.env.NODE_ENV === 'development' && { userId: decodedToken.userId })

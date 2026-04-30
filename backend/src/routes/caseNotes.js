@@ -1,5 +1,6 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth-jwt.js';
+import { checkPlanAccess } from '../middleware/checkPlanAccess.js';
 import logger from '../utils/logger.js';
 import { logActivity } from '../middleware/activityLogger.js';
 import CaseNote from '../models/CaseNote.js';
@@ -12,6 +13,7 @@ import xss from 'xss';
 const router = express.Router({ mergeParams: true }); // Important: merge params to get :caseId from parent router if mounted that way, or we'll mount it directly on `/cases/:caseId/notes`.
 
 router.use(requireAuth);
+router.use(checkPlanAccess('notes'));
 
 // Middleware to verify case access
 const verifyCaseAccess = async (req, res, next) => {

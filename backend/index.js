@@ -53,6 +53,8 @@ import templatesRoutes from './src/routes/templates.routes.js';
 import { startLegalCron } from './src/jobs/legalCron.js';
 import { startTokenCleanup } from './src/jobs/tokenCleanup.js';
 import { requestId } from './src/middleware/requestId.js';
+import subscriptionRoutes from './src/routes/subscription.js';
+import paymentRoutes from './src/routes/payment.js';
 
 // dotenv already loaded at top — do not call again
 
@@ -463,6 +465,10 @@ app.use('/api/v1/news', newsRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/v1/legal', legalRoutes);
 app.use('/api/v1/templates', templatesRoutes);
+app.use('/api/v1/subscription', subscriptionRoutes);
+// Webhook MUST be mounted before the global JSON body parser reads the body
+// (express.raw is applied inside payment.js for the /webhook route only)
+app.use('/api/v1/payment', paymentRoutes);
 
 // ─── Backward Compatibility /api/* → /api/v1/* (90-day window) ───────────────
 app.use('/api/auth', forgotPasswordRoutes);

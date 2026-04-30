@@ -1,27 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   FileText,
   Users,
   Calendar,
-  Clock,
-  Gavel,
   TrendingUp,
   IndianRupee,
   Plus,
-  Activity,
-  UserPlus,
-  Timer,
-  Receipt
 } from 'lucide-react';
 import { useLegalData } from '@/contexts/LegalDataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFormatting } from '@/contexts/FormattingContext';
 import { useNavigate } from 'react-router-dom';
 import { getApiUrl, apiFetch } from '@/lib/api';
-import JuriqLoader from '@/components/ui/JuriqLoader';
+import MiniCalendar from '@/components/MiniCalendar';
 
 interface DashboardStats {
   totalCases: number;
@@ -38,51 +31,34 @@ interface DashboardStats {
   };
 }
 
-interface Activity {
-  id: string;
-  type: string;
-  message: string;
-  timestamp: string;
-  metadata: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-}
-
 const Dashboard = () => {
   const { cases, clients } = useLegalData();
   const { user } = useAuth();
-  const { formatCurrency, formatRelativeDate } = useFormatting();
+  const { formatCurrency } = useFormatting();
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
-  const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     // Trap the back button when we are on the dashboard root
     window.history.pushState(null, '', window.location.href);
-    
+
     const handlePopState = () => {
       // Prevent leaving the dashboard root by pushing the state right back
       window.history.pushState(null, '', window.location.href);
     };
-    
+
     window.addEventListener('popstate', handlePopState);
 
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
 
-        const [statsRes, activityRes] = await Promise.all([
-          apiFetch(getApiUrl('/api/dashboard/stats'), { credentials: 'include' }),
-          apiFetch(getApiUrl('/api/dashboard/activity'), { credentials: 'include' })
-        ]);
+        const statsRes = await apiFetch(getApiUrl('/api/dashboard/stats'), { credentials: 'include' });
 
         if (statsRes.ok) {
           const stats = await statsRes.json();
           setDashboardStats(stats);
-        }
-
-        if (activityRes.ok) {
-          const activity = await activityRes.json();
-          setRecentActivity(activity);
         }
       } catch {
         // Silently handle errors
@@ -107,46 +83,7 @@ const Dashboard = () => {
   const urgentCases = cases.filter(c => c.priority === 'urgent');
   const activeCases = cases.filter(c => c.status === 'active');
 
-  // formatCurrency is now provided by useFormatting hook
-
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'case_created':
-      case 'case_updated':
-        return <FileText className="h-3 w-3" />;
-      case 'client_registered':
-        return <UserPlus className="h-3 w-3" />;
-      case 'payment_received':
-        return <Receipt className="h-3 w-3" />;
-      case 'invoice_created':
-        return <IndianRupee className="h-3 w-3" />;
-      case 'time_logged':
-        return <Timer className="h-3 w-3" />;
-      default:
-        return <Activity className="h-3 w-3" />;
-    }
-  };
-
-  const getActivityColor = (type: string) => {
-    switch (type) {
-      case 'case_created':
-        return 'bg-success';
-      case 'case_updated':
-        return 'bg-primary';
-      case 'client_registered':
-        return 'bg-warning';
-      case 'payment_received':
-        return 'bg-success';
-      case 'invoice_created':
-        return 'bg-secondary';
-      case 'time_logged':
-        return 'bg-info';
-      default:
-        return 'bg-muted-foreground';
-    }
-  };
-
-  // formatRelativeDate is now provided by useFormatting hook
+  // formatCurrency is provided by useFormatting hook
 
   const stats = [
     {
@@ -180,37 +117,6 @@ const Dashboard = () => {
       trend: dashboardStats?.revenue && dashboardStats.revenue.growth !== undefined
         ? `${parseFloat(dashboardStats.revenue.growth) >= 0 ? '+' : ''}${dashboardStats.revenue.growth}% from last month`
         : undefined
-    }
-  ];
-
-  const quickActions = [
-    {
-      title: "Add New Case",
-      description: "Register a new legal case",
-      icon: FileText,
-      action: () => navigate('/dashboard/cases'),
-      color: "bg-primary"
-    },
-    {
-      title: "Schedule Hearing",
-      description: "Add court appearance",
-      icon: Calendar,
-      action: () => navigate('/dashboard/calendar'),
-      color: "bg-secondary"
-    },
-    {
-      title: "Add Client",
-      description: "Register new client",
-      icon: Users,
-      action: () => navigate('/dashboard/clients'),
-      color: "bg-accent"
-    },
-    {
-      title: "Legal Research",
-      description: "Search law database",
-      icon: Gavel,
-      action: () => navigate('/dashboard/legal-research'),
-      color: "bg-warning"
     }
   ];
 
@@ -269,162 +175,9 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 md:gap-3">
-        {/* Today's Cases */}
-        <div className="lg:col-span-8">
-          <Card className="card-gradient shadow-elevated">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-1.5 text-sm">
-                <Calendar className="h-4 w-4 text-primary" />
-                Today's Hearings ({todaysCases.length})
-              </CardTitle>
-              <CardDescription className="text-[10px]">Cases scheduled for today</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="space-y-2 max-h-56 overflow-y-auto">
-                {todaysCases.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-4 text-xs">
-                    No hearings scheduled for today
-                  </p>
-                ) : (
-                  todaysCases.map((case_item) => (
-                    <div key={case_item.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 bg-muted/20 rounded-lg border">
-                      <div className="space-y-0.5 flex-1">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-1.5">
-                          <span className="font-medium text-xs">{case_item.caseNumber}</span>
-                          <Badge
-                            variant={case_item.priority === 'urgent' ? 'destructive' : 'secondary'}
-                            className="w-fit text-[10px] h-4 px-1"
-                          >
-                            {case_item.priority}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground">{case_item.clientName} vs {case_item.opposingParty}</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {case_item.courtName} • {case_item.hearingTime}
-                        </p>
-                      </div>
-                      <div className="flex gap-1.5 mt-1.5 sm:mt-0">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => navigate('/dashboard/cases')}
-                          className="h-7 text-[10px] px-2 border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
-                        >
-                          View
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => navigate('/dashboard/calendar')}
-                          className="h-7 text-[10px] px-2 border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
-                        >
-                          Details
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-              {todaysCases.length > 0 && (
-                <div className="mt-2 pt-2 border-t">
-                  <Button
-                    variant="outline"
-                    className="w-full h-7 text-xs border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all"
-                    size="sm"
-                    onClick={() => navigate('/dashboard/calendar')}
-                  >
-                    View Full Calendar
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="lg:col-span-4 space-y-2 md:space-y-3">
-          {/* Quick Actions */}
-          <Card className="card-gradient shadow-elevated">
-            <CardHeader className="pb-1.5">
-              <CardTitle className="flex items-center gap-1.5 text-sm">
-                <Clock className="h-4 w-4 text-primary" />
-                Quick Actions
-              </CardTitle>
-              <CardDescription className="text-[10px]">Common tasks</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-1.5">
-              <div className="grid grid-cols-2 gap-1">
-                {quickActions.map((action, index) => (
-                  <Button
-                    key={index}
-                    variant="ghost"
-                    className="flex flex-col items-center justify-center gap-1 p-1.5 h-auto text-center border border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all group"
-                    onClick={action.action}
-                  >
-                    <div className={`p-1 rounded-lg ${action.color} text-white`}>
-                      <action.icon className="h-3 w-3" />
-                    </div>
-                    <div className="flex-1 min-w-0 w-full">
-                      <p className="font-medium text-[11px] truncate">{action.title}</p>
-                      <p className="text-[9px] text-muted-foreground truncate">{action.description}</p>
-                    </div>
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recent Activity */}
-          <Card className="card-gradient shadow-elevated">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-1.5 text-sm">
-                <Clock className="h-4 w-4 text-primary" />
-                Recent Activity
-              </CardTitle>
-              <CardDescription className="text-[10px]">Latest updates</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="space-y-2 text-xs max-h-48 overflow-y-auto">
-                {loading ? (
-                  <div className="flex items-center justify-center py-3">
-                    <JuriqLoader size="sm" />
-                  </div>
-                ) : recentActivity.length > 0 ? (
-                  recentActivity.map((activity) => (
-                    <div key={activity.id} className="flex items-start gap-2">
-                      <div className={`p-1 rounded-full ${getActivityColor(activity.type)} text-white mt-0.5 flex-shrink-0`}>
-                        {getActivityIcon(activity.type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium break-words">{activity.message}</p>
-                        <p className="text-[10px] text-muted-foreground">{formatRelativeDate(activity.timestamp)}</p>
-                        {activity.metadata && (
-                          <div className="text-[10px] text-muted-foreground mt-0.5">
-                            {activity.type === 'payment_received' && (
-                              <span>Amount: {formatCurrency(activity.metadata.amount)}</span>
-                            )}
-                            {activity.type === 'time_logged' && (
-                              <span>{activity.metadata.durationText || `${activity.metadata.duration}m`} • {activity.metadata.billable ? 'Billable' : 'Non-billable'}</span>
-                            )}
-                            {(activity.type === 'case_created' || activity.type === 'case_updated') && (
-                              <span>Priority: {activity.metadata.priority}</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-4 text-muted-foreground">
-                    <Activity className="h-6 w-6 mx-auto mb-1.5 opacity-50" />
-                    <p className="text-xs">No recent activity</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Main Content Grid — MiniCalendar owns its own 2-col layout internally */}
+      <div className="w-full">
+        <MiniCalendar />
       </div>
     </div>
   );

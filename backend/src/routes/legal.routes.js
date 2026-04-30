@@ -13,6 +13,7 @@
 
 import express from 'express';
 import { requireAuth } from '../middleware/auth-jwt.js';
+import { checkPlanAccess } from '../middleware/checkPlanAccess.js';
 import { searchLegal, searchLegalSemantic } from '../services/legalSearchService.js';
 import { explainLegalResult } from '../services/semanticSearch/aiExplanationService.js';
 import LegalActs from '../models/LegalActs.js';
@@ -23,6 +24,7 @@ const router = express.Router();
 
 // ─── Apply auth to all legal routes ──────────────────────────────────────────
 router.use(requireAuth);
+router.use(checkPlanAccess('legal-research'));
 
 // ─── Input sanitiser ──────────────────────────────────────────────────────────
 function sanitizeQuery(raw) {

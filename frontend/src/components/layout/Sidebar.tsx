@@ -14,7 +14,8 @@ import {
   Newspaper,
   ChevronsLeftRight,
   MessageSquare,
-  LayoutGrid
+  LayoutGrid,
+  Zap
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { BrandLogo } from '@/components/ui/BrandLogo';
@@ -44,6 +45,7 @@ const navigation = [
   { name: 'Legal Templates', href: '/dashboard/templates', icon: LayoutGrid },
   { name: 'Notes', href: '/dashboard/notes', icon: MessageSquare },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  { name: 'Upgrade Plan', href: '/dashboard/pricing', icon: Zap },
 ];
 
 export const Sidebar = () => {

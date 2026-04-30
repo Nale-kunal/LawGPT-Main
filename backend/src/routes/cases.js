@@ -42,6 +42,33 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ─── GET /cases/limit — Returns case usage vs plan limit for UX display ───────
+router.get('/limit', async (req, res) => {
+  try {
+    const User = (await import('../models/User.js')).default;
+    const { CASE_LIMITS, getEffectivePlan } = await import('../config/planFeatures.js');
+    const Case = (await import('../models/Case.js')).default;
+
+    const user = await User.findById(req.user.userId).select('subscriptionPlan planEndDate').lean();
+    if (!user) return res.status(401).json({ error: 'User not found' });
+
+    const effectivePlan = getEffectivePlan(user);
+    const limit         = CASE_LIMITS[effectivePlan];
+    const used          = await Case.countDocuments({ owner: req.user.userId });
+
+    return res.json({
+      plan:  effectivePlan,
+      used,
+      limit: limit === Infinity ? null : limit,
+      remaining: limit === Infinity ? null : Math.max(0, limit - used),
+      reachedLimit: limit !== Infinity && used >= limit,
+    });
+  } catch (err) {
+    logger.error({ err }, 'GET /cases/limit error');
+    return res.status(500).json({ error: 'Failed to fetch case limit' });
+  }
+});
+
 router.post('/', enforcePlanLimits('case'), async (req, res) => {
   try {
     // Validate case number is provided (any format allowed)

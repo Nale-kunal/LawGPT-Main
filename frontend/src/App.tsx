@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { LegalDataProvider } from "./contexts/LegalDataContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { FormattingProvider } from "./contexts/FormattingContext";
+import { PlanProvider } from "./contexts/PlanContext";
 import React, { Suspense } from "react";
 import RequireAuth from "./components/auth/RequireAuth";
 import PublicOnlyRoute from "./components/auth/PublicOnlyRoute";
@@ -47,11 +48,13 @@ const ClientPortalLanding = React.lazy(() => import("./pages/ClientPortalLanding
 const LegalNotesLanding = React.lazy(() => import("./pages/LegalNotesLanding"));
 const TemplatesDashboard = React.lazy(() => import("./modules/legalTemplates/pages/TemplatesDashboard"));
 const TemplateWorkspace = React.lazy(() => import("./modules/legalTemplates/pages/TemplateWorkspace"));
+const Pricing = React.lazy(() => import("./pages/Pricing"));
 
 // Import Layout (not lazy — needed immediately for dashboard shell)
 import DashboardLayout from "./components/layout/DashboardLayout";
 import ScrollToHash from "./components/ScrollToHash";
 import JuriqLoader from "./components/ui/JuriqLoader";
+import { FeatureGate } from "./components/subscription/FeatureGate";
 
 // Suspense fallback loader
 const PageLoader = () => <JuriqLoader size="full" />;
@@ -90,8 +93,9 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="system" storageKey="legal-pro-theme">
       <AuthProvider>
-        <FormattingProvider>
-          <LegalDataProvider>
+        <PlanProvider>
+          <FormattingProvider>
+            <LegalDataProvider>
             <TooltipProvider>
               <Toaster />
               <Sonner />
@@ -134,14 +138,15 @@ const App = () => (
                       <Route path="cases" element={<Cases />} />
                       <Route path="calendar" element={<Calendar />} />
                       <Route path="clients" element={<Clients />} />
-                      <Route path="legal-research" element={<LegalResearch />} />
-                      <Route path="billing" element={<Billing />} />
-                      <Route path="documents" element={<Documents />} />
+                      <Route path="legal-research" element={<FeatureGate feature="legal-research"><LegalResearch /></FeatureGate>} />
+                      <Route path="billing" element={<FeatureGate feature="billing"><Billing /></FeatureGate>} />
+                      <Route path="documents" element={<FeatureGate feature="documents"><Documents /></FeatureGate>} />
                       <Route path="settings" element={<Settings />} />
-                      <Route path="news" element={<News />} />
-                      <Route path="notes" element={<Notes />} />
-                      <Route path="templates" element={<TemplatesDashboard />} />
-                      <Route path="templates/:id" element={<TemplateWorkspace />} />
+                      <Route path="news" element={<FeatureGate feature="news"><News /></FeatureGate>} />
+                      <Route path="notes" element={<FeatureGate feature="notes"><Notes /></FeatureGate>} />
+                      <Route path="templates" element={<FeatureGate feature="templates"><TemplatesDashboard /></FeatureGate>} />
+                      <Route path="templates/:id" element={<FeatureGate feature="templates"><TemplateWorkspace /></FeatureGate>} />
+                      <Route path="pricing" element={<Pricing />} />
                     </Route>
 
                     {/* Catch All */}
@@ -152,6 +157,7 @@ const App = () => (
             </TooltipProvider>
           </LegalDataProvider>
         </FormattingProvider>
+        </PlanProvider>
       </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>

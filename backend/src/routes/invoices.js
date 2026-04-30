@@ -1,5 +1,6 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth-jwt.js';
+import { checkPlanAccess } from '../middleware/checkPlanAccess.js';
 import { sendInvoiceEmail } from '../utils/mailer.js';
 import { logActivity } from '../middleware/activityLogger.js';
 import logger from '../utils/logger.js';
@@ -34,6 +35,7 @@ function generateInvoiceEmailContent(invoice, _client) {
 
 const router = express.Router();
 router.use(requireAuth);
+router.use(checkPlanAccess('invoices'));
 
 router.get('/', async (req, res) => {
   try {

@@ -133,6 +133,18 @@ const userSchema = new mongoose.Schema({
     nextBillingDate: Date
   },
 
+  // ── Subscription system (new — does NOT touch the legacy plan object above) ──
+  subscriptionPlan: {
+    type: String,
+    enum: ['free', 'basic', 'pro', 'premium', 'elite'],
+    default: 'free',
+    index: true,
+  },
+  planStartDate:  { type: Date, default: null },
+  planEndDate:    { type: Date, default: null, index: true },
+  isCouponActive: { type: Boolean, default: false },
+  couponCodeUsed: { type: String, default: null },
+
   securityFlags: {
     isSuspicious: { type: Boolean, default: false },
     abuseScore: { type: Number, default: 0 },

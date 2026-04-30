@@ -27,11 +27,20 @@ export const enforcePlanLimits = (resourceType) => {
 
             if (resourceType === 'case') {
                 const caseCount = await Case.countDocuments({ owner: user._id });
-                if (caseCount >= plan.limits.cases) {
+
+                // ── Subscription-aware override: Free plan caps at 5 cases ────
+                // Import from centralised config (single source of truth)
+                const { CASE_LIMITS, getEffectivePlan } = await import('../config/planFeatures.js');
+                const effectivePlan = getEffectivePlan(user);
+                const caseLimit = CASE_LIMITS[effectivePlan] ?? plan.limits.cases;
+
+                if (caseLimit !== Infinity && caseCount >= caseLimit) {
                     return res.status(403).json({
-                        error: 'PLAN_LIMIT_EXCEEDED',
-                        message: `You have reached the limit of ${plan.limits.cases} cases for your ${plan.type} plan.`,
-                        limit: plan.limits.cases
+                        error:   'PLAN_LIMIT_EXCEEDED',
+                        message: `You have used ${caseCount} of ${caseLimit} cases allowed on your ${effectivePlan} plan. Upgrade to create more.`,
+                        limit:   caseLimit,
+                        used:    caseCount,
+                        plan:    effectivePlan,
                     });
                 }
             }

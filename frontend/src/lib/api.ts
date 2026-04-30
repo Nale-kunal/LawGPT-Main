@@ -189,36 +189,52 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
   const isAuthEndpoint = url.includes('/api/v1/auth/') || url.includes('/api/auth/');
 
   if (response.status === 401 && !isAuthEndpoint) {
+    // ── Circuit breaker: prevent infinite refresh loops ───────────────────────
+    // Use sessionStorage so the cooldown survives page navigation within the same tab.
+    const lastFailStr = sessionStorage.getItem('__refreshFailTs');
+    const lastRefreshFail = lastFailStr ? parseInt(lastFailStr, 10) : 0;
+    if (lastRefreshFail && Date.now() - lastRefreshFail < 10_000) {
+      console.warn('API 401: refresh circuit breaker active — skipping retry.', { url });
+      return response;
+    }
+
+    if (sessionStorage.getItem('__isRefreshing') === '1') {
+      console.warn('API 401: refresh already in-flight — skipping duplicate.', { url });
+      return response;
+    }
+
     console.warn('API 401 Unauthorized encountered. Attempting token refresh...', { url, method });
+    sessionStorage.setItem('__isRefreshing', '1');
 
     try {
-      // 1. Attempt to refresh the token using the refresh token cookie
       const refreshRes = await fetch(getApiUrl('/api/v1/auth/refresh'), {
         method: 'POST',
         credentials: 'include',
         headers: {
-          'x-request-id': requestId as string // Reuse same request ID for tracing
-        }
+          'x-request-id': requestId as string,
+        },
       });
 
       if (refreshRes.ok) {
         console.info('Token refreshed successfully. Retrying original request.');
-        // 2. Retry the original request with the same parameters
+        sessionStorage.removeItem('__refreshFailTs');
         const retryResponse = await fetchWithTimeout(url, {
           ...options,
           headers,
           credentials: 'include',
         }, 8000);
-
         return retryResponse;
       } else {
+        sessionStorage.setItem('__refreshFailTs', String(Date.now()));
         console.error('Token refresh failed. Dispatching auth:unauthorized.');
-        // If refresh fails, original 401 should trigger global unauthorized event
         window.dispatchEvent(new CustomEvent('auth:unauthorized'));
       }
     } catch (refreshError) {
+      sessionStorage.setItem('__refreshFailTs', String(Date.now()));
       console.error('Error during token refresh:', refreshError);
       window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+    } finally {
+      sessionStorage.removeItem('__isRefreshing');
     }
   }
 

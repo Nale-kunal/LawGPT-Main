@@ -8,7 +8,7 @@ const clientErrorLogSchema = new mongoose.Schema({
   stack: String,
   level: { type: String, enum: ['error', 'warn', 'info'], default: 'error' },
   userId: String,
-  createdAt: { type: Date, default: Date.now, index: true },
+  createdAt: { type: Date, default: Date.now },
 });
 
 // ── Indexes ──────────────────────────────────────────────────────────────────

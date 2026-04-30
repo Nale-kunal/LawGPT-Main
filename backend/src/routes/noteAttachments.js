@@ -11,6 +11,7 @@ import express from 'express';
 import multer from 'multer';
 import mongoose from 'mongoose';
 import { requireAuth } from '../middleware/auth-jwt.js';
+import { checkPlanAccess } from '../middleware/checkPlanAccess.js';
 import logger from '../utils/logger.js';
 import { uploadToCloudinary, deleteFromCloudinary } from '../config/cloudinary.js';
 import CaseNote from '../models/CaseNote.js';
@@ -104,9 +105,10 @@ const upload = multer({
     },
 });
 
-// ─── Middleware: Auth + Case Ownership ───────────────────────────────────────
+// ─── Middleware: Auth + Plan + Case Ownership ─────────────────────────────────
 
 router.use(requireAuth);
+router.use(checkPlanAccess('notes'));
 
 const verifyCaseAccess = async (req, res, next) => {
     try {

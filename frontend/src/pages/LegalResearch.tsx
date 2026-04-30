@@ -23,6 +23,13 @@ import {
 } from 'lucide-react';
 import JuriqLoader from '@/components/ui/JuriqLoader';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const ErrorScreen = ({ message }: { message: string }) => (
   <div className="flex items-center justify-center py-12">
@@ -77,7 +84,7 @@ function getTypeBadge(type: string) {
 interface ResultCardProps {
   item: LegalResult;
   isFavorited: boolean;
-  onToggleFavorite: (id: string) => void;
+  onToggleFavorite: (item: LegalResult) => void;
   onCopy: (text: string) => void;
   onAiAssist: (item: LegalResult) => void;
   aiLoading: boolean;
@@ -113,7 +120,7 @@ function ResultCard({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onToggleFavorite(item.id)}
+                onClick={() => onToggleFavorite(item)}
                 className={`h-6 w-6 p-0 shrink-0 ${isFavorited ? 'text-warning' : ''}`}
               >
                 <Star className={`h-3.5 w-3.5 ${isFavorited ? 'fill-current' : ''}`} />
@@ -208,7 +215,8 @@ const LegalResearch = () => {
   const [searchMode, setSearchMode] = useState<SearchMode>('hybrid');
   const [sortBy, setSortBy] = useState('relevance');
   const [activeTab, setActiveTab] = useState<'acts' | 'cases'>('acts');
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState<LegalResult[]>([]);
+  const [isFavoritesDialogOpen, setIsFavoritesDialogOpen] = useState(false);
   const { toast } = useToast();
 
   // API state
@@ -330,8 +338,8 @@ const LegalResearch = () => {
     }
   }, [aiExplanations, toast]);
 
-  const toggleFavorite = (id: string) =>
-    setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
+  const toggleFavorite = (item: LegalResult) =>
+    setFavorites(prev => prev.some(f => f.id === item.id) ? prev.filter(f => f.id !== item.id) : [...prev, item]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -473,12 +481,73 @@ const LegalResearch = () => {
             <CardContent>
               {favorites.length > 0 ? (
                 <div className="space-y-2">
-                  {favorites.slice(0, 3).map(id => (
-                    <div key={id} className="text-[11px] p-2 border rounded-md bg-muted/30 truncate">
-                      {id.replace('s-', '').toUpperCase()}
-                    </div>
-                  ))}
-                  <Button variant="link" className="h-auto p-0 text-[10px]">View all {favorites.length} items</Button>
+                  <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
+                    {favorites.slice(0, 5).map(favItem => (
+                      <div key={favItem.id} className="flex items-center justify-between p-2 border rounded-md bg-muted/30 hover:bg-muted/50 transition-colors group">
+                        <button 
+                          className="text-[11px] truncate flex-1 text-left focus:outline-none hover:text-primary transition-colors font-medium"
+                          onClick={() => setSearchQuery(favItem.title)}
+                          title={favItem.title}
+                        >
+                          {favItem.title}
+                        </button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-5 w-5 rounded-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground focus:opacity-100 shrink-0 ml-2" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(favItem);
+                          }}
+                          title="Remove from favorites"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  {favorites.length > 5 && (
+                    <Dialog open={isFavoritesDialogOpen} onOpenChange={setIsFavoritesDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="link" className="h-auto p-0 text-[10px]">View all {favorites.length} items</Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2">
+                            <Star className="h-4 w-4 text-warning fill-current" /> All Favorites ({favorites.length})
+                          </DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-2 overflow-y-auto flex-1 pr-1 pb-4">
+                          {favorites.map(favItem => (
+                            <div key={favItem.id} className="flex items-center justify-between p-2 border rounded-md bg-muted/10 hover:bg-muted/50 transition-colors group">
+                              <button 
+                                className="text-sm truncate flex-1 text-left focus:outline-none hover:text-primary transition-colors font-medium"
+                                onClick={() => {
+                                  setSearchQuery(favItem.title);
+                                  setIsFavoritesDialogOpen(false);
+                                }}
+                                title={favItem.title}
+                              >
+                                {favItem.title}
+                              </button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-7 w-7 rounded-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground focus:opacity-100 shrink-0 ml-2" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleFavorite(favItem);
+                                }}
+                                title="Remove from favorites"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-4 text-muted-foreground text-xs italic">
@@ -514,7 +583,7 @@ const LegalResearch = () => {
                   <ResultCard
                     key={item.id}
                     item={item}
-                    isFavorited={favorites.includes(item.id)}
+                    isFavorited={favorites.some(f => f.id === item.id)}
                     onToggleFavorite={toggleFavorite}
                     onCopy={copyToClipboard}
                     onAiAssist={handleAiAssist}

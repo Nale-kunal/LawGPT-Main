@@ -1,11 +1,13 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth-jwt.js';
+import { checkPlanAccess } from '../middleware/checkPlanAccess.js';
 import TemplateDocument from '../models/TemplateDocument.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
 
 router.use(requireAuth);
+router.use(checkPlanAccess('templates'));
 
 // Get all saved template documents for the user
 router.get('/', async (req, res) => {

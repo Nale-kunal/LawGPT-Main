@@ -218,6 +218,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         const data = await res.json();
         if (mounted) {
+          // Clear stale circuit-breaker so plan fetches work after Google OAuth login
+          sessionStorage.removeItem('__refreshFailTs');
+          sessionStorage.removeItem('__isRefreshing');
           persistUser(data.user as User);
           setIsLoading(false);
         }
@@ -259,6 +262,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Triggered by apiFetch when a token refresh fails
     const handleUnauthorized = () => {
       console.warn('Handling global auth:unauthorized event');
+      // NOTE: Do NOT clear __refreshFailTs here — the circuit breaker must stay
+      // active across the redirect so it suppresses the next cycle's retry.
+      sessionStorage.removeItem('__isRefreshing');
+      // Wipe plan cache so next user login never inherits this session's plan.
+      import('@/contexts/PlanContext').then(({ clearAllPlanCaches }) => clearAllPlanCaches()).catch(() => {});
       persistUser(null, true);
       if (!isLoggingOut.current) {
         window.location.replace('/login');
@@ -303,8 +311,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       if (data.user) {
+        // Clear stale circuit-breaker state so plan fetches work immediately after fresh login
+        sessionStorage.removeItem('__refreshFailTs');
+        sessionStorage.removeItem('__isRefreshing');
         // 5. HISTORY STACK ELIMINATION
-        // We do NOT use React Router here to jump. We trigger a real hard redirect destroying backward trace natively.
         window.location.replace('/dashboard');
         return { success: true };
       } else {
@@ -364,13 +374,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // This call handles clearing memory (setUser(null)), authState, 
+      // Wipe ALL user-scoped plan caches so the next account login starts fresh.
+      try {
+        const { clearAllPlanCaches } = await import('@/contexts/PlanContext');
+        clearAllPlanCaches();
+      } catch { /* non-fatal */ }
+
+      // This call handles clearing memory (setUser(null)), authState,
       // localStorage (SESSION_FLAG), and all cookie variants.
       persistUser(null, true);
-      
+
       setIsLoading(false);
       isLoggingOut.current = false;
-      
+
       // Use replace to prevent the protected page from staying in history
       window.location.replace('/login');
     }

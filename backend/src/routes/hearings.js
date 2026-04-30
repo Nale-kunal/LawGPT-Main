@@ -1,5 +1,6 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth-jwt.js';
+import { checkPlanAccess } from '../middleware/checkPlanAccess.js';
 import { logActivity } from '../middleware/activityLogger.js';
 import {
   createDocument,
@@ -19,6 +20,7 @@ import logger from '../utils/logger.js';
 const router = express.Router();
 
 router.use(requireAuth);
+router.use(checkPlanAccess('hearings'));
 
 const normalizeDateInput = (value) => {
   if (!value) { return null; }

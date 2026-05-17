@@ -176,9 +176,9 @@ export default function Pricing() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* ── Page header ─────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
             <Zap className="w-5 h-5 text-primary" />
             Subscription Plans
           </h1>
@@ -188,7 +188,7 @@ export default function Pricing() {
         </div>
 
         {/* Billing cycle toggle — mirrors other toggle patterns in the app */}
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-muted border border-border">
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-muted border border-border self-start sm:self-auto">
           {(['monthly', 'yearly'] as const).map(cycle => (
             <button
               key={cycle}
@@ -212,7 +212,7 @@ export default function Pricing() {
       </div>
 
       {/* ── Plan cards ──────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
         {PLANS.map(planDef => {
           const planIdx   = PLAN_HIERARCHY.indexOf(planDef.id);
           const isCurrent = planDef.id === currentPlan;

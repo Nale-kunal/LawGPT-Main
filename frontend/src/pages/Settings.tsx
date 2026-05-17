@@ -388,8 +388,8 @@ const Settings = () => {
     };
 
     // Only update recovery email if NOT currently linked via Google
-    // Use authProviders as the source of truth (same signal as the disabled-field condition)
-    if (!user?.authProviders?.includes('google')) {
+    // Use recoveryGoogleId as the source of truth for recovery link state
+    if (!user?.recoveryGoogleId) {
       updates.recoveryEmail = profileData.recoveryEmail.trim();
     }
 
@@ -797,7 +797,7 @@ const Settings = () => {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label htmlFor="recoveryEmail" className="text-xs">
-                Recovery Email (Optional) {user?.authProviders?.includes('google') && <span className="text-[10px] text-green-500 ml-1 font-semibold flex items-center gap-0.5 inline-flex"><Shield className="h-2.5 w-2.5" /> Google Verified</span>}
+                Recovery Email (Optional) {!!user?.recoveryGoogleId && <span className="text-[10px] text-green-500 ml-1 font-semibold flex items-center gap-0.5 inline-flex"><Shield className="h-2.5 w-2.5" /> Google Verified</span>}
               </Label>
               <Input
                 id="recoveryEmail"
@@ -805,10 +805,10 @@ const Settings = () => {
                 value={profileData.recoveryEmail || ''}
                 onChange={(e) => setProfileData(prev => ({ ...prev, recoveryEmail: e.target.value }))}
                 placeholder="backup@email.com"
-                disabled={isSavingProfile || !!user?.authProviders?.includes('google')}
-                className={`h-7 text-xs mt-0.5 ${user?.authProviders?.includes('google') ? 'bg-muted/50 cursor-not-allowed font-medium' : ''}`}
+                disabled={isSavingProfile || !!user?.recoveryGoogleId}
+                className={`h-7 text-xs mt-0.5 ${!!user?.recoveryGoogleId ? 'bg-muted/50 cursor-not-allowed font-medium' : ''}`}
               />
-              {user?.authProviders?.includes('google') && (
+              {!!user?.recoveryGoogleId && (
                 <p className="text-[9px] text-muted-foreground mt-0.5">Managed via Security & Privacy settings</p>
               )}
             </div>
@@ -1080,8 +1080,8 @@ const Settings = () => {
 
             <div className="space-y-1">
               <Label className="text-xs font-medium">Google Recovery Email</Label>
-              {/* Check both authProviders and recoveryGoogleId — either confirms a linked Google account */}
-              {(user?.authProviders?.includes('google') || !!user?.recoveryGoogleId) ? (
+              {/* Use recoveryGoogleId as the single source of truth for recovery link state */}
+              {(!!user?.recoveryGoogleId || !!user?.recoveryEmail) ? (
                 <div className="space-y-1">
                   <p className="text-[10px] text-green-500 font-medium flex items-center gap-1">
                     ✅ Google Linked

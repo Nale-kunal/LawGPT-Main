@@ -53,6 +53,21 @@ const envSchema = z.object({
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
     GOOGLE_CALLBACK_URL: z.string().url().optional().or(z.literal('')),
+
+    // ── Razorpay ──────────────────────────────────────────────────────────
+    RAZORPAY_KEY_ID:        z.string().optional(),
+    RAZORPAY_KEY_SECRET:    z.string().optional(),
+    RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+
+    // Subscription Plan IDs (created in Razorpay Dashboard)
+    RAZORPAY_PLAN_ID_BASIC:          z.string().optional(),
+    RAZORPAY_PLAN_ID_PRO:            z.string().optional(),
+    RAZORPAY_PLAN_ID_PREMIUM:        z.string().optional(),
+    RAZORPAY_PLAN_ID_ELITE:          z.string().optional(),
+    RAZORPAY_PLAN_ID_BASIC_YEARLY:   z.string().optional(),
+    RAZORPAY_PLAN_ID_PRO_YEARLY:     z.string().optional(),
+    RAZORPAY_PLAN_ID_PREMIUM_YEARLY: z.string().optional(),
+    RAZORPAY_PLAN_ID_ELITE_YEARLY:   z.string().optional(),
 });
 
 // ── Production-specific extra rules ──────────────────────────────────────────
@@ -75,6 +90,25 @@ function applyProductionRules(data) {
         }
         if (data.JWT_REFRESH_SECRET.length < 64) {
             errors.push('JWT_REFRESH_SECRET must be at least 64 characters in production');
+        }
+        // ── Razorpay production requirements ──────────────────────────────
+        if (!data.RAZORPAY_KEY_ID || !data.RAZORPAY_KEY_ID.startsWith('rzp_')) {
+            errors.push('RAZORPAY_KEY_ID is required in production (must start with rzp_live_ or rzp_test_)');
+        }
+        if (!data.RAZORPAY_KEY_SECRET) {
+            errors.push('RAZORPAY_KEY_SECRET is required in production');
+        }
+        if (!data.RAZORPAY_WEBHOOK_SECRET || data.RAZORPAY_WEBHOOK_SECRET.length < 20) {
+            errors.push('RAZORPAY_WEBHOOK_SECRET is required and must be at least 20 characters in production');
+        }
+        // Warn (not fail) if plan IDs not configured — payment routes will 503 gracefully
+        const planIdVars = [
+            'RAZORPAY_PLAN_ID_BASIC','RAZORPAY_PLAN_ID_PRO',
+            'RAZORPAY_PLAN_ID_PREMIUM','RAZORPAY_PLAN_ID_ELITE',
+        ];
+        const missingPlanIds = planIdVars.filter(k => !data[k]);
+        if (missingPlanIds.length > 0) {
+            console.warn(`[startup] Missing Razorpay plan IDs (payment creation will fail for those tiers): ${missingPlanIds.join(', ')}`);
         }
     }
 

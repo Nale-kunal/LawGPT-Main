@@ -18,3 +18,6 @@ export { default as PasswordReset } from './PasswordReset.js';
 export { default as Activity } from './Activity.js';
 export { default as AuditLog } from './AuditLog.js';
 export { default as TemplateDocument } from './TemplateDocument.js';
+export { default as Subscription }     from './Subscription.js';
+export { default as PaymentLog }       from './PaymentLog.js';
+export { default as RefundLog }        from './RefundLog.js';

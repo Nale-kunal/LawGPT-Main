@@ -1,0 +1,36 @@
+# Docker Compose Development Overrides
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+version: '3.9'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    command: npm run dev -- --host 0.0.0.0
+
+  mongodb:
+    environment:
+      MONGO_INITDB_ROOT_PASSWORD: dev_password_only
+
+  redis:
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru

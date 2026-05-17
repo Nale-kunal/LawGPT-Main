@@ -1,0 +1,8 @@
+{
+  "name": "@juriq/eslint-config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared ESLint configuration for Juriq workspace",
+  "main": "index.js",
+  "type": "module"
+}

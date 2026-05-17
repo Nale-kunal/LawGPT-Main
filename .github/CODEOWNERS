@@ -1,0 +1,27 @@
+# Ownership rules for code review
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything
+* @Nale-kunal
+
+# Backend
+/backend/ @Nale-kunal
+
+# Frontend
+/frontend/ @Nale-kunal
+
+# Infrastructure & CI/CD
+/.github/ @Nale-kunal
+/infrastructure/ @Nale-kunal
+/docker-compose*.yml @Nale-kunal
+
+# Security-sensitive files (require explicit review)
+/backend/src/middleware/auth-jwt.js @Nale-kunal
+/backend/src/middleware/csrf.js @Nale-kunal
+/backend/src/routes/payment.js @Nale-kunal
+/backend/src/config/env.js @Nale-kunal
+/SECURITY.md @Nale-kunal
+/.env.example @Nale-kunal
+
+# Documentation
+/docs/ @Nale-kunal

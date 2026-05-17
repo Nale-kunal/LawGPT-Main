@@ -1,0 +1,35 @@
+{
+  "entity": "event",
+  "account_id": "acc_XXXXXXXXXXXX",
+  "event": "subscription.activated",
+  "contains": ["subscription", "payment"],
+  "payload": {
+    "subscription": {
+      "entity": {
+        "id": "sub_XXXXXXXXXXXX",
+        "entity": "subscription",
+        "plan_id": "plan_XXXXXXXXXXXX",
+        "customer_id": "cust_XXXXXXXXXXXX",
+        "status": "active",
+        "current_start": 1700000000,
+        "current_end": 1702592000,
+        "charge_at": 1702592000,
+        "total_count": 12,
+        "paid_count": 1,
+        "remaining_count": 11,
+        "short_url": "https://rzp.io/i/XXXXXXXX"
+      }
+    },
+    "payment": {
+      "entity": {
+        "id": "pay_XXXXXXXXXXXX",
+        "entity": "payment",
+        "amount": 49900,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card"
+      }
+    }
+  },
+  "created_at": 1700000100
+}

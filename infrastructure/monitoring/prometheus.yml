@@ -1,0 +1,31 @@
+# Prometheus Configuration for Juriq
+# Reference: https://prometheus.io/docs/prometheus/latest/configuration/
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+scrape_configs:
+  - job_name: 'juriq-api'
+    metrics_path: '/api/v1/metrics'
+    static_configs:
+      - targets: ['backend:5000']
+        labels:
+          environment: 'production'
+          service: 'juriq-api'
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: 'redis'
+
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongo-exporter:9216']
+        labels:
+          service: 'mongodb'
+
+rule_files:
+  - 'alerts/*.yml'

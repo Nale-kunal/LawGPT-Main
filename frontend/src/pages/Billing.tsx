@@ -161,7 +161,7 @@ const Billing = () => {
                   </Select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="duration">Duration (minutes)*</Label>
                     <Input
@@ -460,7 +460,7 @@ const Billing = () => {
             <DialogTitle>Create Invoice</DialogTitle>
             <DialogDescription>Fill invoice details and items</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label>Client*</Label>
               <Select value={invoiceForm.clientId} onValueChange={(v) => setInvoiceForm(p => ({ ...p, clientId: v }))}>
@@ -506,7 +506,7 @@ const Billing = () => {
           </div>
           <div className="mt-4">
             <Label>Items</Label>
-            <div className="mt-2">
+            <div className="mt-2 table-responsive">
               <div className="grid grid-cols-12 gap-3 px-3 py-3 rounded-md bg-muted text-xs font-medium">
                 <div className="col-span-6 text-left">Description</div>
                 <div className="col-span-2 text-center">Qty</div>

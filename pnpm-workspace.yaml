@@ -1,0 +1,6 @@
+packages:
+  # Applications
+  - "backend"
+  - "frontend"
+  # Shared packages
+  - "packages/*"

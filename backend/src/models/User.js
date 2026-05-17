@@ -140,19 +140,28 @@ const userSchema = new mongoose.Schema({
     default: 'free',
     index: true,
   },
-  planStartDate:  { type: Date, default: null },
-  planEndDate:    { type: Date, default: null, index: true },
-  isCouponActive: { type: Boolean, default: false },
-  couponCodeUsed: { type: String, default: null },
+  planStartDate:        { type: Date, default: null },
+  planEndDate:          { type: Date, default: null, index: true },
+  isCouponActive:       { type: Boolean, default: false },
+  couponCodeUsed:       { type: String, default: null },
+  // Links to the Subscription document that is currently active.
+  // Cleared to null on cancellation / expiry.
+  activeSubscriptionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Subscription', default: null, index: true },
+
+  // Razorpay customer ID — bound at first subscription creation; validated in webhook (spec #7)
+  razorpayCustomerId: { type: String, default: null, index: true },
 
   securityFlags: {
-    isSuspicious: { type: Boolean, default: false },
-    abuseScore: { type: Number, default: 0 },
-    lastAbuseSignalAt: Date,
+    isSuspicious:             { type: Boolean, default: false },
+    abuseScore:               { type: Number,  default: 0 },
+    blocked:                  { type: Boolean, default: false },  // auto-set when abuseScore >= 50
+    blockedAt:                { type: Date,    default: null },
+    blockedReason:            { type: String,  default: null },
+    lastAbuseSignalAt:        Date,
     temporarySuspensionUntil: Date,
-    failedLoginAttempts: { type: Number, default: 0 },
-    lastFailedLoginAt: Date,
-    riskLevel: { type: String, enum: ['low', 'medium', 'high', 'critical'], default: 'low' }
+    failedLoginAttempts:      { type: Number, default: 0 },
+    lastFailedLoginAt:        Date,
+    riskLevel:                { type: String, enum: ['low', 'medium', 'high', 'critical'], default: 'low' }
   },
 
   accountStatus: {

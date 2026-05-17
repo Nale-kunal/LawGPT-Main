@@ -1,0 +1,33 @@
+name: Dependency Audit
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Weekly Monday 9am UTC
+  workflow_dispatch:
+
+jobs:
+  audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: ./${{ matrix.app }}
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
+
+      - name: Run npm audit
+        working-directory: ./${{ matrix.app }}
+        run: npm audit --audit-level=moderate
+
+      - name: Check for outdated packages
+        working-directory: ./${{ matrix.app }}
+        run: npm outdated || true

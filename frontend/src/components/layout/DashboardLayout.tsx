@@ -6,6 +6,7 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { useState, useEffect } from 'react';
 import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay';
 import JuriqLoader from '@/components/ui/JuriqLoader';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const DashboardLayout = () => {
   const { user, isAuthenticated, isLoading, refreshUser } = useAuth();
@@ -67,7 +68,9 @@ const DashboardLayout = () => {
         <div className="flex flex-1 flex-col min-h-0">
           <Header />
           <main id="dashboard-main" className="flex-1 overflow-y-auto p-3 md:p-6">
-            <Outlet />
+            <ErrorBoundary name="Page">
+              <Outlet />
+            </ErrorBoundary>
           </main>
         </div>
 

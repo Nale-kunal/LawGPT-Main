@@ -189,9 +189,9 @@ async function handleLinkingLogic(req, res, userId, googleId, googleEmail, _name
     return redirectError('SAME_AS_PRIMARY_EMAIL');
   }
 
-  // BLOCK DUPLICATES
-  if (currentUser.authProviders && currentUser.authProviders.includes("google")) {
-    logger.warn({ userId }, 'Google link: already linked');
+  // BLOCK DUPLICATES — check if a recovery Google account is already linked
+  if (currentUser.recoveryGoogleId) {
+    logger.warn({ userId }, 'Google link: recovery account already linked');
     return redirectError('GOOGLE_ALREADY_LINKED');
   }
 
@@ -1064,13 +1064,18 @@ router.delete('/google/unlink', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'USER_NOT_FOUND' });
     }
 
-    if (!user.authProviders || !user.authProviders.includes("google")) {
-      return res.status(400).json({ success: false, error: 'NOT_LINKED', message: 'Google not linked' });
+    // Check if there is actually a recovery Google account linked
+    if (!user.recoveryGoogleId && !user.recoveryEmail) {
+      return res.status(400).json({ success: false, error: 'NOT_LINKED', message: 'No recovery account linked' });
     }
 
-    if (!user.authProviders.includes("email")) {
-      logger.warn({ action: "GOOGLE_UNLINK_FAILED", userId: user._id, reason: "No other login method available" }, 'Google unlink failed');
-      return res.status(400).json({ success: false, error: 'CANT_UNLINK', message: 'Cannot unlink Google. No other login method available.' });
+    // Safety: ensure the user has another login method (password) before unlinking
+    if (!user.passwordHash) {
+      // For Google-primary users without a password, check they still have a primary googleId
+      if (!user.googleId || user.googleId === user.recoveryGoogleId) {
+        logger.warn({ action: "GOOGLE_UNLINK_FAILED", userId: user._id, reason: "No other login method available" }, 'Google unlink failed');
+        return res.status(400).json({ success: false, error: 'CANT_UNLINK', message: 'Cannot unlink Google. No other login method available. Set a password first.' });
+      }
     }
 
     // CRITICAL: Use findByIdAndUpdate with $unset — NOT .save() with field = undefined.

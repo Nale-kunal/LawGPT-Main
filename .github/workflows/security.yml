@@ -1,0 +1,78 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 6am UTC
+
+jobs:
+  secret-scan:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog Secret Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified
+
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: ./${{ matrix.app }}
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
+
+      - name: npm audit (high severity)
+        working-directory: ./${{ matrix.app }}
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+  env-check:
+    name: Environment Leak Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for hardcoded secrets
+        run: |
+          echo "Checking for potential secret leaks..."
+          PATTERNS=(
+            "rzp_live_"
+            "rzp_test_[a-zA-Z0-9]{14}"
+            "sk_live_"
+            "SG\.[a-zA-Z0-9]"
+            "mongodb\+srv://[^:]+:[^@]+@"
+            "AKIA[0-9A-Z]{16}"
+          )
+          FOUND=0
+          for pattern in "${PATTERNS[@]}"; do
+            if grep -rn --include="*.js" --include="*.ts" --include="*.tsx" --include="*.json" \
+               --exclude-dir=node_modules --exclude-dir=.git --exclude="*.example" \
+               -E "$pattern" .; then
+              echo "⚠️  Potential secret found matching: $pattern"
+              FOUND=1
+            fi
+          done
+          if [ $FOUND -eq 1 ]; then
+            echo "::error::Potential secrets detected in codebase!"
+            exit 1
+          fi
+          echo "✅ No secrets detected"

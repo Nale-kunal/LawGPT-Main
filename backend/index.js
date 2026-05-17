@@ -55,6 +55,7 @@ import { startTokenCleanup } from './src/jobs/tokenCleanup.js';
 import { requestId } from './src/middleware/requestId.js';
 import subscriptionRoutes from './src/routes/subscription.js';
 import paymentRoutes from './src/routes/payment.js';
+import adminPaymentRoutes from './src/routes/adminPayment.js';
 
 // dotenv already loaded at top — do not call again
 
@@ -332,6 +333,15 @@ const adminInternalLimiter = buildRateLimiter({
   limiterName: 'admin-internal',
 });
 
+// Payment limiter: 20 req/15min (excludes /webhook — Razorpay must always reach it)
+const paymentLimiter = buildRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Too many payment requests. Please wait 15 minutes.',
+  limiterName: 'payment',
+  skip: (req) => req.path === '/webhook',   // webhook has its own HMAC guard
+});
+
 app.use(globalLimiter);
 
 // ─── System Routes ────────────────────────────────────────────────────────────
@@ -443,6 +453,9 @@ app.post('/api/v1/logs/client-error', clientErrorLimiter, async (req, res) => {
   res.json({ ok: true });
 });
 
+// Legal compliance endpoints (public — no auth) (spec #6)
+import legalPolicyRoutes from './src/routes/legal.js';
+app.use('/api/v1/legal', legalPolicyRoutes);
 app.use('/api/v1/auth', forgotPasswordRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/auth', googleAuthRoutes); // Google OAuth (limiter now inside)
@@ -459,6 +472,8 @@ app.use('/api/v1/invoices', invoiceRoutes);
 app.use('/api/v1/hearings', hearingRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/2fa', twoFactorRoutes);
+// Spec #4: Admin rate limiter — 50 req/hour per IP (wraps all admin routes)
+app.use('/api/v1/admin', rateLimit({ windowMs: 60 * 60 * 1000, max: 50, standardHeaders: 'draft-7', legacyHeaders: false, message: { error: 'ADMIN_RATE_LIMIT', message: 'Too many admin requests. Try again later.' } }));
 app.use('/api/v1/admin', adminRoutes);
 app.use('/internal/admin', adminInternalLimiter, adminInternalRoutes);
 app.use('/api/v1/news', newsRoutes);
@@ -468,7 +483,10 @@ app.use('/api/v1/templates', templatesRoutes);
 app.use('/api/v1/subscription', subscriptionRoutes);
 // Webhook MUST be mounted before the global JSON body parser reads the body
 // (express.raw is applied inside payment.js for the /webhook route only)
-app.use('/api/v1/payment', paymentRoutes);
+// paymentLimiter skips /webhook — HMAC signature is the guard there
+app.use('/api/v1/payment', paymentLimiter, paymentRoutes);
+// Admin-only payment management (refunds, logs, subscription list)
+app.use('/api/v1/admin/payment', paymentLimiter, adminPaymentRoutes);
 
 // ─── Backward Compatibility /api/* → /api/v1/* (90-day window) ───────────────
 app.use('/api/auth', forgotPasswordRoutes);
@@ -486,6 +504,7 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/hearings', hearingRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/2fa', twoFactorRoutes);
+app.use('/api/legal', legalPolicyRoutes);
 app.use('/api/legal', legalRoutes);
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
@@ -543,10 +562,14 @@ async function startServer() {
     // ── 4. Ensure all performance indexes exist ───────────────────────────────────
     await ensureIndexes();
 
-    // ── 5. Start legal data cron job + token cleanup (non-blocking) ────────────
+    // ── 5. Start legal data cron job + token cleanup + payment reconciliation ─
     startLegalCron();
     startKeepAlive(); // Keep Render awake in production
     startTokenCleanup();
+    // Payment self-healing: cold-start lock clear + reconciliation + sync crons (specs #3,#6,#10)
+    import('./src/services/reconciliation.js')
+      .then(({ startReconciliationJobs }) => startReconciliationJobs())
+      .catch(err => logger.error({ err }, 'Failed to start reconciliation jobs (non-fatal)'));
     
     // Log Retention Policy Cleanup
     setInterval(async () => {
@@ -592,6 +615,16 @@ async function startServer() {
       process.exit(0);
     };
 
+    // Spec #10: SIGHUP — reload Razorpay keys without server restart
+    process.on('SIGHUP', () => {
+      logger.info('SIGHUP received — reloading Razorpay keys from environment');
+      // Re-read from environment (works with process managers that inject new env on SIGHUP)
+      // Force lazy client reset so next API call uses new keys
+      import('./src/routes/payment.js').then(m => {
+        if (typeof m._resetRazorpayClient === 'function') m._resetRazorpayClient();
+        logger.info('Razorpay client reset — new keys active on next request');
+      }).catch(e => logger.error({ e }, 'Key rotation: failed to reset Razorpay client'));
+    });
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
     process.on('SIGBREAK', () => gracefulShutdown('SIGBREAK'));

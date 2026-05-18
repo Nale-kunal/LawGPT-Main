@@ -1,5 +1,5 @@
 /* Initial loader styles — loaded before React hydrates to prevent FOUC */
-html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; }
+html, body { margin: 0; padding: 0; }
 html.dark .initial-loader { --p: #ffffff; --bg: #09090b; --txt: #a1a1aa; }
 html.light .initial-loader { --p: #09090b; --bg: #ffffff; --txt: #71717a; }
 

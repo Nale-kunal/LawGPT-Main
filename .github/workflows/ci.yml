@@ -33,9 +33,9 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
-      - name: Install dependencies (frozen lockfile)
+      - name: Install dependencies (clean install)
         working-directory: ./backend
-        run: npm ci --frozen-lockfile
+        run: npm ci
 
       - name: Run tests with coverage
         working-directory: ./backend
@@ -61,7 +61,7 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
-      - run: npm ci --frozen-lockfile
+      - run: npm ci
         working-directory: ./backend
 
       - name: Run ESLint
@@ -71,8 +71,7 @@ jobs:
       - name: Frontend ESLint
         working-directory: ./frontend
         run: |
-          rm -rf node_modules package-lock.json
-          npm install
+          npm ci
           npx eslint src/ --max-warnings=400
 
   # ── Backend Security Audit ─────────────────────────────────────────────────
@@ -88,7 +87,7 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
-      - run: npm ci --frozen-lockfile
+      - run: npm ci
         working-directory: ./backend
 
       # Fail CI on HIGH or CRITICAL vulnerabilities only
@@ -111,9 +110,7 @@ jobs:
 
       - name: Clean install frontend
         working-directory: ./frontend
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install
+        run: npm ci
 
       - name: TypeScript type check (zero errors)
         working-directory: ./frontend

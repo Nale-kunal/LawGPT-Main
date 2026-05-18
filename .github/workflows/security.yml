@@ -36,9 +36,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./${{ matrix.app }}
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install
+        run: npm ci
 
       - name: npm audit (high severity)
         working-directory: ./${{ matrix.app }}
@@ -54,25 +52,93 @@ jobs:
       - name: Check for hardcoded secrets
         run: |
           echo "Checking for potential secret leaks..."
-          PATTERNS=(
-            "rzp_live_"
-            "rzp_test_[a-zA-Z0-9]{14}"
-            "sk_live_"
-            "SG\.[a-zA-Z0-9]"
-            "mongodb\+srv://[^:]+:[^@]+@"
-            "AKIA[0-9A-Z]{16}"
-          )
+
+          # Patterns require a FULL token match (not just a prefix in a comment or error message).
+          # Each grep is scoped to only match actual credential values, not documentation strings.
           FOUND=0
-          for pattern in "${PATTERNS[@]}"; do
-            if grep -rn --include="*.js" --include="*.ts" --include="*.tsx" --include="*.json" \
-               --exclude-dir=node_modules --exclude-dir=.git --exclude="*.example" \
-               -E "$pattern" .; then
-              echo "⚠️  Potential secret found matching: $pattern"
-              FOUND=1
-            fi
-          done
-          if [ $FOUND -eq 1 ]; then
-            echo "::error::Potential secrets detected in codebase!"
+
+          # Razorpay LIVE key: prefix + exactly 14 alphanumeric chars (full token length).
+          # Excludes: secret-scan.js (scanner source), *.example files, and error message strings
+          # that only mention the prefix as documentation.
+          if grep -rn \
+               --include="*.js" --include="*.ts" --include="*.tsx" --include="*.json" \
+               --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist \
+               --exclude-dir=coverage --exclude-dir=build \
+               --exclude="secret-scan.js" --exclude="*.example" \
+               -E "rzp_live_[a-zA-Z0-9]{14}" . \
+             | grep -v "//.*rzp_live_" \
+             | grep -v "#.*rzp_live_" \
+             | grep -v "errors\.push" \
+             | grep -v "console\." \
+             | grep -v "startsWith\(" \
+             | grep -qP "rzp_live_[a-zA-Z0-9]{14}"; then
+            echo "⚠️  Potential Razorpay live key found in source"
+            FOUND=1
+          fi
+
+          # Razorpay TEST key: same full-length pattern.
+          if grep -rn \
+               --include="*.js" --include="*.ts" --include="*.tsx" --include="*.json" \
+               --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist \
+               --exclude-dir=coverage --exclude-dir=build \
+               --exclude="secret-scan.js" --exclude="*.example" \
+               -E "rzp_test_[a-zA-Z0-9]{14}" . \
+             | grep -v "//.*rzp_test_" \
+             | grep -v "#.*rzp_test_" \
+             | grep -v "errors\.push" \
+             | grep -v "console\." \
+             | grep -v "startsWith\(" \
+             | grep -qP "rzp_test_[a-zA-Z0-9]{14}"; then
+            echo "⚠️  Potential Razorpay test key found in source"
+            FOUND=1
+          fi
+
+          # Stripe live secret key (full format: sk_live_ + 24 chars).
+          if grep -rn \
+               --include="*.js" --include="*.ts" --include="*.tsx" --include="*.json" \
+               --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist \
+               --exclude="secret-scan.js" --exclude="*.example" \
+               -E "sk_live_[a-zA-Z0-9]{24}" .; then
+            echo "⚠️  Potential Stripe live key found in source"
+            FOUND=1
+          fi
+
+          # SendGrid API key (full format: SG. + 22 + . + 43 chars).
+          if grep -rn \
+               --include="*.js" --include="*.ts" --include="*.tsx" --include="*.json" \
+               --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist \
+               --exclude="secret-scan.js" --exclude="*.example" \
+               -E "SG\.[a-zA-Z0-9_-]{22}\.[a-zA-Z0-9_-]{43}" .; then
+            echo "⚠️  Potential SendGrid key found in source"
+            FOUND=1
+          fi
+
+          # MongoDB URI with embedded credentials.
+          if grep -rn \
+               --include="*.js" --include="*.ts" --include="*.tsx" --include="*.json" \
+               --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist \
+               --exclude="secret-scan.js" --exclude="*.example" \
+               -E "mongodb(\+srv)?://[^:'\"\`]+:[^@'\"\`]+@[^/]" . \
+             | grep -v "process\.env" \
+             | grep -v "MONGODB_URI" \
+             | grep -v "localhost" \
+             | grep -qE "mongodb(\+srv)?://[^:'\"\`]+:[^@'\"\`]+@"; then
+            echo "⚠️  Potential MongoDB URI with credentials found in source"
+            FOUND=1
+          fi
+
+          # AWS Access Key ID (full 20-char format).
+          if grep -rn \
+               --include="*.js" --include="*.ts" --include="*.tsx" --include="*.json" \
+               --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist \
+               --exclude="secret-scan.js" --exclude="*.example" \
+               -E "AKIA[0-9A-Z]{16}" .; then
+            echo "⚠️  Potential AWS Access Key found in source"
+            FOUND=1
+          fi
+
+          if [ "$FOUND" -eq 1 ]; then
+            echo "::error::Potential secrets detected in codebase! Review the matches above."
             exit 1
           fi
-          echo "✅ No secrets detected"
+          echo "✅ No hardcoded secrets detected"

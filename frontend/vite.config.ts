@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
+import react from "@vitejs/plugin-react";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -17,7 +16,7 @@ export default defineConfig(({ mode }) => ({
         cookieDomainRewrite: "localhost",
         cookiePathRewrite: "/",
         configure: (proxy, _options) => {
-          proxy.on('error', (err, _req, res) => {
+          proxy.on('error', (err, _req, _res) => {
             console.log('proxy error', err);
           });
           proxy.on('proxyReq', (proxyReq, req, _res) => {
@@ -25,7 +24,9 @@ export default defineConfig(({ mode }) => ({
             if (req.headers.cookie) {
               proxyReq.setHeader('Cookie', req.headers.cookie);
             }
-            console.log('Sending Request to the Target:', req.method, req.url);
+            if (mode === 'development') {
+              console.log('Sending Request to the Target:', req.method, req.url);
+            }
           });
           proxy.on('proxyRes', (proxyRes, req, _res) => {
             // Ensure Set-Cookie headers are forwarded
@@ -38,13 +39,15 @@ export default defineConfig(({ mode }) => ({
                   .replace(/Secure/gi, '');
               });
             }
-            console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+            if (mode === 'development') {
+              console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+            }
           });
         },
       },
     },
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

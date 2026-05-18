@@ -82,27 +82,30 @@ async function initApp() {
       
       clearTimeout(wakeTimer);
 
-      // Check if we got HTML instead of JSON (Render Waking Up page)
+      // Check if we got HTML instead of JSON (Render Waking Up page or Vite Proxy Error)
       const contentType = res.headers.get('content-type');
       if (contentType && contentType.includes('text/html')) {
-        setStatus('Server warming up... please wait');
-        // Retry once after 3s or just let it fall through to React
-        await new Promise(r => setTimeout(r, 3000));
-        window.location.reload(); // Hard reload is often the best recovery for Render's intercept
-        return;
-      }
-
-      const data = await res.json();
-      if (data.authenticated) {
-        // HARD REDIRECT
-        setStatus('Redirecting to dashboard...');
-        window.location.replace('/dashboard');
-        return; // Prevent render
+        console.warn('API returned HTML. Backend might be down or proxy misconfigured. Falling back to React render.');
+        setStatus('Waking up secure vault...');
+        // Let it fall through to React instead of infinitely reloading
+      } else {
+        const data = await res.json();
+        if (data.authenticated) {
+          // HARD REDIRECT
+          setStatus('Redirecting to dashboard...');
+          window.location.replace('/dashboard');
+          return; // Prevent render
+        }
       }
     } catch (_err) {
       // allow fallback to standard react behaviors
       console.warn('Auth validation failed, falling back to app render');
     }
+  }
+
+  const initialLoader = document.querySelector('.initial-loader');
+  if (initialLoader) {
+    initialLoader.remove();
   }
 
   createRoot(document.getElementById("root")!).render(<App />);

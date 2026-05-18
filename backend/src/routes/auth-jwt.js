@@ -130,7 +130,7 @@ function setAuthCookie(res, token) {
   res.cookie('token', token, {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+    sameSite: 'lax',
     maxAge: 15 * 60 * 1000, // 15 minutes
     path: '/',
     ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
@@ -138,7 +138,7 @@ function setAuthCookie(res, token) {
   res.cookie('is_authenticated', 'true', {
     httpOnly: false, // Accessible by synchronous index.html JS
     secure: env.NODE_ENV === 'production',
-    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+    sameSite: 'lax',
     maxAge: 15 * 60 * 1000,
     path: '/',
     ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
@@ -149,7 +149,7 @@ function setRefreshCookie(res, refreshToken) {
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+    sameSite: 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: '/', // Must be '/' so clearCookie('/', ...) reliably removes it on logout
     ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
@@ -605,7 +605,7 @@ router.post('/logout', async (req, res) => {
   res.clearCookie('is_authenticated', {
     httpOnly: false,
     secure: env.NODE_ENV === 'production',
-    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+    sameSite: 'lax',
     path: '/',
     ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
   });
@@ -618,7 +618,7 @@ router.post('/logout', async (req, res) => {
   res.clearCookie('csrf-token', {
     httpOnly: false,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+    sameSite: 'lax',
     path: '/'
   });
 

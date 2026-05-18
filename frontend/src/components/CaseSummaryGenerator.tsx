@@ -24,10 +24,9 @@ export const CaseSummaryGenerator = ({ caseId }: CaseSummaryGeneratorProps) => {
 
     setIsGenerating(true);
 
-    // Simulate AI processing time
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    setIsGenerating(true);
 
-    // Generate mock AI summary
+    // Generate deterministic summary from case data
     const mockSummary = `
   ** Case Summary: ${case_.caseNumber}**
 
@@ -59,10 +58,7 @@ ${case_.judgeName ? `- Presiding Judge: ${case_.judgeName}` : ''}
       - Coordinate with client for hearing preparation
 ${case_.priority === 'urgent' ? '- URGENT: Immediate attention required' : ''}
 
-** Generated on:** ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}
-** AI Confidence:** High(95 %)
-
-  * This summary was generated using AI assistance.Please review and verify all information.*
+Generated on: ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}
     `.trim();
 
     setSummary(mockSummary);
@@ -70,7 +66,7 @@ ${case_.priority === 'urgent' ? '- URGENT: Immediate attention required' : ''}
 
     toast({
       title: "Summary Generated",
-      description: "AI case summary has been created successfully",
+      description: "Case summary has been created successfully",
     });
   };
 
@@ -119,15 +115,12 @@ ${case_.priority === 'urgent' ? '- URGENT: Immediate attention required' : ''}
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            AI Case Summary Generator
+            <FileText className="h-5 w-5 text-primary" />
+            Case Summary Generator
           </CardTitle>
-          <Badge variant="secondary" className="bg-gradient-to-r from-primary/10 to-secondary/10">
-            AI Powered
-          </Badge>
         </div>
         <CardDescription>
-          Generate comprehensive case summaries using AI analysis
+          Generate a comprehensive summary of case details
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -135,7 +128,7 @@ ${case_.priority === 'urgent' ? '- URGENT: Immediate attention required' : ''}
           <div className="text-center py-8">
             <div className="mb-4">
               <div className="w-16 h-16 mx-auto bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center mb-4">
-                <Sparkles className="h-8 w-8 text-primary" />
+                <FileText className="h-8 w-8 text-primary" />
               </div>
               <h3 className="text-lg font-semibold mb-2">Generate Case Summary</h3>
               <p className="text-sm text-muted-foreground mb-4">
@@ -151,22 +144,11 @@ ${case_.priority === 'urgent' ? '- URGENT: Immediate attention required' : ''}
                 </>
               ) : (
                 <>
-                  <Sparkles className="mr-2 h-4 w-4" />
+                  <FileText className="mr-2 h-4 w-4" />
                   Generate Summary
                 </>
               )}
             </Button>
-
-            {isGenerating && (
-              <div className="mt-4 space-y-2">
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div className="bg-primary h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Analyzing case details and generating summary...
-                </p>
-              </div>
-            )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -192,8 +174,6 @@ ${case_.priority === 'urgent' ? '- URGENT: Immediate attention required' : ''}
             </div>
 
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Badge variant="outline" className="text-xs">AI Generated</Badge>
-              <span>•</span>
               <span>Generated {new Date().toLocaleDateString('en-IN')}</span>
               <span>•</span>
               <span>Review recommended</span>

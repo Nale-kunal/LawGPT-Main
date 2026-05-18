@@ -10,10 +10,12 @@
 import express from 'express';
 import multer from 'multer';
 import mongoose from 'mongoose';
+import os from 'os';
+import { promises as fs } from 'fs';
 import { requireAuth } from '../middleware/auth-jwt.js';
 import { checkPlanAccess } from '../middleware/checkPlanAccess.js';
 import logger from '../utils/logger.js';
-import { uploadToCloudinary, deleteFromCloudinary } from '../config/cloudinary.js';
+import { uploadFileToCloudinary, deleteFromCloudinary } from '../config/cloudinary.js';
 import CaseNote from '../models/CaseNote.js';
 import Case from '../models/Case.js';
 
@@ -98,7 +100,7 @@ const fileFilter = (_req, file, cb) => {
 };
 
 const upload = multer({
-    storage: multer.memoryStorage(),
+    dest: os.tmpdir(),
     fileFilter,
     limits: {
         fileSize: MAX_FILE_SIZE_MB * 1024 * 1024,
@@ -198,60 +200,74 @@ router.post('/', verifyNoteAccess, (req, res, next) => {
     const saved = [];
     const errors = [];
 
-    for (const file of req.files) {
-        const safeName = sanitiseName(file.originalname);
-        const folder = `lawyer-zen/notes/user-${userId}/case-${caseId}`;
-        const type = resolveType(file.mimetype);
+    try {
+        for (const file of req.files) {
+            const safeName = sanitiseName(file.originalname);
+            const folder = `lawyer-zen/notes/user-${userId}/case-${caseId}`;
+            const type = resolveType(file.mimetype);
 
-        // Determine Cloudinary resource_type
-        const resourceType = type === 'image' ? 'image'
-            : type === 'video' ? 'video'
-            : 'raw';
+            // Determine Cloudinary resource_type
+            const resourceType = type === 'image' ? 'image'
+                : type === 'video' ? 'video'
+                : 'raw';
 
-        try {
-            const result = await uploadToCloudinary(file.buffer, safeName, folder, {
-                resource_type: resourceType,
-                use_filename: true,
-                unique_filename: true,
-                overwrite: false,
+            try {
+                const result = await uploadFileToCloudinary(file.path, folder, {
+                    resource_type: resourceType,
+                    use_filename: true,
+                    unique_filename: true,
+                    overwrite: false,
+                    public_id: safeName, // Map filename here since uploadFileToCloudinary uses it this way
+                });
+
+                const attachment = {
+                    fileUrl: result.secure_url,
+                    fileName: safeName,
+                    fileSize: file.size,
+                    mimeType: file.mimetype,
+                    // New fields
+                    attachmentId: new mongoose.Types.ObjectId().toString(),
+                    type,
+                    cloudinaryPublicId: result.public_id,
+                    uploadedAt: new Date(),
+                };
+
+                note.attachments.push(attachment);
+                saved.push(attachment);
+
+                logger.info({
+                    userId,
+                    caseId,
+                    noteId: note._id,
+                    fileName: safeName,
+                    type,
+                }, '[NoteAttachments] Attachment uploaded successfully');
+            } catch (uploadErr) {
+                logger.error({ err: uploadErr, fileName: safeName }, '[NoteAttachments] Cloudinary upload failed');
+                errors.push({ fileName: safeName, error: uploadErr.message || 'Upload failed' });
+            }
+        }
+
+        if (saved.length === 0) {
+            return res.status(500).json({
+                error: 'All file uploads failed.',
+                errors,
             });
+        }
 
-            const attachment = {
-                fileUrl: result.secure_url,
-                fileName: safeName,
-                fileSize: file.size,
-                mimeType: file.mimetype,
-                // New fields
-                attachmentId: new mongoose.Types.ObjectId().toString(),
-                type,
-                cloudinaryPublicId: result.public_id,
-                uploadedAt: new Date(),
-            };
-
-            note.attachments.push(attachment);
-            saved.push(attachment);
-
-            logger.info({
-                userId,
-                caseId,
-                noteId: note._id,
-                fileName: safeName,
-                type,
-            }, '[NoteAttachments] Attachment uploaded successfully');
-        } catch (uploadErr) {
-            logger.error({ err: uploadErr, fileName: safeName }, '[NoteAttachments] Cloudinary upload failed');
-            errors.push({ fileName: safeName, error: uploadErr.message || 'Upload failed' });
+        await note.save();
+    } finally {
+        // Always clean up temp files from disk
+        for (const file of req.files) {
+            try {
+                if (file.path) {
+                    await fs.unlink(file.path);
+                }
+            } catch (cleanupErr) {
+                logger.error({ err: cleanupErr, path: file.path }, '[NoteAttachments] Temp file cleanup failed');
+            }
         }
     }
-
-    if (saved.length === 0) {
-        return res.status(500).json({
-            error: 'All file uploads failed.',
-            errors,
-        });
-    }
-
-    await note.save();
 
     return res.status(200).json({
         success: true,

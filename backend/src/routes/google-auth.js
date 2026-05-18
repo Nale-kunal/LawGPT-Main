@@ -104,7 +104,7 @@ function setAuthCookie(res, token) {
   res.cookie('token', token, {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+    sameSite: 'lax',
     maxAge: 15 * 60 * 1000,
     path: '/',
     ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
@@ -112,7 +112,7 @@ function setAuthCookie(res, token) {
   res.cookie('is_authenticated', 'true', {
     httpOnly: false,
     secure: env.NODE_ENV === 'production',
-    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+    sameSite: 'lax',
     maxAge: 15 * 60 * 1000,
     path: '/',
     ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
@@ -122,7 +122,7 @@ function setRefreshCookie(res, refreshToken) {
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+    sameSite: 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: '/',
     ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
@@ -360,7 +360,7 @@ router.get('/google', async (req, res) => {
     const clearOptions = {
       path: '/',
       secure: env.NODE_ENV === 'production',
-      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+      sameSite: 'lax',
       ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
     };
     res.clearCookie('token', clearOptions);
@@ -378,7 +378,7 @@ router.get('/google', async (req, res) => {
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    sameSite: 'lax',
     maxAge: OAUTH_STATE_TTL_MS,
     path: '/',
   };
@@ -526,7 +526,7 @@ router.get('/google/callback', async (req, res) => {
       res.clearCookie(OAUTH_STATE_COOKIE, {
         httpOnly: true,
         secure: env.NODE_ENV === 'production',
-        sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+        sameSite: 'lax',
         path: '/',
         ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
       });
@@ -905,7 +905,7 @@ router.get('/google/link/callback', async (req, res) => {
     res.clearCookie(LINK_STATE_COOKIE, {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
-      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+      sameSite: 'lax',
       path: '/',
       ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
     });
@@ -989,7 +989,7 @@ router.get('/google/link/callback', async (req, res) => {
     res.clearCookie(LINK_STATE_COOKIE, {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
-      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+      sameSite: 'lax',
       path: '/',
       ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
     });
@@ -1031,7 +1031,7 @@ router.post('/google/relink', requireAuth, async (req, res) => {
     res.clearCookie(RECOVERY_PENDING_COOKIE, {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
-      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+      sameSite: 'lax',
       path: '/',
       ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
     });

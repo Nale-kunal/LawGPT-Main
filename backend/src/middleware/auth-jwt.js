@@ -43,7 +43,7 @@ export async function requireAuth(req, res, next) {
             res.clearCookie('token', {
                 httpOnly: true,
                 secure: env.NODE_ENV === 'production',
-                sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+                sameSite: 'lax',
                 path: '/',
                 ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
             });
@@ -77,7 +77,7 @@ export async function requireAuth(req, res, next) {
             res.clearCookie('token', {
                 httpOnly: true,
                 secure: env.NODE_ENV === 'production',
-                sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+                sameSite: 'lax',
                 path: '/',
                 ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
             });
@@ -111,7 +111,7 @@ export async function requireAuth(req, res, next) {
             res.clearCookie('token', {
                 httpOnly: true,
                 secure: env.NODE_ENV === 'production',
-                sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+                sameSite: 'lax',
                 path: '/',
                 ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
             });
@@ -147,7 +147,7 @@ export async function requireAuth(req, res, next) {
             res.clearCookie('token', {
                 httpOnly: true,
                 secure: env.NODE_ENV === 'production',
-                sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+                sameSite: 'lax',
                 path: '/',
                 ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
             });

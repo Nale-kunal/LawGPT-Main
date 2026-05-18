@@ -46,7 +46,7 @@ function _sendEmail(email, subject, body) {
  */
 export async function notifyUser(userId, type, data = {}) {
   try {
-    if (!userId || !type) return;
+    if (!userId || !type) { return; }
 
     const user = await _getUser(userId);
     if (!user?.email) {

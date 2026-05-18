@@ -63,9 +63,9 @@ const BLOCKED_MIME_TYPES = new Set([
  * Derive the canonical `type` from a MIME string.
  */
 function resolveType(mimeType) {
-    if (mimeType.startsWith('image/')) return 'image';
-    if (mimeType.startsWith('video/')) return 'video';
-    if (mimeType.startsWith('audio/')) return 'audio';
+    if (mimeType.startsWith('image/')) { return 'image'; }
+    if (mimeType.startsWith('video/')) { return 'video'; }
+    if (mimeType.startsWith('audio/')) { return 'audio'; }
     return 'document';
 }
 
@@ -75,8 +75,9 @@ function resolveType(mimeType) {
  */
 function sanitiseName(name = '') {
     return name
+        // eslint-disable-next-line no-control-regex
         .replace(/[/\\?%*:|"<>\x00-\x1f]/g, '_') // path / control chars
-        .replace(/\.{2,}/g, '.')                   // no double-dots
+        .replace(/\.{2,}/g, '.')                  // no double-dots
         .substring(0, 200)
         .trim() || 'file';
 }
@@ -93,7 +94,7 @@ const fileFilter = (_req, file, cb) => {
             'Allowed: images (jpg/png/webp), videos (mp4/mov), documents (pdf/docx/txt), audio (mp3).'
         ), { status: 400 }), false);
     }
-    cb(null, true);
+    return cb(null, true);
 };
 
 const upload = multer({
@@ -113,7 +114,7 @@ router.use(checkPlanAccess('notes'));
 const verifyCaseAccess = async (req, res, next) => {
     try {
         const caseDoc = await Case.findById(req.params.caseId).lean();
-        if (!caseDoc) return res.status(404).json({ error: 'Case not found' });
+        if (!caseDoc) { return res.status(404).json({ error: 'Case not found' }); }
         if (String(caseDoc.owner) !== String(req.user.userId)) {
             return res.status(403).json({ error: 'Unauthorized to access this case' });
         }
@@ -132,7 +133,7 @@ const verifyNoteAccess = async (req, res, next) => {
             caseId: req.params.caseId,
             isDeleted: false,
         });
-        if (!note) return res.status(404).json({ error: 'Note not found' });
+        if (!note) { return res.status(404).json({ error: 'Note not found' }); }
         if (String(note.authorId) !== String(req.user.userId)) {
             return res.status(403).json({ error: 'Unauthorized to modify this note' });
         }
@@ -173,8 +174,8 @@ function handleMulterError(err, _req, res, next) {
 
 router.post('/', verifyNoteAccess, (req, res, next) => {
     upload.array('files', MAX_FILES_PER_UPLOAD)(req, res, (err) => {
-        if (err) return handleMulterError(err, req, res, next);
-        next();
+        if (err) { return handleMulterError(err, req, res, next); }
+        return next();
     });
 }, async (req, res) => {
     const { note } = req;

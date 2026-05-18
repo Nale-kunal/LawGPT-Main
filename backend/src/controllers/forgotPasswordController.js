@@ -180,7 +180,7 @@ export const requestPasswordReset = async (req, res) => {
           stack: err.stack,
           userId: user._id ? user._id.toString() : 'unknown'
         });
-      } catch (logErr) {
+      } catch (_logErr) {
         // silent fallback if logging fails
       }
     });

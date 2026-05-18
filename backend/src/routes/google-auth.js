@@ -596,8 +596,8 @@ router.get('/google/callback', async (req, res) => {
       ? 'link' 
       : (typeof storedState === 'string' && storedState.includes('|') ? storedState.split('|')[1] : 'login');
     
-    // Correctly categorize the action for auditing
-    const auditAction = intent === 'signup' ? 'register' : 'login';
+    // Correctly categorize the action for auditing (used in the login audit call below)
+    const _auditAction = intent === 'signup' ? 'register' : 'login'; // eslint-disable-line no-unused-vars
     if (!email) {
       logger.warn({ googleId }, 'Google OAuth: no email in token payload — rejecting');
       await auditOAuthAttempt(req, { email: 'NO_EMAIL', action: 'login', success: false, reason: 'NO_EMAIL' });
@@ -618,9 +618,6 @@ router.get('/google/callback', async (req, res) => {
 
     emailForAudit = email;
     const normalizedEmail = email.toLowerCase().trim();
-
-    // ── 5.5: Audit categorisation ────────────────────────────────────────────
-    const actionAuditStr = auditAction;
 
     // ── 6. LINKING CHECK — is this a link attempt from settings? ──────────
     if (isLinkFlow && linkUserId) {

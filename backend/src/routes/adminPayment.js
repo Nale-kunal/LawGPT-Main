@@ -40,7 +40,7 @@ function getRazorpay() {
   if (!_rzp) {
     const key_id     = process.env.RAZORPAY_KEY_ID;
     const key_secret = process.env.RAZORPAY_KEY_SECRET;
-    if (!key_id || !key_secret) throw new Error('Razorpay keys not configured');
+    if (!key_id || !key_secret) { throw new Error('Razorpay keys not configured'); }
     _rzp = new Razorpay({ key_id, key_secret });
   }
   return _rzp;
@@ -232,10 +232,10 @@ router.get('/logs', async (req, res) => {
     const skip  = (page - 1) * limit;
 
     const filter = {};
-    if (req.query.eventType)   filter.eventType = req.query.eventType;
-    if (req.query.userId)      filter.userId    = req.query.userId;
-    if (req.query.status)      filter.status    = req.query.status;
-    if (req.query.rzpSubId)    filter.razorpaySubscriptionId = req.query.rzpSubId;
+    if (req.query.eventType)   { filter.eventType = req.query.eventType; }
+    if (req.query.userId)      { filter.userId    = req.query.userId; }
+    if (req.query.status)      { filter.status    = req.query.status; }
+    if (req.query.rzpSubId)    { filter.razorpaySubscriptionId = req.query.rzpSubId; }
 
     const [logs, total] = await Promise.all([
       PaymentLog.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
@@ -259,9 +259,9 @@ router.get('/subscriptions', async (req, res) => {
     const skip  = (page - 1) * limit;
 
     const filter = {};
-    if (req.query.status)  filter.status = req.query.status;
-    if (req.query.userId)  filter.userId = req.query.userId;
-    if (req.query.planType) filter.planType = req.query.planType;
+    if (req.query.status)   { filter.status   = req.query.status; }
+    if (req.query.userId)   { filter.userId   = req.query.userId; }
+    if (req.query.planType) { filter.planType = req.query.planType; }
 
     const [subs, total] = await Promise.all([
       Subscription.find(filter)
@@ -291,8 +291,8 @@ router.get('/refunds', async (req, res) => {
     const skip  = (page - 1) * limit;
 
     const filter = {};
-    if (req.query.userId)   filter.userId   = req.query.userId;
-    if (req.query.decision) filter.decision = req.query.decision;
+    if (req.query.userId)   { filter.userId   = req.query.userId; }
+    if (req.query.decision) { filter.decision = req.query.decision; }
 
     const [refunds, total] = await Promise.all([
       RefundLog.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
@@ -316,7 +316,7 @@ router.get('/settlements', async (req, res) => {
     const skip  = (page - 1) * limit;
 
     const filter = {};
-    if (req.query.status) filter.status = req.query.status;
+    if (req.query.status) { filter.status = req.query.status; }
 
     const [settlements, total] = await Promise.all([
       SettlementLog.find(filter).sort({ razorpayCreatedAt: -1 }).skip(skip).limit(limit).lean(),

@@ -10,26 +10,39 @@ export default [
             ecmaVersion: 2022,
             sourceType: 'module',
             globals: {
+                // Node.js process/env built-ins not in ecmaVersion set
                 process: 'readonly',
                 console: 'readonly',
                 Buffer: 'readonly',
-                setTimeout: 'readonly',
-                clearTimeout: 'readonly',
-                setImmediate: 'readonly',
                 __dirname: 'readonly',
                 __filename: 'readonly',
-                // Node 18+ built-ins
+                // Timer globals (Node.js variants not always in recommended)
+                setInterval: 'readonly',
+                clearInterval: 'readonly',
+                setImmediate: 'readonly',
+                clearImmediate: 'readonly',
+                setTimeout: 'readonly',
+                clearTimeout: 'readonly',
+                // Node 18+ Web-compatible built-ins
                 fetch: 'readonly',
-                URL: 'readonly',
-                URLSearchParams: 'readonly',
                 AbortController: 'readonly',
+                AbortSignal: 'readonly',
                 FormData: 'readonly',
                 Headers: 'readonly',
                 Request: 'readonly',
                 Response: 'readonly',
+                URL: 'readonly',
+                URLSearchParams: 'readonly',
+                TextEncoder: 'readonly',
+                TextDecoder: 'readonly',
+                structuredClone: 'readonly',
             },
         },
         rules: {
+            // Disable redeclare — our globals above may overlap with ecmaVersion built-ins
+            // (setInterval, AbortSignal etc. are in both our list and ES2022 spec)
+            'no-redeclare': 'off',
+
             // Error prevention
             'no-unused-vars': ['warn', { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
             'no-undef': 'error',
@@ -67,7 +80,7 @@ export default [
         },
         rules: {
             'no-console': 'off',           // test helpers may use console
-            'preserve-caught-error': 'off', // jest assertions don't need cause
+            'require-await': 'off',        // jest describe/it are not async
         },
     },
 ];

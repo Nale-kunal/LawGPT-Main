@@ -45,14 +45,14 @@ const _fallback = Object.fromEntries(METRIC_KEYS.map(k => [k, 0]));
 // ── Get Redis client (lazy import to avoid circular deps) ─────────────────────
 let _redis = null;
 async function _getRedis() {
-  if (_redis) return _redis;
+  if (_redis) { return _redis; }
   try {
     const { redis } = await import('../utils/redis.js');
     if (redis && redis.status === 'ready') {
       _redis = redis;
       return _redis;
     }
-  } catch {}
+  } catch (_e) { /* Redis unavailable — in-process fallback will be used instead */ }
   return null;
 }
 
@@ -60,7 +60,7 @@ async function _getRedis() {
 // inc — increment a metric (Redis INCR or fallback)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function inc(metric, by = 1) {
-  if (!METRIC_KEYS.includes(metric)) return;
+  if (!METRIC_KEYS.includes(metric)) { return; }
 
   // Always update fallback so getSnapshot() works if Redis is down
   _fallback[metric] = (_fallback[metric] || 0) + by;
@@ -83,7 +83,7 @@ export async function inc(metric, by = 1) {
 // dec — decrement a metric (floor 0)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function dec(metric, by = 1) {
-  if (!METRIC_KEYS.includes(metric)) return;
+  if (!METRIC_KEYS.includes(metric)) { return; }
   _fallback[metric] = Math.max(0, (_fallback[metric] || 0) - by);
 
   try {
@@ -108,7 +108,7 @@ export async function getSnapshot(rangeMs = 24 * 60 * 60 * 1000) {
     if (redis) {
       // Fetch all counter values from Redis in one pipeline
       const pipeline = redis.pipeline();
-      for (const key of METRIC_KEYS) pipeline.get(`${REDIS_PREFIX}${key}`);
+      for (const key of METRIC_KEYS) { pipeline.get(`${REDIS_PREFIX}${key}`); }
       const results = await pipeline.exec();
 
       METRIC_KEYS.forEach((key, i) => {
@@ -138,14 +138,14 @@ export async function getSnapshot(rangeMs = 24 * 60 * 60 * 1000) {
 
 // Dev/test only — resets both Redis and in-process counters
 export async function resetMetrics() {
-  for (const k of METRIC_KEYS) _fallback[k] = 0;
+  for (const k of METRIC_KEYS) { _fallback[k] = 0; }
   try {
     const redis = await _getRedis();
     if (redis) {
       const pipeline = redis.pipeline();
-      for (const key of METRIC_KEYS) pipeline.del(`${REDIS_PREFIX}${key}`);
+      for (const key of METRIC_KEYS) { pipeline.del(`${REDIS_PREFIX}${key}`); }
       pipeline.del(TIMELINE_KEY);
       await pipeline.exec();
     }
-  } catch {}
+  } catch (_e) { /* best-effort metrics reset — errors are non-fatal */ }
 }

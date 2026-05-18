@@ -39,7 +39,7 @@ export async function enqueueAlert(type, payload = {}) {
 // ─────────────────────────────────────────────────────────────────────────────
 async function _deliverAlert(alert) {
   const url = process.env.SECURITY_ALERT_WEBHOOK_URL;
-  if (!url) return; // no webhook configured — log is sufficient
+  if (!url) { return; } // no webhook configured — log is sufficient
 
   const body = JSON.stringify({
     id:        alert._id,
@@ -56,7 +56,7 @@ async function _deliverAlert(alert) {
     signal:  AbortSignal.timeout(8_000), // 8s hard timeout
   });
 
-  if (!res.ok) throw new Error(`Webhook responded ${res.status}`);
+  if (!res.ok) { throw new Error(`Webhook responded ${res.status}`); }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

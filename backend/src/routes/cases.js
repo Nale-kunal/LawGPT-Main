@@ -50,7 +50,7 @@ router.get('/limit', async (req, res) => {
     const Case = (await import('../models/Case.js')).default;
 
     const user = await User.findById(req.user.userId).select('subscriptionPlan planEndDate').lean();
-    if (!user) return res.status(401).json({ error: 'User not found' });
+    if (!user) { return res.status(401).json({ error: 'User not found' }); }
 
     const effectivePlan = getEffectivePlan(user);
     const limit         = CASE_LIMITS[effectivePlan];

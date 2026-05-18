@@ -37,7 +37,7 @@ async function resolveEffectivePlan(userId) {
     .select('subscriptionPlan planEndDate isCouponActive')
     .lean();
 
-  if (!user) return 'free';
+  if (!user) { return 'free'; }
 
   // Atomic expiry revert — condition in query prevents race conditions (spec #5)
   const now = new Date();

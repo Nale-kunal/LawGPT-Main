@@ -22,7 +22,7 @@ import { requireAuth } from '../middleware/auth-jwt.js';
 import Subscription    from '../models/Subscription.js';
 import PaymentLog      from '../models/PaymentLog.js';
 import User            from '../models/User.js';
-import { PLAN_PRICING, PLAN_HIERARCHY } from '../config/planFeatures.js';
+import { PLAN_PRICING } from '../config/planFeatures.js';
 import { activateSubscriptionPlan, cancelSubscriptionPlan, flagUserAbuse } from '../services/planService.js';
 import logger          from '../utils/logger.js';
 import { notifyUser }          from '../services/notificationService.js';
@@ -104,17 +104,17 @@ const _alertThrottle = new Map();
 function _isThrottled(type, userId) {
   const key = `${type}:${userId || 'system'}`;
   const last = _alertThrottle.get(key);
-  if (last && Date.now() - last < 10 * 60 * 1000) return true;
+  if (last && Date.now() - last < 10 * 60 * 1000) { return true; }
   _alertThrottle.set(key, Date.now());
   return false;
 }
 function triggerAlert(type, payload = {}) {
   const severity = payload.severity || ALERT_SEVERITY[type] || 'MEDIUM';
-  if (_isThrottled(type, payload.userId)) return;
+  if (_isThrottled(type, payload.userId)) { return; }
   const alert = { type, severity, userId: payload.userId, ts: new Date().toISOString(), ...payload };
   // Log level based on severity
-  if (severity === 'HIGH') logger.error({ alertType: type, ...alert }, `SECURITY ALERT [${severity}]: ${type}`);
-  else logger.warn({ alertType: type, ...alert }, `SECURITY ALERT [${severity}]: ${type}`);
+  if (severity === 'HIGH') { logger.error({ alertType: type, ...alert }, `SECURITY ALERT [${severity}]: ${type}`); }
+  else { logger.warn({ alertType: type, ...alert }, `SECURITY ALERT [${severity}]: ${type}`); }
   if (process.env.SECURITY_ALERT_WEBHOOK_URL) {
     fetch(process.env.SECURITY_ALERT_WEBHOOK_URL, {
       method:  'POST',
@@ -366,7 +366,7 @@ router.post(
       .update(rawBody)
       .digest('hex');
 
-    let signaturesMatch = false;
+    let signaturesMatch;
     try {
       signaturesMatch = crypto.timingSafeEqual(
         Buffer.from(expectedSig, 'hex'),
@@ -433,7 +433,7 @@ router.post(
     inc('webhooks_received');
 
     // Spec #7: timeout protection — 25s max; prevents hanging requests + retry storms
-    const webhookResult = await Promise.race([
+    await Promise.race([
       handleWebhookEvent(event, eventType, eventId, rawBody).then(() => 'ok'),
       new Promise((_, reject) => setTimeout(() => reject(new Error('WEBHOOK_TIMEOUT')), 25_000)),
     ]).catch(err => {
@@ -754,7 +754,7 @@ async function handleSubscriptionHalted(event, eventId, parsedPayload) {
   }
 
   const subscription = await Subscription.findOne({ razorpaySubscriptionId: rzpSubId });
-  if (!subscription) return;
+  if (!subscription) { return; }
 
   // State machine check
   if (!ALLOWED_TRANSITIONS[subscription.status]?.includes('failed')) {
@@ -918,7 +918,7 @@ router.get('/invoice/:invoiceId', requireAuth, async (req, res) => {
   try {
     const { getInvoiceById } = await import('../services/invoiceService.js');
     const invoice = await getInvoiceById(req.params.invoiceId, req.user.userId);
-    if (!invoice) return res.status(404).json({ error: 'INVOICE_NOT_FOUND' });
+    if (!invoice) { return res.status(404).json({ error: 'INVOICE_NOT_FOUND' }); }
     return res.json({ ok: true, invoice });
   } catch (err) {
     logger.error({ err }, 'GET /invoice/:id error');

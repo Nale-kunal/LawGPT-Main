@@ -18,7 +18,7 @@ import logger       from '../utils/logger.js';
 const BACKUP_DIR = path.resolve('backups');
 
 function ensureBackupDir() {
-  if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
+  if (!fs.existsSync(BACKUP_DIR)) { fs.mkdirSync(BACKUP_DIR, { recursive: true }); }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ export function startBackupJob() {
     const now   = new Date();
     const next  = new Date(now);
     next.setHours(2, 0, 0, 0);
-    if (next <= now) next.setDate(next.getDate() + 1);
+    if (next <= now) { next.setDate(next.getDate() + 1); }
     return next.getTime() - now.getTime();
   })();
 

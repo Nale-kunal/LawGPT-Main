@@ -29,7 +29,7 @@ async function _enforceAbuseThreshold(userId, session = null) {
     const user = await User.findById(userId)
       .select('securityFlags activeSubscriptionId subscriptionPlan')
       .lean(opts);
-    if (!user || user.securityFlags?.abuseScore < 50 || user.securityFlags?.blocked) return;
+    if (!user || user.securityFlags?.abuseScore < 50 || user.securityFlags?.blocked) { return; }
 
     // Block the user
     await User.updateOne(
@@ -107,7 +107,7 @@ export async function updateUserPlan(userId, plan, billingCycle = 'monthly', ove
     { new: true, lean: true, ...opts }
   );
 
-  if (!updated) throw new Error(`User ${userId} not found`);
+  if (!updated) { throw new Error(`User ${userId} not found`); }
 
   logger.info({ userId, plan, billingCycle, planEndDate }, 'Plan updated successfully');
   return updated;
@@ -149,7 +149,7 @@ export async function activateSubscriptionPlan(userId, planType, billingCycle, s
     { new: true, lean: true, ...opts }
   );
 
-  if (!updated) throw new Error(`activateSubscriptionPlan: user ${userId} not found`);
+  if (!updated) { throw new Error(`activateSubscriptionPlan: user ${userId} not found`); }
 
   logger.info({ userId, planType, billingCycle, planEndDate, subscriptionDbId }, 'Subscription plan activated');
   return updated;
@@ -257,7 +257,7 @@ export async function getUserPlanInfo(userId) {
     .select('subscriptionPlan planStartDate planEndDate isCouponActive couponCodeUsed')
     .lean();
 
-  if (!user) throw new Error('User not found');
+  if (!user) { throw new Error('User not found'); }
 
   const effectivePlan = getEffectivePlan(user);
   const expired       = user.planEndDate && new Date(user.planEndDate) < new Date();

@@ -20,14 +20,14 @@ import { FEATURE_MAP, planCanAccess, getEffectivePlan } from '../config/planFeat
 export const checkPlanAccess = (featureName) => {
   return async (req, res, next) => {
     try {
-      if (!req.user?.userId) return next(); // requireAuth guards this already
+      if (!req.user?.userId) { return next(); } // requireAuth guards this already
 
       // Always read from DB — never trust JWT claim for plan
       const user = await User.findById(req.user.userId).select(
         'subscriptionPlan planEndDate isCouponActive'
       ).lean();
 
-      if (!user) return next();
+      if (!user) { return next(); }
 
       // ── Expiry check + atomic revert ─────────────────────────────────────
       const now = new Date();

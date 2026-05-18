@@ -66,8 +66,8 @@ async function buildTestApp() {
   app.use(cookieParser());
   // JSON body for non-webhook routes
   app.use((req, res, next) => {
-    if (req.path !== '/webhook') app.use(express.json())(req, res, next);
-    else next();
+    if (req.path !== '/webhook') { app.use(express.json())(req, res, next); }
+    else { next(); }
   });
 
   const { default: paymentRouter } = await import('../routes/payment.js');

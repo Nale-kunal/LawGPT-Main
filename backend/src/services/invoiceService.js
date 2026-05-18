@@ -13,10 +13,7 @@ import User           from '../models/User.js';
 import logger         from '../utils/logger.js';
 
 // ── GST rates (India, 2024) ───────────────────────────────────────────────────
-const GST_RATE        = 0.18;   // 18% total GST on SaaS
-const CGST_RATE       = 0.09;   // 9% CGST (intra-state)
-const SGST_RATE       = 0.09;   // 9% SGST (intra-state)
-const IGST_RATE       = 0.18;   // 18% IGST (inter-state)
+const GST_RATE        = 0.18;   // 18% total GST on SaaS (intra: 9% CGST + 9% SGST; inter: 18% IGST)
 
 // ── Invoice number generator ──────────────────────────────────────────────────
 function _generateInvoiceNumber() {
@@ -104,7 +101,7 @@ export async function generatePaymentInvoice({
 // ─────────────────────────────────────────────────────────────────────────────
 // getInvoiceById — securely scoped to userId
 // ─────────────────────────────────────────────────────────────────────────────
-export async function getInvoiceById(invoiceId, userId) {
+export function getInvoiceById(invoiceId, userId) {
   return PaymentInvoice.findOne({ _id: invoiceId, userId }).lean();
 }
 

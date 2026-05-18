@@ -31,7 +31,7 @@ import authRoutes from './src/routes/auth-jwt.js';
 import forgotPasswordRoutes from './src/routes/forgotPasswordRoutes.js';
 import googleAuthRoutes from './src/routes/google-auth.js';
 import securityQuestionRoutes from './src/routes/securityQuestion.js';
-import { startKeepAlive } from './src/utils/keepAlive.js';
+// startKeepAlive removed from here
 // ... existing imports ...
 import caseRoutes from './src/routes/cases.js';
 import caseNotesRoutes from './src/routes/caseNotes.js';
@@ -50,8 +50,6 @@ import adminInternalRoutes from './src/routes/adminInternal.js';
 import newsRoutes from './routes/news.js';
 import legalRoutes from './src/routes/legal.routes.js';
 import templatesRoutes from './src/routes/templates.routes.js';
-import { startLegalCron } from './src/jobs/legalCron.js';
-import { startTokenCleanup } from './src/jobs/tokenCleanup.js';
 import { requestId } from './src/middleware/requestId.js';
 import subscriptionRoutes from './src/routes/subscription.js';
 import paymentRoutes from './src/routes/payment.js';
@@ -562,25 +560,7 @@ async function startServer() {
     // ── 4. Ensure all performance indexes exist ───────────────────────────────────
     await ensureIndexes();
 
-    // ── 5. Start legal data cron job + token cleanup + payment reconciliation ─
-    startLegalCron();
-    startKeepAlive(); // Keep Render awake in production
-    startTokenCleanup();
-    // Payment self-healing: cold-start lock clear + reconciliation + sync crons (specs #3,#6,#10)
-    import('./src/services/reconciliation.js')
-      .then(({ startReconciliationJobs }) => startReconciliationJobs())
-      .catch(err => logger.error({ err }, 'Failed to start reconciliation jobs (non-fatal)'));
-    
-    // Log Retention Policy Cleanup
-    setInterval(async () => {
-      try {
-        const cutoff = new Date(Date.now() - (14 * 24 * 60 * 60 * 1000));
-        await ClientErrorLog.deleteMany({ createdAt: { $lt: cutoff } });
-        logger.info('Cleaned up old ClientErrorLogs');
-      } catch (err) {
-        logger.error({ err }, 'ClientErrorLog cleanup failed');
-      }
-    }, 86400000); // daily
+    // ── 5. Background jobs moved to BullMQ workers (see src/workers/) ─────────
 
     // Trigger an immediate seed on startup (non-blocking — errors are caught inside)
     import('./src/services/legalDataService.js')

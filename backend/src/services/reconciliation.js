@@ -32,16 +32,20 @@ function getRzp() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // JOB 1: Reconciliation — activate subscriptions that were missed (spec #3)
-// Runs every 5 minutes.
 // ─────────────────────────────────────────────────────────────────────────────
-async function runReconciliationJob() {
+export async function runReconciliationJob() {
   try {
     logger.info('Reconciliation job: starting');
 
     const rzp     = getRzp();
-    // Find subs that are pending/failed in DB but may be active on Razorpay
+    // Find subs that are pending/failed in DB but may be active on Razorpay.
+    // Skip any that are actively being processed by a webhook to prevent race conditions.
     const pending = await Subscription.find({
       status: { $in: ['created', 'failed'] },
+      $or: [
+        { processing: { $ne: true } },
+        { lockExpiresAt: { $lt: new Date() } }
+      ]
     }).lean();
 
     logger.info({ count: pending.length }, 'Reconciliation: checking pending subscriptions');
@@ -85,21 +89,26 @@ async function runReconciliationJob() {
 
     logger.info('Reconciliation job: complete');
   } catch (err) {
-    // Spec #11: never crash; always log
     logger.error({ err }, 'Reconciliation job: FATAL error in job — cron continues');
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // JOB 2: Active subscription sync — cancel if Razorpay disagrees (spec #6)
-// Runs every 10 minutes.
 // ─────────────────────────────────────────────────────────────────────────────
-async function runSyncJob() {
+export async function runSyncJob() {
   try {
     logger.info('Subscription sync job: starting');
 
     const rzp        = getRzp();
-    const activeSubs = await Subscription.find({ status: 'active' }).lean();
+    // Only check subscriptions not currently locked by a webhook
+    const activeSubs = await Subscription.find({
+      status: 'active',
+      $or: [
+        { processing: { $ne: true } },
+        { lockExpiresAt: { $lt: new Date() } }
+      ]
+    }).lean();
 
     logger.info({ count: activeSubs.length }, 'Sync job: checking active subscriptions');
 
@@ -134,44 +143,4 @@ async function runSyncJob() {
   } catch (err) {
     logger.error({ err }, 'Subscription sync job: FATAL error — cron continues');
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Cold-start recovery (spec #10)
-// Clears any processing locks that survived a server crash.
-// Called once on startup BEFORE jobs begin.
-// ─────────────────────────────────────────────────────────────────────────────
-export async function clearStaleLocks() {
-  try {
-    const result = await Subscription.updateMany(
-      { processing: true },
-      { $set: { processing: false }, $unset: { lockExpiresAt: '' } }
-    );
-    if (result.modifiedCount > 0) {
-      logger.warn({ count: result.modifiedCount }, 'Cold-start: cleared stale processing locks from previous crash');
-    } else {
-      logger.info('Cold-start: no stale locks found');
-    }
-  } catch (err) {
-    logger.error({ err }, 'Cold-start: clearStaleLocks failed');
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Start all background jobs
-// ─────────────────────────────────────────────────────────────────────────────
-export function startReconciliationJobs() {
-  // Spec #10: clear stale locks on startup
-  clearStaleLocks();
-
-  // Job 1: every 5 minutes
-  setInterval(runReconciliationJob, 5 * 60 * 1000);
-  // Job 2: every 10 minutes
-  setInterval(runSyncJob, 10 * 60 * 1000);
-
-  // Run immediately on startup to catch any drift from downtime
-  setTimeout(runReconciliationJob, 10_000);
-  setTimeout(runSyncJob, 30_000);
-
-  logger.info('Reconciliation and sync cron jobs started (5min / 10min intervals)');
 }

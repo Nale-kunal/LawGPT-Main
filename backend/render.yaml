@@ -12,5 +12,12 @@ services:
         value: 5000
     healthCheckPath: /api/health
 
-
-
+  - type: worker
+    name: lawyer-zen-worker
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run workers
+    envVars:
+      - key: NODE_ENV
+        value: production

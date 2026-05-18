@@ -153,7 +153,8 @@ const LegalNews: React.FC = () => {
         if (currentPage !== 1) {
             setCurrentPage(1);
         }
-    }, [debouncedSearch, selectedSource]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [debouncedSearch, selectedSource]); // intentionally excludes currentPage to avoid loop
 
     const handleRefresh = () => {
         setIsRefreshing(true);

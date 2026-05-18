@@ -36,7 +36,7 @@ const Dashboard = () => {
   const { user } = useAuth();
   const { formatCurrency } = useFormatting();
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {

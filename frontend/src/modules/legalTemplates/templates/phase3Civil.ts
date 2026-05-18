@@ -1,4 +1,4 @@
-import { LegalTemplate } from "./index";
+import type { LegalTemplate } from "./index";
 
 const F = `<div style="margin-top:48px;padding-top:16px;border-top:1px solid #d1d5db;font-family:'Times New Roman',Times,serif;font-size:10pt;color:#6b7280;text-align:center;font-style:italic;">Note: This is a draft generated for assistance purposes only. Final review by a qualified legal professional is advised before use in any legal proceeding.</div>`;
 

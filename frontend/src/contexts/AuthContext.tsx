@@ -103,7 +103,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [authState, setAuthState] = useState<"loading" | "authenticated" | "unauthenticated" | "unknown">("loading");
   // Guard: prevents refreshUser() from re-authenticating while logout is in progress
   const isLoggingOut = useRef(false);
-  const hasInitialized = useRef(false);
 
   const persistUser = useCallback((userData: User | null, shouldClearCookies = false) => {
     if (userData) {
@@ -224,7 +223,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           persistUser(data.user as User);
           setIsLoading(false);
         }
-      } catch (err) {
+      } catch (_err) {
         if (mounted) {
           persistUser(null);
           setIsLoading(false);

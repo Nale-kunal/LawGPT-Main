@@ -10,7 +10,6 @@ import {
   Receipt,
   FolderOpen,
   Settings,
-  Scale,
   Newspaper,
   ChevronsLeftRight,
   MessageSquare,

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, XCircle, ArrowRight, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowRight } from 'lucide-react';
 import JuriqLoader from '@/components/ui/JuriqLoader';
 
 const EmailVerificationSuccess = () => {

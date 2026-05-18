@@ -1,6 +1,6 @@
 // f:\LAWGPT\LawGPT\frontend\src\modules\legalTemplates\components\TemplateEditor.tsx
 
-import React, { useEffect, useRef } from "react";
+import React, { useRef } from "react";
 // Import ReactQuill from the modern, maintained fork
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';

@@ -41,14 +41,14 @@ const TemplatesDashboard = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
-  const [drafts, setDrafts] = useState<any[]>([]);
+  const [drafts, setDrafts] = useState<{ _id: string; templateName: string; templateId: string; filledData: Record<string, string>; finalHTML: string; status: string; updatedAt: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDrafts = async () => {
       try {
-        const response = await api.get<any[]>("/api/v1/templates");
+        const response = await api.get<typeof drafts>("/api/v1/templates");
         setDrafts(response);
       } catch (error) {
         console.error("Failed to fetch drafts", error);
@@ -88,7 +88,6 @@ const TemplatesDashboard = () => {
   const civilCount     = ALL_TEMPLATES.filter((t) => t.category === "Civil").length;
   const criminalCount  = ALL_TEMPLATES.filter((t) => t.category === "Criminal").length;
   const corporateCount = ALL_TEMPLATES.filter((t) => t.category === "Corporate").length;
-  const propertyCount  = ALL_TEMPLATES.filter((t) => t.category === "Property").length;
 
   return (
     <div className="space-y-2 md:space-y-3">

@@ -1,12 +1,13 @@
 // f:\LAWGPT\LawGPT\frontend\src\modules\legalTemplates\pages\TemplateWorkspace.tsx
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Save, Download, Copy, Check, FileText } from "lucide-react";
 import { TemplateForm } from "../components/TemplateForm";
 import { TemplateEditor } from "../components/TemplateEditor";
-import { ALL_TEMPLATES, LegalTemplate } from "../templates";
+import { ALL_TEMPLATES } from "../templates";
+import type { LegalTemplate } from "../templates";
 import { generateDocument } from "../utils/templateEngine";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -48,7 +49,7 @@ const TemplateWorkspace = () => {
             setEditorContent(draft.finalHTML);
             setDocId(draft._id);
           }
-        } catch (error) {
+        } catch (_error) {
           toast.error("Failed to load draft");
           navigate("/dashboard/templates");
         }
@@ -87,13 +88,13 @@ const TemplateWorkspace = () => {
       if (docId) {
         await api.put(`/api/v1/templates/${docId}`, payload);
       } else {
-        const response = await api.post<any>('/api/v1/templates', payload);
+        const response = await api.post<{ _id: string }>('/api/v1/templates', payload);
         setDocId(response._id);
         // Correct the URL without reloading
         window.history.replaceState(null, '', `/dashboard/templates/${response._id}`);
       }
       toast.success("Saved successfully");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to save document");
     } finally {
       setIsSaving(false);
@@ -126,7 +127,7 @@ const TemplateWorkspace = () => {
       `;
       
       const blobData = await asBlob(htmlString);
-      const blob = blobData instanceof Blob ? blobData : new Blob([blobData as any], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      const blob = blobData instanceof Blob ? blobData : new Blob([blobData as ArrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
       saveAs(blob, `${template?.name || 'Document'}_${new Date().toLocaleDateString()}.docx`);
       toast.success("Download started");
     } catch (error) {

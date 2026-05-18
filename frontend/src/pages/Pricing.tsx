@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   Check, Zap, Crown, Tag, Star, AlertCircle, CheckCircle2, Loader2,
-  LayoutDashboard, Receipt, BookOpen, LayoutGrid, MessageSquare,
+  LayoutDashboard, Receipt, BookOpen, LayoutGrid,
 } from 'lucide-react';
 
 // ─── Plan definitions ─────────────────────────────────────────────────────────

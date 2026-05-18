@@ -216,7 +216,7 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
       });
 
       if (refreshRes.ok) {
-        console.info('Token refreshed successfully. Retrying original request.');
+        console.warn('Token refreshed successfully. Retrying original request.');
         sessionStorage.removeItem('__refreshFailTs');
         const retryResponse = await fetchWithTimeout(url, {
           ...options,
@@ -263,14 +263,14 @@ export async function apiRequest<T = any>( // eslint-disable-line @typescript-es
  * Convenience object for API requests
  */
 const api = {
-  get: <T = any>(path: string, options?: RequestInit) => apiRequest<T>(path, { ...options, method: 'GET' }),
-  post: <T = any>(path: string, body?: any, options?: RequestInit) => 
+  get: <T = unknown>(path: string, options?: RequestInit) => apiRequest<T>(path, { ...options, method: 'GET' }),
+  post: <T = unknown>(path: string, body?: unknown, options?: RequestInit) =>
     apiRequest<T>(path, { ...options, method: 'POST', body: JSON.stringify(body) }),
-  put: <T = any>(path: string, body?: any, options?: RequestInit) => 
+  put: <T = unknown>(path: string, body?: unknown, options?: RequestInit) =>
     apiRequest<T>(path, { ...options, method: 'PUT', body: JSON.stringify(body) }),
-  patch: <T = any>(path: string, body?: any, options?: RequestInit) => 
+  patch: <T = unknown>(path: string, body?: unknown, options?: RequestInit) =>
     apiRequest<T>(path, { ...options, method: 'PATCH', body: JSON.stringify(body) }),
-  delete: <T = any>(path: string, options?: RequestInit) => apiRequest<T>(path, { ...options, method: 'DELETE' }),
+  delete: <T = unknown>(path: string, options?: RequestInit) => apiRequest<T>(path, { ...options, method: 'DELETE' }),
 };
 
 export default api;

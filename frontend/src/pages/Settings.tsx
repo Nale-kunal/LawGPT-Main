@@ -89,7 +89,7 @@ const Settings = () => {
   const [showRelinkDialog, setShowRelinkDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [linkingError, setLinkingError] = useState<{ title: string; message: string } | null>(null);
-  const [importData, setImportData] = useState<any>(null);
+  const [importData, setImportData] = useState<Record<string, unknown> | null>(null);
 
   // Password change state
   const [passwordData, setPasswordData] = useState({
@@ -196,7 +196,7 @@ const Settings = () => {
           } else {
             setUserSecurityQuestion('Security question not found');
           }
-        } catch (err) {
+        } catch (_err) {
           setUserSecurityQuestion('Failed to load security question');
         } finally {
           setIsLoadingQuestion(false);
@@ -444,7 +444,7 @@ const Settings = () => {
 
     setIsChangingPassword(true);
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         newPassword: passwordData.newPassword
       };
       
@@ -646,7 +646,7 @@ const Settings = () => {
       }
 
       // Step 2: Proceed with Deletion
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         confirmation: deleteData.confirmation
       };
       
@@ -806,7 +806,7 @@ const Settings = () => {
                 onChange={(e) => setProfileData(prev => ({ ...prev, recoveryEmail: e.target.value }))}
                 placeholder="backup@email.com"
                 disabled={isSavingProfile || !!user?.recoveryGoogleId}
-                className={`h-7 text-xs mt-0.5 ${!!user?.recoveryGoogleId ? 'bg-muted/50 cursor-not-allowed font-medium' : ''}`}
+                className={`h-7 text-xs mt-0.5 ${user?.recoveryGoogleId ? 'bg-muted/50 cursor-not-allowed font-medium' : ''}`}
               />
               {!!user?.recoveryGoogleId && (
                 <p className="text-[9px] text-muted-foreground mt-0.5">Managed via Security & Privacy settings</p>

@@ -19,7 +19,6 @@ import {
     FileText, Film, Music, Image as ImageIcon,
     Download, Trash2, Maximize2, X, ExternalLink
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

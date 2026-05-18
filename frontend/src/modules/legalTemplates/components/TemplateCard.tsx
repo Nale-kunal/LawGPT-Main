@@ -4,7 +4,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FileText, ArrowRight, Scale, Gavel, Briefcase, Home, Users, FolderOpen } from "lucide-react";
-import { LegalTemplate } from "../templates";
+import type { LegalTemplate } from "../templates";
 
 interface TemplateCardProps {
   template: LegalTemplate;

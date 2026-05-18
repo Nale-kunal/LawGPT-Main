@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { TemplateField } from "../templates";
+import type { TemplateField } from "../templates";
 
 interface TemplateFormProps {
   fields: TemplateField[];

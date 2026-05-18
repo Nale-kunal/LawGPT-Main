@@ -24,7 +24,7 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       // TypeScript strictness
       "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" }],
       "@typescript-eslint/no-floating-promises": "off", // Enable once all events handlers are fixed
       "@typescript-eslint/consistent-type-imports": "warn",
       // General

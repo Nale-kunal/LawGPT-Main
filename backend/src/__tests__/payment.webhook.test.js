@@ -9,11 +9,12 @@
  *  5. subscription.cancelled        → plan reverted to free
  *  6. Amount tamper                 → rejected, user flagged as suspicious
  *
- * ESM + jest.unstable_mockModule rules:
+ * ── ESM + jest.unstable_mockModule rules applied here ───────────────────────
  *  • import { jest } from '@jest/globals'  — jest is NOT a global in ESM mode
  *  • jest.unstable_mockModule() before ANY dynamic import() of that module
- *  • Mock factory shapes MUST match the real module's export shape exactly
- *    (named vs default) — a mismatch silently falls through to the real module
+ *  • Mock factory export shapes MUST exactly match the real module (named vs default)
+ *  • ALL Mongoose static methods used inside handlers must be mocked:
+ *      findOne, findOneAndUpdate, updateOne, startSession
  */
 
 import { jest, describe, it, expect, beforeAll, beforeEach } from '@jest/globals';
@@ -24,11 +25,11 @@ import express      from 'express';
 import cookieParser from 'cookie-parser';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Step 1 — create stable mock fn references BEFORE registering mocks.
-//          These refs are what tests assert against.
+// Step 1: stable mock function references
+//         (created after '@jest/globals' import so jest.fn() is available)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// planService — all named exports
+// planService — named exports
 const mockActivateSubscriptionPlan = jest.fn().mockResolvedValue({ subscriptionPlan: 'pro' });
 const mockCancelSubscriptionPlan   = jest.fn().mockResolvedValue({ subscriptionPlan: 'free' });
 const mockUpdateUserPlan           = jest.fn().mockResolvedValue({});
@@ -36,12 +37,32 @@ const mockGetUserPlanInfo          = jest.fn().mockResolvedValue({ plan: 'pro' }
 const mockRevertToFree             = jest.fn().mockResolvedValue({});
 const mockFlagUserAbuse            = jest.fn().mockResolvedValue({});
 
-// models — default exports with static methods
-const mockSubscriptionFindOne           = jest.fn();
-const mockSubscriptionFindByIdAndUpdate = jest.fn().mockResolvedValue({});
+// Subscription model static methods — ALL methods used by the webhook handlers
+//   findOne           — load subscription by razorpaySubscriptionId
+//   findOneAndUpdate  — acquire processing lock (concurrency guard, spec #2)
+//   updateOne         — atomic idempotency ($ne eventId) + lock release
+const mockSubFindOne          = jest.fn();
+const mockSubFindOneAndUpdate = jest.fn();
+const mockSubUpdateOne        = jest.fn();
 
+// Mutable Subscription model object — tests reassign methods per-test
+const SubscriptionMock = {
+  findOne:           mockSubFindOne,
+  findOneAndUpdate:  mockSubFindOneAndUpdate,
+  updateOne:         mockSubUpdateOne,
+};
+
+// mongoose.startSession mock — returns a session that executes the callback
+// synchronously and has an endSession no-op. This avoids any real DB connection.
+const mockSession = {
+  withTransaction: jest.fn().mockImplementation(async (fn) => { await fn(); }),
+  endSession:      jest.fn().mockResolvedValue(undefined),
+};
+
+// PaymentLog model — default export
 const mockPaymentLogCreate = jest.fn().mockResolvedValue({});
 
+// User model — default export, findByIdAndUpdate used by flagUserAbuse via planService
 const mockUserFindById          = jest.fn();
 const mockUserFindByIdAndUpdate = jest.fn().mockResolvedValue({});
 const mockUserFindOne           = jest.fn();
@@ -49,19 +70,19 @@ const mockUserFindOne           = jest.fn();
 // notificationService — named export
 const mockNotifyUser = jest.fn().mockResolvedValue(undefined);
 
-// metricsService — named export
+// metricsService — named exports
 const mockInc = jest.fn().mockResolvedValue(undefined);
 
 // invoiceService — named export
 const mockGeneratePaymentInvoice = jest.fn().mockResolvedValue({ _id: 'inv_test_001' });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Step 2 — register ALL mocks BEFORE any dynamic import() of the real modules.
-//          The path here is ALWAYS relative to THIS test file.
-//          The export shape MUST match the real module's exports exactly.
+// Step 2: register ALL mocks BEFORE any dynamic import()
+//         Paths are relative to THIS test file.
+//         Export shapes must match the real module EXACTLY.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// planService.js  — named exports only (no default)
+// planService — named exports only (no default)
 jest.unstable_mockModule('../services/planService.js', () => ({
   activateSubscriptionPlan: mockActivateSubscriptionPlan,
   cancelSubscriptionPlan:   mockCancelSubscriptionPlan,
@@ -71,7 +92,7 @@ jest.unstable_mockModule('../services/planService.js', () => ({
   flagUserAbuse:            mockFlagUserAbuse,
 }));
 
-// logger.js  — default export (pino instance with .info/.warn/.error/.debug)
+// logger — default export (pino instance)
 jest.unstable_mockModule('../utils/logger.js', () => ({
   default: {
     info:  jest.fn(),
@@ -82,14 +103,12 @@ jest.unstable_mockModule('../utils/logger.js', () => ({
   },
 }));
 
-// models/PaymentLog.js  — default export (mongoose model)
+// models/PaymentLog — default export
 jest.unstable_mockModule('../models/PaymentLog.js', () => ({
-  default: {
-    create: mockPaymentLogCreate,
-  },
+  default: { create: mockPaymentLogCreate },
 }));
 
-// models/User.js  — default export (mongoose model)
+// models/User — default export
 jest.unstable_mockModule('../models/User.js', () => ({
   default: {
     findById:          mockUserFindById,
@@ -98,57 +117,60 @@ jest.unstable_mockModule('../models/User.js', () => ({
   },
 }));
 
-// models/Subscription.js  — default export (mongoose model)
-// NOTE: we mutate findOne / findByIdAndUpdate per-test, so the object
-// must be mutable. We expose the same object reference here.
-const SubscriptionMock = {
-  findOne:           mockSubscriptionFindOne,
-  findByIdAndUpdate: mockSubscriptionFindByIdAndUpdate,
-};
+// models/Subscription — default export (mutable object so per-test overrides work)
 jest.unstable_mockModule('../models/Subscription.js', () => ({
   default: SubscriptionMock,
 }));
 
-// services/notificationService.js  — named export
+// mongoose — we only need to mock startSession; everything else passes through
+// We re-export the real mongoose module with startSession overridden.
+jest.unstable_mockModule('mongoose', () => ({
+  default: {
+    ...mongoose,                          // real Types, Schema, etc. (used in test file)
+    startSession: jest.fn().mockResolvedValue(mockSession),
+  },
+  // Also expose named re-exports that code might use
+  Types:        mongoose.Types,
+  Schema:       mongoose.Schema,
+}));
+
+// services/notificationService — named export
 jest.unstable_mockModule('../services/notificationService.js', () => ({
   notifyUser: mockNotifyUser,
 }));
 
-// services/metricsService.js  — named export
+// services/metricsService — named exports
 jest.unstable_mockModule('../services/metricsService.js', () => ({
-  inc: mockInc,
-  dec: jest.fn().mockResolvedValue(undefined),
-  getSnapshot: jest.fn().mockResolvedValue({}),
+  inc:          mockInc,
+  dec:          jest.fn().mockResolvedValue(undefined),
+  getSnapshot:  jest.fn().mockResolvedValue({}),
   resetMetrics: jest.fn().mockResolvedValue(undefined),
 }));
 
-// services/invoiceService.js  — named exports
+// services/invoiceService — named exports
 jest.unstable_mockModule('../services/invoiceService.js', () => ({
   generatePaymentInvoice: mockGeneratePaymentInvoice,
   getInvoiceById:         jest.fn().mockResolvedValue(null),
   getInvoicesForUser:     jest.fn().mockResolvedValue([]),
 }));
 
-// middleware/auth-jwt.js  — named export
-// The webhook route does NOT use requireAuth; only create-subscription and
-// verify-payment do. We return a simple pass-through so 401 is returned
-// naturally (no token = 401) rather than crashing with a DB call.
+// middleware/auth-jwt — named export
+// Webhook route does NOT use requireAuth; create-subscription and verify-payment do.
+// Return 401 immediately (no token → normal rejection, no DB call).
 jest.unstable_mockModule('../middleware/auth-jwt.js', () => ({
-  requireAuth: jest.fn((_req, res, _next) => {
-    return res.status(401).json({ error: 'No authentication token provided' });
-  }),
+  requireAuth: jest.fn((_req, res, _next) =>
+    res.status(401).json({ error: 'No authentication token provided' })
+  ),
 }));
 
-// config/planFeatures.js  — named exports (pure data, no side-effects,
-// but importing it transitively pulls in nothing unsafe — mock anyway to
-// keep the test fully hermetic).
+// config/planFeatures — named exports (pure data, mocked for full hermeticity)
 jest.unstable_mockModule('../config/planFeatures.js', () => ({
   PLAN_PRICING: {
-    free:    { monthly: 0,      yearly: 0       },
-    basic:   { monthly: 19900,  yearly: 199900  },
-    pro:     { monthly: 49900,  yearly: 499900  },
-    premium: { monthly: 99900,  yearly: 999900  },
-    elite:   { monthly: 199900, yearly: 1999900 },
+    free:    { monthly: 0,       yearly: 0       },
+    basic:   { monthly: 19900,   yearly: 199900  },
+    pro:     { monthly: 49900,   yearly: 499900  },
+    premium: { monthly: 99900,   yearly: 999900  },
+    elite:   { monthly: 199900,  yearly: 1999900 },
   },
   PLAN_HIERARCHY:     ['free', 'basic', 'pro', 'premium', 'elite'],
   FEATURE_MAP:        {},
@@ -169,7 +191,7 @@ const FAKE_PAYMENT_ID = 'pay_test_1234567890';
 const FAKE_EVENT_ID   = 'evt_test_1234567890';
 const PLAN_ID         = 'plan_test_pro';
 
-/** Sign a raw webhook body with HMAC-SHA256 */
+/** Sign raw webhook body with HMAC-SHA256 */
 function signWebhookPayload(payload, secret = WEBHOOK_SECRET) {
   return crypto
     .createHmac('sha256', secret)
@@ -177,7 +199,7 @@ function signWebhookPayload(payload, secret = WEBHOOK_SECRET) {
     .digest('hex');
 }
 
-/** Build a standard subscription.charged webhook event */
+/** Canonical subscription.charged event shape */
 function buildChargedEvent(overrides = {}) {
   return {
     id:    FAKE_EVENT_ID,
@@ -194,7 +216,7 @@ function buildChargedEvent(overrides = {}) {
       payment: {
         entity: {
           id:              FAKE_PAYMENT_ID,
-          amount:          49900,          // ₹499 in paise — matches DB record
+          amount:          49900,          // ₹499 in paise = matches amountPaise in DB
           subscription_id: FAKE_SUB_ID,
           status:          'captured',
         },
@@ -204,7 +226,7 @@ function buildChargedEvent(overrides = {}) {
   };
 }
 
-/** Canonical DB subscription record returned by findOne mock */
+/** Canonical subscription DB record */
 const mockSubscription = {
   _id:                    new mongoose.Types.ObjectId(),
   userId:                 new mongoose.Types.ObjectId(FAKE_USER_ID),
@@ -213,15 +235,13 @@ const mockSubscription = {
   planType:               'pro',
   billingCycle:           'monthly',
   amountPaise:            49900,
-  status:                 'created',
+  status:                 'created',       // 'created' → ALLOWED_TRANSITIONS includes 'active'
   processedEvents:        [],
   refunded:               false,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Step 3 — Build the Express test app.
-//          Dynamic import of payment.js MUST come after all
-//          jest.unstable_mockModule() calls above.
+// Express test app — built ONCE, dynamic import AFTER all mock registrations
 // ─────────────────────────────────────────────────────────────────────────────
 async function buildTestApp() {
   process.env.RAZORPAY_KEY_ID         = 'rzp_test_dummy';
@@ -233,7 +253,7 @@ async function buildTestApp() {
   const app = express();
   app.use(cookieParser());
 
-  // For the /webhook route payment.js uses express.raw() internally.
+  // payment.js uses express.raw() internally on /webhook.
   // For all other routes provide JSON parsing.
   app.use((req, res, next) => {
     if (req.path !== '/webhook') {
@@ -243,7 +263,7 @@ async function buildTestApp() {
     }
   });
 
-  // Dynamic import — all mocks are already registered at this point
+  // Dynamic import after all mocks are registered ✓
   const { default: paymentRouter } = await import('../routes/payment.js');
   app.use('/', paymentRouter);
 
@@ -251,7 +271,28 @@ async function buildTestApp() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test suites
+// Helper: configure Subscription mock for a typical "new event" scenario
+//
+// The handler calls Subscription methods in this order:
+//   1. findOne({ razorpaySubscriptionId }) → load record
+//   2. findOneAndUpdate({ _id, $or:[{processing:false},{lockExpiresAt expired}] })
+//      → acquire processing lock; returns the locked doc if acquired, null if busy
+//   3. updateOne({ _id, processedEvents:{ $ne:eventId } }) → atomic idempotency
+//      modifiedCount=1 → new event, modifiedCount=0 → duplicate
+//   4. (inside transaction) updateOne({ _id }) → update status
+//   5. (finally) updateOne({ _id }) → release lock
+// ─────────────────────────────────────────────────────────────────────────────
+function setupSubscriptionMocks(overrides = {}) {
+  const sub = { ...mockSubscription, ...overrides };
+
+  SubscriptionMock.findOne          = jest.fn().mockResolvedValue(sub);
+  SubscriptionMock.findOneAndUpdate = jest.fn().mockResolvedValue(sub);  // lock acquired
+  // updateOne: first call = idempotency (modifiedCount=1), subsequent = status/lock updates
+  SubscriptionMock.updateOne = jest.fn().mockResolvedValue({ modifiedCount: 1 });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests
 // ─────────────────────────────────────────────────────────────────────────────
 describe('POST /webhook — Razorpay subscription lifecycle', () => {
   let app;
@@ -262,33 +303,29 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // Re-apply resolved values because clearAllMocks() resets them
+    // Re-apply resolved values after clearAllMocks() resets implementations
     mockActivateSubscriptionPlan.mockResolvedValue({ subscriptionPlan: 'pro' });
     mockCancelSubscriptionPlan.mockResolvedValue({ subscriptionPlan: 'free' });
     mockUpdateUserPlan.mockResolvedValue({});
+    mockFlagUserAbuse.mockResolvedValue({});
     mockNotifyUser.mockResolvedValue(undefined);
     mockInc.mockResolvedValue(undefined);
     mockGeneratePaymentInvoice.mockResolvedValue({ _id: 'inv_test_001' });
     mockPaymentLogCreate.mockResolvedValue({});
     mockUserFindByIdAndUpdate.mockResolvedValue({});
-    mockSubscriptionFindByIdAndUpdate.mockResolvedValue({});
-
-    // Reset the mutable Subscription mock methods
-    SubscriptionMock.findOne           = mockSubscriptionFindOne;
-    SubscriptionMock.findByIdAndUpdate = mockSubscriptionFindByIdAndUpdate;
+    mockSession.withTransaction.mockImplementation(async (fn) => { await fn(); });
+    mockSession.endSession.mockResolvedValue(undefined);
+    // mongoose.startSession is inside the mock module — reset it via the mock factory
   });
 
   // ── 1. Valid subscription.charged ──────────────────────────────────────────
   describe('subscription.charged — valid event', () => {
     it('should activate the plan and mark event as processed', async () => {
+      setupSubscriptionMocks();
+
       const eventPayload = buildChargedEvent();
       const rawBody      = JSON.stringify(eventPayload);
       const signature    = signWebhookPayload(rawBody);
-
-      const subFindByIdAndUpdate = jest.fn().mockResolvedValue({});
-      SubscriptionMock.findOne           = jest.fn().mockResolvedValue({ ...mockSubscription });
-      SubscriptionMock.findByIdAndUpdate = subFindByIdAndUpdate;
 
       const res = await request(app)
         .post('/webhook')
@@ -298,19 +335,20 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.ok).toBe(true);
+
+      // planService.activateSubscriptionPlan must be called with correct args
       expect(mockActivateSubscriptionPlan).toHaveBeenCalledWith(
         mockSubscription.userId.toString(),
         'pro',
         'monthly',
-        expect.any(String),
+        mockSubscription._id.toString(),
         expect.any(Date)
       );
-      expect(subFindByIdAndUpdate).toHaveBeenCalledWith(
-        mockSubscription._id,
-        expect.objectContaining({
-          $push: { processedEvents: FAKE_EVENT_ID },
-          $set:  expect.objectContaining({ status: 'active' }),
-        })
+
+      // Idempotency updateOne (step 3) — must push eventId
+      expect(SubscriptionMock.updateOne).toHaveBeenCalledWith(
+        expect.objectContaining({ processedEvents: { $ne: FAKE_EVENT_ID } }),
+        expect.objectContaining({ $push: expect.anything() })
       );
     });
   });
@@ -347,16 +385,16 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
 
   // ── 3. Duplicate event (idempotency) ──────────────────────────────────────
   describe('webhook — duplicate event', () => {
-    it('should return 200 but NOT double-activate when event already processed', async () => {
+    it('should return 200 but NOT activate plan when event already processed', async () => {
+      // Set up: lock acquired fine, but idempotency updateOne says modifiedCount=0
+      setupSubscriptionMocks({ processedEvents: [FAKE_EVENT_ID], status: 'active' });
+      SubscriptionMock.updateOne = jest.fn()
+        .mockResolvedValueOnce({ modifiedCount: 0 })   // idempotency → duplicate
+        .mockResolvedValue({ modifiedCount: 1 });       // lock release
+
       const eventPayload = buildChargedEvent();
       const rawBody      = JSON.stringify(eventPayload);
       const signature    = signWebhookPayload(rawBody);
-
-      SubscriptionMock.findOne = jest.fn().mockResolvedValue({
-        ...mockSubscription,
-        processedEvents: [FAKE_EVENT_ID], // already processed
-        status:          'active',
-      });
 
       const res = await request(app)
         .post('/webhook')
@@ -372,6 +410,11 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
   // ── 4. payment.failed ─────────────────────────────────────────────────────
   describe('payment.failed', () => {
     it('should record the failure but NOT downgrade the plan', async () => {
+      // payment.failed handler: findOne → updateOne (idempotency + $inc failedAttempts)
+      // No findOneAndUpdate (no lock) and no startSession (no transaction)
+      SubscriptionMock.findOne  = jest.fn().mockResolvedValue({ ...mockSubscription, status: 'active' });
+      SubscriptionMock.updateOne = jest.fn().mockResolvedValue({ modifiedCount: 1 });
+
       const failPayload = {
         id:    'evt_fail_123',
         event: 'payment.failed',
@@ -389,10 +432,6 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
       const rawBody   = JSON.stringify(failPayload);
       const signature = signWebhookPayload(rawBody);
 
-      const subFindByIdAndUpdate = jest.fn().mockResolvedValue({});
-      SubscriptionMock.findOne           = jest.fn().mockResolvedValue({ ...mockSubscription, status: 'active', processedEvents: [] });
-      SubscriptionMock.findByIdAndUpdate = subFindByIdAndUpdate;
-
       const res = await request(app)
         .post('/webhook')
         .set('Content-Type', 'application/json')
@@ -402,8 +441,10 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
       expect(res.status).toBe(200);
       expect(mockActivateSubscriptionPlan).not.toHaveBeenCalled();
       expect(mockCancelSubscriptionPlan).not.toHaveBeenCalled();
-      expect(subFindByIdAndUpdate).toHaveBeenCalledWith(
-        mockSubscription._id,
+
+      // Must increment failedAttempts
+      expect(SubscriptionMock.updateOne).toHaveBeenCalledWith(
+        expect.objectContaining({ _id: mockSubscription._id }),
         expect.objectContaining({ $inc: { failedAttempts: 1 } })
       );
     });
@@ -412,6 +453,9 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
   // ── 5. subscription.cancelled ─────────────────────────────────────────────
   describe('subscription.cancelled', () => {
     it('should revert the user to the free plan', async () => {
+      // cancelled handler: findOne → updateOne (idempotency) → startSession → cancel
+      setupSubscriptionMocks({ status: 'active' });
+
       const cancelPayload = {
         id:    'evt_cancel_123',
         event: 'subscription.cancelled',
@@ -424,9 +468,6 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
       const rawBody   = JSON.stringify(cancelPayload);
       const signature = signWebhookPayload(rawBody);
 
-      SubscriptionMock.findOne           = jest.fn().mockResolvedValue({ ...mockSubscription, status: 'active', processedEvents: [] });
-      SubscriptionMock.findByIdAndUpdate = jest.fn().mockResolvedValue({});
-
       const res = await request(app)
         .post('/webhook')
         .set('Content-Type', 'application/json')
@@ -436,26 +477,25 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
       expect(res.status).toBe(200);
       expect(mockCancelSubscriptionPlan).toHaveBeenCalledWith(
         mockSubscription.userId.toString(),
-        mockSubscription._id.toString()
+        mockSubscription._id.toString(),
+        expect.objectContaining({ session: mockSession })
       );
     });
   });
 
   // ── 6. Amount tamper detection ─────────────────────────────────────────────
   describe('subscription.charged — amount tampered', () => {
-    it('should return 200 but NOT activate plan, and flag user as suspicious', async () => {
+    it('should return 200 but NOT activate plan, and call flagUserAbuse', async () => {
+      // Amount tamper: the handler calls flagUserAbuse (not User.findByIdAndUpdate directly)
+      // and returns BEFORE calling activateSubscriptionPlan
+      setupSubscriptionMocks({ amountPaise: 49900 });
+
       const tamperedEvent = buildChargedEvent();
       // Attacker sends ₹1 (100 paise) instead of real ₹499 (49900 paise)
       tamperedEvent.payload.payment.entity.amount = 100;
 
       const rawBody   = JSON.stringify(tamperedEvent);
       const signature = signWebhookPayload(rawBody);
-
-      SubscriptionMock.findOne = jest.fn().mockResolvedValue({
-        ...mockSubscription,
-        amountPaise:     49900,
-        processedEvents: [],
-      });
 
       const res = await request(app)
         .post('/webhook')
@@ -466,18 +506,17 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
       // Always 200 — prevents Razorpay from retrying a tampered event endlessly
       expect(res.status).toBe(200);
       expect(mockActivateSubscriptionPlan).not.toHaveBeenCalled();
-      expect(mockUserFindByIdAndUpdate).toHaveBeenCalledWith(
-        mockSubscription.userId,
-        expect.objectContaining({
-          $set: expect.objectContaining({ 'securityFlags.isSuspicious': true }),
-        })
+      // planService.flagUserAbuse is called with the user's ID and a score increment
+      expect(mockFlagUserAbuse).toHaveBeenCalledWith(
+        mockSubscription.userId.toString(),
+        expect.any(Number)
       );
     });
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /verify-payment — stub tests
+// POST /verify-payment — auth-protected route stub
 // ─────────────────────────────────────────────────────────────────────────────
 describe('POST /verify-payment', () => {
   it('should return 400 or 401 when required fields are missing', async () => {
@@ -485,7 +524,7 @@ describe('POST /verify-payment', () => {
     const res = await request(app)
       .post('/verify-payment')
       .send({ razorpay_payment_id: 'pay_abc', razorpay_subscription_id: 'sub_abc' });
-    // requireAuth mock returns 401; if validation runs first it's 400
+    // requireAuth mock returns 401; if validation runs first → 400
     expect([400, 401]).toContain(res.status);
   });
 });

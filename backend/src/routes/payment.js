@@ -17,7 +17,7 @@ import express         from 'express';
 import Razorpay        from 'razorpay';
 import crypto          from 'crypto';
 import mongoose        from 'mongoose';
-import { rateLimit }  from 'express-rate-limit';
+import { rateLimit, ipKeyGenerator }  from 'express-rate-limit';
 import { requireAuth } from '../middleware/auth-jwt.js';
 import Subscription    from '../models/Subscription.js';
 import PaymentLog      from '../models/PaymentLog.js';
@@ -56,7 +56,9 @@ const createSubLimiter = rateLimit({
   max: 5,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
-  keyGenerator: (req) => `create_sub:${req.user?.userId || req.ip}`,
+  keyGenerator: (req) => req.user?.userId
+    ? `create_sub:${req.user.userId}`
+    : `create_sub:${ipKeyGenerator(req)}`,
   message: { error: 'TOO_MANY_REQUESTS', message: 'Too many subscription attempts. Please wait 15 minutes.' },
 });
 

@@ -336,13 +336,15 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
       expect(res.status).toBe(200);
       expect(res.body.ok).toBe(true);
 
-      // planService.activateSubscriptionPlan must be called with correct args
+      // planService.activateSubscriptionPlan must be called with correct args.
+      // The handler passes { session } as the 6th arg inside the Mongoose transaction.
       expect(mockActivateSubscriptionPlan).toHaveBeenCalledWith(
         mockSubscription.userId.toString(),
         'pro',
         'monthly',
         mockSubscription._id.toString(),
-        expect.any(Date)
+        expect.any(Date),
+        expect.objectContaining({ session: expect.anything() })
       );
 
       // Idempotency updateOne (step 3) — must push eventId

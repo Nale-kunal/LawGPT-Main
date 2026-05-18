@@ -1,32 +1,45 @@
 /**
  * payment.webhook.test.js
  *
- * Tests all 4 critical webhook scenarios:
+ * Tests all critical webhook scenarios:
  *  1. Valid subscription.charged   → plan activated, idempotent on repeat
  *  2. Invalid HMAC signature        → rejected with 400
  *  3. Duplicate event               → silently ignored (200, no double-activate)
  *  4. payment.failed                → recorded, plan NOT immediately downgraded
  *  5. subscription.cancelled        → plan reverted to free
- *  6. subscription.halted           → plan reverted to free
- *  7. Amount tamper                 → rejected, user flagged as suspicious
+ *  6. Amount tamper                 → rejected, user flagged as suspicious
  *
- * Run: npx jest payment.webhook.test.js --testTimeout=15000
+ * ESM note: in --experimental-vm-modules mode, `jest` is NOT a global.
+ * It must be explicitly imported from '@jest/globals', and all module-level
+ * mock functions must be created after that import.
  */
 
+import { jest, describe, it, expect, beforeAll, beforeEach } from '@jest/globals';
 import crypto       from 'crypto';
 import request      from 'supertest';
 import mongoose     from 'mongoose';
 import express      from 'express';
 import cookieParser from 'cookie-parser';
 
-// ── ESM-compatible mocks (must be registered BEFORE dynamic imports) ──────────
+// ── Stable mock function references ──────────────────────────────────────────
+// These are defined here (after the @jest/globals import) so:
+//   a) jest.fn() is available  b) the same reference is used in assertions
 
-// planService mock — holds stable fn refs so tests can assert on them
 const mockActivateSubscriptionPlan = jest.fn().mockResolvedValue({ subscriptionPlan: 'pro' });
 const mockCancelSubscriptionPlan   = jest.fn().mockResolvedValue({ subscriptionPlan: 'free' });
 const mockUpdateUserPlan           = jest.fn().mockResolvedValue({});
 const mockGetUserPlanInfo          = jest.fn().mockResolvedValue({ plan: 'pro' });
 const mockRevertToFree             = jest.fn().mockResolvedValue({});
+
+const mockPaymentLogCreate     = jest.fn().mockResolvedValue({});
+
+const mockUserFindById          = jest.fn();
+const mockUserFindByIdAndUpdate = jest.fn().mockResolvedValue({});
+const mockUserFindOne           = jest.fn();
+
+// ── ESM-compatible module mocks ───────────────────────────────────────────────
+// jest.unstable_mockModule() must be called before any dynamic import()
+// of the modules being mocked.
 
 jest.unstable_mockModule('../services/planService.js', () => ({
   activateSubscriptionPlan: mockActivateSubscriptionPlan,
@@ -36,7 +49,6 @@ jest.unstable_mockModule('../services/planService.js', () => ({
   revertToFree:             mockRevertToFree,
 }));
 
-// logger mock — silence output during tests
 jest.unstable_mockModule('../utils/logger.js', () => ({
   info:  jest.fn(),
   warn:  jest.fn(),
@@ -44,16 +56,10 @@ jest.unstable_mockModule('../utils/logger.js', () => ({
   debug: jest.fn(),
 }));
 
-// PaymentLog mock
-const mockPaymentLogCreate = jest.fn().mockResolvedValue({});
 jest.unstable_mockModule('../models/PaymentLog.js', () => ({
   default: { create: mockPaymentLogCreate },
 }));
 
-// User mock — holds a stable ref so tests can re-assign findByIdAndUpdate
-const mockUserFindById          = jest.fn();
-const mockUserFindByIdAndUpdate = jest.fn().mockResolvedValue({});
-const mockUserFindOne           = jest.fn();
 jest.unstable_mockModule('../models/User.js', () => ({
   default: {
     findById:          mockUserFindById,
@@ -69,27 +75,6 @@ const FAKE_SUB_ID     = 'sub_test_1234567890';
 const FAKE_PAYMENT_ID = 'pay_test_1234567890';
 const FAKE_EVENT_ID   = 'evt_test_1234567890';
 const PLAN_ID         = 'plan_test_pro';
-
-// ── Build a minimal Express app wired with the payment router ─────────────────
-async function buildTestApp() {
-  process.env.RAZORPAY_KEY_ID         = 'rzp_test_dummy';
-  process.env.RAZORPAY_KEY_SECRET     = 'dummy_secret_32_chars_long_abc!!';
-  process.env.RAZORPAY_WEBHOOK_SECRET = WEBHOOK_SECRET;
-  process.env.NODE_ENV                = 'test';
-
-  const app = express();
-  app.use(cookieParser());
-  // JSON body for non-webhook routes
-  app.use((req, res, next) => {
-    if (req.path !== '/webhook') { app.use(express.json())(req, res, next); }
-    else { next(); }
-  });
-
-  const { default: paymentRouter } = await import('../routes/payment.js');
-  app.use('/', paymentRouter);
-
-  return app;
-}
 
 // ── HMAC helper ───────────────────────────────────────────────────────────────
 function signWebhookPayload(payload, secret = WEBHOOK_SECRET) {
@@ -126,7 +111,7 @@ function buildChargedEvent(overrides = {}) {
   };
 }
 
-// ── Subscription DB mock ──────────────────────────────────────────────────────
+// ── Subscription DB mock shape ────────────────────────────────────────────────
 const mockSubscription = {
   _id:                    new mongoose.Types.ObjectId(),
   userId:                 new mongoose.Types.ObjectId(FAKE_USER_ID),
@@ -140,24 +125,52 @@ const mockSubscription = {
   refunded:               false,
 };
 
+// ── Build a minimal Express app with the real payment router ──────────────────
+async function buildTestApp() {
+  process.env.RAZORPAY_KEY_ID         = 'rzp_test_dummy';
+  process.env.RAZORPAY_KEY_SECRET     = 'dummy_secret_32_chars_long_abc!!';
+  process.env.RAZORPAY_WEBHOOK_SECRET = WEBHOOK_SECRET;
+  process.env.NODE_ENV                = 'test';
+
+  const app = express();
+  app.use(cookieParser());
+
+  // Raw body for /webhook; parsed JSON for everything else
+  app.use((req, res, next) => {
+    if (req.path !== '/webhook') {
+      express.json()(req, res, next);
+    } else {
+      next();
+    }
+  });
+
+  // Dynamic import AFTER mocks are registered
+  const { default: paymentRouter } = await import('../routes/payment.js');
+  app.use('/', paymentRouter);
+
+  return app;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Test suite
+// Test suite — webhook lifecycle
 // ─────────────────────────────────────────────────────────────────────────────
 describe('POST /webhook — Razorpay subscription lifecycle', () => {
   let app;
   let Subscription;
 
   beforeAll(async () => {
-    // Dynamic imports AFTER unstable_mockModule registrations
+    // All dynamic imports MUST come after jest.unstable_mockModule() calls above
     app          = await buildTestApp();
     Subscription = (await import('../models/Subscription.js')).default;
   });
 
   beforeEach(() => {
+    // Reset call history; re-apply resolved values because clearAllMocks
+    // resets implementations too
     jest.clearAllMocks();
-    // Re-apply default resolved values after clearAllMocks
     mockActivateSubscriptionPlan.mockResolvedValue({ subscriptionPlan: 'pro' });
     mockCancelSubscriptionPlan.mockResolvedValue({ subscriptionPlan: 'free' });
+    mockUpdateUserPlan.mockResolvedValue({});
     mockUserFindByIdAndUpdate.mockResolvedValue({});
     mockPaymentLogCreate.mockResolvedValue({});
   });
@@ -169,7 +182,6 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
       const rawBody      = JSON.stringify(eventPayload);
       const signature    = signWebhookPayload(rawBody);
 
-      // Subscription found in DB, event not yet processed
       Subscription.findOne           = jest.fn().mockResolvedValue({ ...mockSubscription });
       Subscription.findByIdAndUpdate = jest.fn().mockResolvedValue({});
 
@@ -201,9 +213,8 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
   // ── 2. Invalid HMAC signature ────────────────────────────────────────────
   describe('webhook — invalid signature', () => {
     it('should return 400 and NOT activate plan', async () => {
-      const eventPayload = buildChargedEvent();
-      const rawBody      = JSON.stringify(eventPayload);
-      const badSignature = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+      const rawBody      = JSON.stringify(buildChargedEvent());
+      const badSignature = 'a'.repeat(64);
 
       const res = await request(app)
         .post('/webhook')
@@ -222,7 +233,7 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
       const res = await request(app)
         .post('/webhook')
         .set('Content-Type', 'application/json')
-        .send(rawBody);  // no x-razorpay-signature
+        .send(rawBody); // no x-razorpay-signature header
 
       expect(res.status).toBe(400);
       expect(mockActivateSubscriptionPlan).not.toHaveBeenCalled();
@@ -236,10 +247,10 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
       const rawBody      = JSON.stringify(eventPayload);
       const signature    = signWebhookPayload(rawBody);
 
-      // Subscription already has this event in processedEvents
+      // Subscription already has this event ID in processedEvents
       Subscription.findOne = jest.fn().mockResolvedValue({
         ...mockSubscription,
-        processedEvents: [FAKE_EVENT_ID], // already processed
+        processedEvents: [FAKE_EVENT_ID],
         status:          'active',
       });
 
@@ -263,9 +274,9 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
         payload: {
           payment: {
             entity: {
-              id:              'pay_failed_abc',
-              subscription_id: FAKE_SUB_ID,
-              error_code:      'BAD_REQUEST_ERROR',
+              id:                'pay_failed_abc',
+              subscription_id:   FAKE_SUB_ID,
+              error_code:        'BAD_REQUEST_ERROR',
               error_description: 'Payment failed due to insufficient funds',
             },
           },
@@ -274,11 +285,7 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
       const rawBody   = JSON.stringify(failPayload);
       const signature = signWebhookPayload(rawBody);
 
-      Subscription.findOne = jest.fn().mockResolvedValue({
-        ...mockSubscription,
-        status:          'active',
-        processedEvents: [],
-      });
+      Subscription.findOne           = jest.fn().mockResolvedValue({ ...mockSubscription, status: 'active', processedEvents: [] });
       Subscription.findByIdAndUpdate = jest.fn().mockResolvedValue({});
 
       const res = await request(app)
@@ -288,10 +295,8 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
         .send(rawBody);
 
       expect(res.status).toBe(200);
-      // Plan must NOT be touched on payment.failed
       expect(mockActivateSubscriptionPlan).not.toHaveBeenCalled();
       expect(mockCancelSubscriptionPlan).not.toHaveBeenCalled();
-      // failedAttempts should be incremented
       expect(Subscription.findByIdAndUpdate).toHaveBeenCalledWith(
         mockSubscription._id,
         expect.objectContaining({ $inc: { failedAttempts: 1 } })
@@ -314,11 +319,7 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
       const rawBody   = JSON.stringify(cancelPayload);
       const signature = signWebhookPayload(rawBody);
 
-      Subscription.findOne = jest.fn().mockResolvedValue({
-        ...mockSubscription,
-        status:          'active',
-        processedEvents: [],
-      });
+      Subscription.findOne           = jest.fn().mockResolvedValue({ ...mockSubscription, status: 'active', processedEvents: [] });
       Subscription.findByIdAndUpdate = jest.fn().mockResolvedValue({});
 
       const res = await request(app)
@@ -337,17 +338,17 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
 
   // ── 6. Amount tamper detection ───────────────────────────────────────────
   describe('subscription.charged — amount tampered', () => {
-    it('should reject and flag user as suspicious without activating plan', async () => {
+    it('should return 200 but NOT activate plan, and flag user as suspicious', async () => {
       const tamperedEvent = buildChargedEvent();
-      // Tamper: change the amount in the webhook payload
-      tamperedEvent.payload.payment.entity.amount = 100; // attacker sends ₹1 instead of ₹499
+      // Attacker sends ₹1 (100 paise) instead of the real ₹499 (49900 paise)
+      tamperedEvent.payload.payment.entity.amount = 100;
 
       const rawBody   = JSON.stringify(tamperedEvent);
       const signature = signWebhookPayload(rawBody);
 
       Subscription.findOne = jest.fn().mockResolvedValue({
         ...mockSubscription,
-        amountPaise:     49900,   // DB has the real price
+        amountPaise:     49900,
         processedEvents: [],
       });
 
@@ -357,9 +358,9 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
         .set('x-razorpay-signature', signature)
         .send(rawBody);
 
-      expect(res.status).toBe(200); // always 200 to avoid Razorpay retries
+      // Always return 200 to prevent Razorpay from retrying a tampered event
+      expect(res.status).toBe(200);
       expect(mockActivateSubscriptionPlan).not.toHaveBeenCalled();
-      // User should be flagged suspicious
       expect(mockUserFindByIdAndUpdate).toHaveBeenCalledWith(
         mockSubscription.userId,
         expect.objectContaining({
@@ -371,28 +372,24 @@ describe('POST /webhook — Razorpay subscription lifecycle', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /verify-payment tests
+// POST /verify-payment — stub tests
 // ─────────────────────────────────────────────────────────────────────────────
 describe('POST /verify-payment', () => {
-  // Note: these require an auth token; in the full test suite inject a valid JWT.
-  // Shown here as integration-test stubs documenting expected behaviour.
-
-  it('should return 400 when fields are missing', async () => {
-    // Missing razorpay_signature
+  it('should return 400 or 401 when required fields are missing', async () => {
     const app = await buildTestApp();
     const res = await request(app)
       .post('/verify-payment')
       .send({ razorpay_payment_id: 'pay_abc', razorpay_subscription_id: 'sub_abc' });
-    // 401 because no auth token — expected in unit test context
+    // 401 because no auth token in unit-test context; 400 if validation runs first
     expect([400, 401]).toContain(res.status);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /create-subscription input validation tests
+// POST /create-subscription — input validation stubs
 // ─────────────────────────────────────────────────────────────────────────────
 describe('POST /create-subscription — input validation', () => {
-  it('should reject invalid planKey', async () => {
+  it('should reject an entirely invalid planKey', async () => {
     const app = await buildTestApp();
     const res = await request(app)
       .post('/create-subscription')
@@ -400,11 +397,11 @@ describe('POST /create-subscription — input validation', () => {
     expect([400, 401]).toContain(res.status);
   });
 
-  it('should reject planKey not in PLAN_MAP', async () => {
+  it('should reject planKey "free" (not purchaseable)', async () => {
     const app = await buildTestApp();
     const res = await request(app)
       .post('/create-subscription')
-      .send({ planKey: 'free' }); // 'free' not in PLAN_MAP (not purchaseable)
+      .send({ planKey: 'free' });
     expect([400, 401]).toContain(res.status);
   });
 });

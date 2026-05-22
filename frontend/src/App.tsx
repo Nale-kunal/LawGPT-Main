@@ -49,6 +49,10 @@ const LegalNotesLanding = React.lazy(() => import("./pages/LegalNotesLanding"));
 const TemplatesDashboard = React.lazy(() => import("./modules/legalTemplates/pages/TemplatesDashboard"));
 const TemplateWorkspace = React.lazy(() => import("./modules/legalTemplates/pages/TemplateWorkspace"));
 const Pricing = React.lazy(() => import("./pages/Pricing"));
+const SubscriptionDashboard = React.lazy(() => import("./pages/SubscriptionDashboard"));
+const PaymentSuccess = React.lazy(() => import("./pages/PaymentSuccess"));
+const PaymentFailed = React.lazy(() => import("./pages/PaymentFailed"));
+const SubscriptionExpired = React.lazy(() => import("./pages/SubscriptionExpired"));
 
 // Import Layout (not lazy — needed immediately for dashboard shell)
 import DashboardLayout from "./components/layout/DashboardLayout";
@@ -104,8 +108,9 @@ const App = () => (
                 <DynamicCanonical />
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
-                    {/* Public Landing Routes — authenticated users are bounced to /dashboard */}
-                    <Route path="/" element={<PublicOnlyRoute><Home /></PublicOnlyRoute>} />
+                    {/* Public Landing Routes — landing is always immediately visible; authenticated
+                        users are bounced to /dashboard by the global auth guard in AuthContext */}
+                    <Route path="/" element={<Home />} />
                     <Route path="/product" element={<Product />} />
                     <Route path="/experience" element={<Experience />} />
                     <Route path="/security" element={<Security />} />
@@ -147,7 +152,13 @@ const App = () => (
                       <Route path="templates" element={<FeatureGate feature="templates"><TemplatesDashboard /></FeatureGate>} />
                       <Route path="templates/:id" element={<FeatureGate feature="templates"><TemplateWorkspace /></FeatureGate>} />
                       <Route path="pricing" element={<Pricing />} />
+                      <Route path="subscription" element={<SubscriptionDashboard />} />
                     </Route>
+
+                    {/* Payment status pages — outside DashboardLayout (full screen) */}
+                    <Route path="/payment/success" element={<RequireAuth><PaymentSuccess /></RequireAuth>} />
+                    <Route path="/payment/failed" element={<RequireAuth><PaymentFailed /></RequireAuth>} />
+                    <Route path="/subscription/expired" element={<RequireAuth><SubscriptionExpired /></RequireAuth>} />
 
                     {/* Catch All */}
                     <Route path="*" element={<NotFound />} />

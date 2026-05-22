@@ -194,9 +194,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return;
         }
 
-        // 3. GLOBAL AUTH GUARD (IF AUTHENTICATED -> NO RENDER OF LOGIN)
+        // 3. GLOBAL AUTH GUARD (IF AUTHENTICATED -> NO RENDER OF LOGIN/LANDING)
         const p = window.location.pathname;
-        if (['/login', '/signup', '/forgot-password', '/reset-password'].includes(p)) {
+        if (['/login', '/signup', '/forgot-password', '/reset-password', '/'].includes(p)) {
            // 4. HARD REDIRECT
            window.location.replace('/dashboard');
            return;

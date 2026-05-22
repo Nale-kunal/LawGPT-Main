@@ -146,6 +146,15 @@ export const PlanProvider: React.FC<PlanProviderProps> = ({ children }) => {
 
   // Re-run whenever the logged-in user changes (login / logout / account switch).
   useEffect(() => {
+    // No user logged in — skip all plan fetching to avoid triggering 401s
+    // on protected endpoints (which would fire auth:unauthorized and redirect to login).
+    if (!userId) {
+      setPlanInfo(null);
+      setLoading(false);
+      setLoaded(true);
+      return;
+    }
+
     // When userId changes (account switch), always drop any stale in-memory state
     // and re-read from the correct user-scoped cache.
     const cached = readCache(userId);

@@ -259,6 +259,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // 7. GLOBAL 401 UNAUTHORIZED LISTENER
     // Triggered by apiFetch when a token refresh fails
+    const PUBLIC_PATHS = ['/', '/product', '/experience', '/security', '/about', '/pricing',
+      '/privacy', '/terms', '/data-processing', '/cookie-policy', '/client-portal', '/legal-notes'];
     const handleUnauthorized = () => {
       console.warn('Handling global auth:unauthorized event');
       // NOTE: Do NOT clear __refreshFailTs here — the circuit breaker must stay
@@ -267,7 +269,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Wipe plan cache so next user login never inherits this session's plan.
       import('@/contexts/PlanContext').then(({ clearAllPlanCaches }) => clearAllPlanCaches()).catch(() => {});
       persistUser(null, true);
-      if (!isLoggingOut.current) {
+      // Do NOT redirect to /login if the user is already on a public page.
+      // This prevents unauthenticated visitors from being kicked to login
+      // just because a background API call (e.g. PlanContext) got a 401.
+      const currentPath = window.location.pathname;
+      const isPublicPage = PUBLIC_PATHS.some(p => currentPath === p || currentPath.startsWith(p + '/'));
+      if (!isLoggingOut.current && !isPublicPage) {
         window.location.replace('/login');
       }
     };

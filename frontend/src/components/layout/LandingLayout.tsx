@@ -48,49 +48,72 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
         <div className="lp-root">
             <a href="#main-content" className="skip-link">Skip to content</a>
             {/* ══ NAVBAR ══════════════════════════════════════════════════════════════ */}
-            <nav className="lp-nav lp-anim-fade" ref={el => { navRef.current = el; }}>
-                <Link className="lp-nav-logo" to="/" aria-label="Juriq">
-                    <div className="lp-nav-logo-icon" style={{ backgroundColor: '#000000' }}>
-                        <BrandLogo size={20} className="rounded-none bg-[#000000]" />
+            <nav className="lp-nav lp-nav-premium lp-anim-fade" ref={el => { navRef.current = el; }}>
+                <Link className="lp-nav-logo lp-nav-logo-premium" to="/" aria-label="Juriq">
+                    <div className="lp-nav-logo-icon lp-logo-premium-box" style={{ backgroundColor: '#000000' }}>
+                        <BrandLogo size={18} className="rounded-none bg-[#000000]" />
                     </div>
-                    <div>
+                    <div className="lp-nav-logo-meta">
                         <span className="lp-nav-logo-text">Juriq</span>
-                        <span className="lp-nav-logo-sub">Indian Law Management</span>
+                        <span className="lp-nav-logo-sub">Workspace for Independent Advocates</span>
                     </div>
                 </Link>
-                <ul className="lp-nav-links">
-                    <li><Link className="lp-nav-link-btn" to="/">Home</Link></li>
-                    <li><Link className="lp-nav-link-btn" to="/product">Product</Link></li>
-                    <li><Link className="lp-nav-link-btn" to="/experience">Experience</Link></li>
-                    <li><Link className="lp-nav-link-btn" to="/security">Security</Link></li>
-                    <li><Link className="lp-nav-link-btn" to="/about">About</Link></li>
+                <ul className="lp-nav-links lp-nav-links-premium">
+                    <li>
+                        <Link className={`lp-nav-link-btn ${location.pathname === '/' ? 'lp-nav-active' : ''}`} to="/">
+                            Home
+                        </Link>
+                    </li>
+                    <li>
+                        <Link className={`lp-nav-link-btn ${location.pathname === '/product' ? 'lp-nav-active' : ''}`} to="/product">
+                            Product
+                        </Link>
+                    </li>
+                    <li>
+                        <Link className={`lp-nav-link-btn ${location.pathname === '/experience' ? 'lp-nav-active' : ''}`} to="/experience">
+                            Experience
+                        </Link>
+                    </li>
+                    <li>
+                        <Link className={`lp-nav-link-btn ${location.pathname === '/security' ? 'lp-nav-active' : ''}`} to="/security">
+                            Security
+                        </Link>
+                    </li>
+                    <li>
+                        <Link className={`lp-nav-link-btn ${location.pathname === '/about' ? 'lp-nav-active' : ''}`} to="/about">
+                            About
+                        </Link>
+                    </li>
                 </ul>
-                <div className="lp-nav-right">
+                <div className="lp-nav-right lp-nav-right-premium">
                     <ThemeToggle />
-                    <button id="nav-login" className="lp-btn lp-btn-ghost" onClick={() => navigate('/login')}>Login</button>
-                    <button id="nav-signup" className="lp-btn lp-btn-gold" onClick={() => navigate('/signup')}>
+                    <button id="nav-login" className="lp-btn lp-btn-ghost lp-btn-ghost-premium" onClick={() => navigate('/login')}>Login</button>
+                    <button id="nav-signup" className="lp-btn lp-btn-gold lp-btn-gold-premium" onClick={() => navigate('/signup')}>
                         <span>Get Started</span><Ic.Arrow />
                     </button>
                 </div>
             </nav>
 
-            <main id="main-content">
+            <main id="main-content" className="lp-main-premium">
                 {children}
             </main>
 
             {/* ══ FOOTER ══════════════════════════════════════════════════════════════ */}
-            <footer className="lp-footer" role="contentinfo">
-                <div className="lp-footer-top">
-                    <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <footer className="lp-footer lp-footer-premium" role="contentinfo">
+                <div className="lp-footer-top lp-footer-grid-premium">
+                    <div className="lp-footer-brand-col">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                             <div className="lp-nav-logo-icon" style={{ width: 28, height: 28, backgroundColor: '#000000' }}>
-                                <BrandLogo size={18} className="rounded-none bg-[#000000]" />
+                                <BrandLogo size={16} className="rounded-none bg-[#000000]" />
                             </div>
-                            <div><span className="lp-footer-brand-name">Juriq</span><span className="lp-footer-sub">Indian Law Management</span></div>
+                            <div>
+                                <span className="lp-footer-brand-name">Juriq</span>
+                                <span className="lp-footer-sub">Workspace for Independent Advocates</span>
+                            </div>
                         </div>
-                        <p className="lp-footer-brand-tag">Professional case management for Indian advocates and legal professionals.</p>
+                        <p className="lp-footer-brand-tag">An organized digital legal workspace built specifically for independent Indian advocates.</p>
                     </div>
-                    <div>
+                    <div className="lp-footer-nav-col">
                         <div className="lp-footer-col-title">Platform</div>
                         <div className="lp-footer-links-list">
                             {[
@@ -105,7 +128,7 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
                             ))}
                         </div>
                     </div>
-                    <div>
+                    <div className="lp-footer-nav-col">
                         <div className="lp-footer-col-title">Legal</div>
                         <div className="lp-footer-links-list">
                             <Link className="lp-footer-link-btn" to="/privacy" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Privacy Policy</Link>
@@ -115,7 +138,7 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
                             <Link className="lp-footer-link-btn" to="/security" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Security</Link>
                         </div>
                     </div>
-                    <div>
+                    <div className="lp-footer-nav-col">
                         <div className="lp-footer-col-title">Account</div>
                         <div className="lp-footer-links-list">
                             <Link className="lp-footer-link-btn" to="/login" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0 }}>Login</Link>
@@ -124,9 +147,9 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
                         </div>
                     </div>
                 </div>
-                <div className="lp-footer-bottom">
-                    <span className="lp-footer-copy">2026 Juriq. All Rights Reserved.</span>
-                    <span className="lp-footer-badge"><span style={{ color: '#22c55e' }}>*</span> Systems Operational</span>
+                <div className="lp-footer-bottom lp-footer-bottom-premium">
+                    <span className="lp-footer-copy">&copy; 2026 Juriq. Handcrafted for modern advocates. All Rights Reserved.</span>
+                    <span className="lp-footer-badge"><span className="lp-green-pulse-dot" style={{ color: '#22c55e' }}>●</span> Systems Operational</span>
                 </div>
             </footer>
         </div>

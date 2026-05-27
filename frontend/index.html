@@ -5,34 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#141519" media="(prefers-color-scheme: dark)" />
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
     <title>Juriq – AI Powered Legal Case Management</title>
     <meta name="description" content="Professional legal case management software for Indian law firms. Manage cases, track hearings, collaborate with clients, and organize legal strategy in one powerful workspace." />
     <meta name="keywords" content="legal case management, law firm software, Indian legal software, court calendar, legal AI" />
     <meta name="author" content="Juriq" />
 
-    <!-- Synchronous Boot Controls (Theme Sync + Auth Guard) -->
-    <script>
-      (function() {
-        // 1. Theme Sync (Prevents Flash)
-        var sk = 'legal-pro-theme';
-        var t = localStorage.getItem(sk) || 'system';
-        var r = document.documentElement;
-        var d = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        if (d) r.classList.add('dark'); else r.classList.add('light');
+    <!--
+      Boot script: theme sync + auth guard.
+      External file (no inline script) — CSP-safe without unsafe-inline.
+      Runs synchronously before React mounts to prevent FOUC.
+    -->
+    <script src="/boot.js"></script>
 
-        // 2. Auth Guard (BFCache / Sync Redirect)
-        var p = window.location.pathname;
-        var i = p === '/login' || p === '/signup' || p === '/forgot-password' || p === '/reset-password' || p === '/';
-        if (i && document.cookie.indexOf('is_authenticated=true') !== -1) {
-          window.location.replace('/dashboard');
-        }
-      })();
-    </script>
-
-    <!-- Initial loader styles (external file required for Vite 7 compatibility) -->
+    <!-- Initial loader styles -->
     <link rel="stylesheet" href="/loader.css" />
     <link rel="icon" href="/logo.png" />
 

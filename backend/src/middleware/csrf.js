@@ -56,7 +56,7 @@ export function setCsrfToken(req, res) {
     res.cookie('csrf-token', token, {
         httpOnly: false,   // Must be JS-readable
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax', // Changed to 'none'
+        sameSite: 'strict', // strict prevents CSRF via top-level navigation (lax was insufficient)
         maxAge: 24 * 60 * 60 * 1000, // 1 day
         path: '/',
     });

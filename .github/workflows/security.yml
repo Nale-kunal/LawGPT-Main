@@ -41,7 +41,7 @@ jobs:
       - name: npm audit (high severity)
         working-directory: ./${{ matrix.app }}
         run: npm audit --audit-level=high
-        continue-on-error: true
+        # continue-on-error removed: HIGH/CRITICAL CVEs must fail CI
 
   env-check:
     name: Environment Leak Check

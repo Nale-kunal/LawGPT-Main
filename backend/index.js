@@ -51,9 +51,13 @@ import newsRoutes from './routes/news.js';
 import legalRoutes from './src/routes/legal.routes.js';
 import templatesRoutes from './src/routes/templates.routes.js';
 import { requestId } from './src/middleware/requestId.js';
+import { generateNonce, applySecurityHeaders } from './src/middleware/securityHeaders.js';
+import securityRoutes from './src/routes/securityRoutes.js';
 import subscriptionRoutes from './src/routes/subscription.js';
 import paymentRoutes from './src/routes/payment.js';
 import adminPaymentRoutes from './src/routes/adminPayment.js';
+import communityRoutes from './src/community/routes/index.js';
+import { initSocketServer } from './src/community/socket/socketServer.js';
 
 // dotenv already loaded at top — do not call again
 
@@ -95,6 +99,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 const isProduction = process.env.NODE_ENV === 'production';
+const METRICS_TOKEN = process.env.METRICS_TOKEN;
 const frontendOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
 
 // ─── HTTPS Enforcement (production only) ─────────────────────────────────────
@@ -109,52 +114,31 @@ if (isProduction) {
   });
 }
 
-// ─── 1. Helmet — Hardened Security Headers ────────────────────────────────────
+// ─── 0. Nonce Generation (must be FIRST — before all header middleware) ──────
+// Generates a cryptographically secure per-request nonce for CSP
+app.use(generateNonce);
+
+// ─── 1a. Enterprise Security Headers (CSP/COOP/COEP/CORP/Permissions-Policy) ─
+// securityHeaders.js owns: CSP (nonce-based), Permissions-Policy, COOP, COEP,
+// CORP, Referrer-Policy, X-Frame-Options, X-Content-Type-Options, fingerprint removal
+app.use(applySecurityHeaders);
+
+// ─── 1b. Helmet — Remaining non-CSP hardening ─────────────────────────────────
+// CSP, COOP, COEP, CORP, referrer delegated to securityHeaders.js above.
+// Helmet still manages: HSTS, X-DNS-Prefetch-Control, X-Download-Options, etc.
 app.use(
   helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        // Remove unsafe-inline in production — use a nonce if needed for 3rd-party scripts
-        scriptSrc: isProduction
-          ? ["'self'"]
-          : ["'self'", "'unsafe-inline'"],            // Vite HMR in dev only
-        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-        fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
-        imgSrc: [
-          "'self'",
-          'data:',
-          'blob:',
-          'https://res.cloudinary.com',
-          'https://cloudinary.com',
-          'https://*.gravatar.com',
-        ],
-        connectSrc: [
-          "'self'",
-          frontendOrigin,
-          'https://res.cloudinary.com',
-          'https://api.cloudinary.com',
-          'wss://localhost:*',                         // Vite HMR websocket
-          ...(process.env.SENTRY_DSN ? ['https://sentry.io', 'https://*.sentry.io'] : []),
-        ],
-        mediaSrc: ["'self'", 'blob:', 'https://res.cloudinary.com'],
-        frameSrc: ["'none'"],
-        objectSrc: ["'none'"],
-        baseUri: ["'self'"],
-        formAction: ["'self'"],
-        frameAncestors: ["'none'"],
-        upgradeInsecureRequests: isProduction ? [] : null,
-      },
-    },
+    contentSecurityPolicy: false,         // ← Handled by securityHeaders.js (nonce-based)
+    crossOriginEmbedderPolicy: false,     // ← Handled by securityHeaders.js
+    crossOriginOpenerPolicy: false,       // ← Handled by securityHeaders.js
+    crossOriginResourcePolicy: false,     // ← Handled by securityHeaders.js
+    referrerPolicy: false,                // ← Handled by securityHeaders.js
+    permittedCrossDomainPolicies: false,
     hsts: isProduction
       ? { maxAge: 63072000, includeSubDomains: true, preload: true } // 2 years
       : false,
     frameguard: { action: 'deny' },
     noSniff: true,
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
-    crossOriginEmbedderPolicy: false,
-    permittedCrossDomainPolicies: false,
   })
 );
 
@@ -401,8 +385,21 @@ app.get('/api/v1/health', async (_req, res) => {
   });
 });
 
-// Prometheus metrics endpoint (restrict in production to internal access if needed)
-app.get('/api/v1/metrics', async (_req, res) => {
+// ─── Prometheus Metrics (Bearer-token protected — never expose publicly) ────────
+// Set METRICS_TOKEN in .env: node -e "require('crypto').randomBytes(32).toString('hex')"
+app.get('/api/v1/metrics', (req, res, next) => {
+  if (!METRICS_TOKEN) {
+    // If token not configured, block entirely in production
+    if (isProduction) return res.status(503).json({ error: 'Metrics not configured' });
+    return next(); // Allow in dev without token
+  }
+  const authHeader = req.headers.authorization;
+  if (authHeader !== `Bearer ${METRICS_TOKEN}`) {
+    logger.warn({ ip: req.ip, path: req.path }, 'Unauthorized metrics access attempt');
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}, async (_req, res) => {
   try {
     res.set('Content-Type', metricsRegistry.contentType);
     res.end(await metricsRegistry.metrics());
@@ -451,6 +448,9 @@ app.post('/api/v1/logs/client-error', clientErrorLimiter, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── Security Routes (CSP reports, security posture) ─────────────────────────
+app.use('/api/v1/security', securityRoutes);
+
 // Legal compliance endpoints (public — no auth) (spec #6)
 import legalPolicyRoutes from './src/routes/legal.js';
 app.use('/api/v1/legal', legalPolicyRoutes);
@@ -485,6 +485,7 @@ app.use('/api/v1/subscription', subscriptionRoutes);
 app.use('/api/v1/payment', paymentLimiter, paymentRoutes);
 // Admin-only payment management (refunds, logs, subscription list)
 app.use('/api/v1/admin/payment', paymentLimiter, adminPaymentRoutes);
+app.use('/api/v1/community', communityRoutes);
 
 // ─── Backward Compatibility /api/* → /api/v1/* (90-day window) ───────────────
 app.use('/api/auth', forgotPasswordRoutes);
@@ -506,10 +507,12 @@ app.use('/api/legal', legalPolicyRoutes);
 app.use('/api/legal', legalRoutes);
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
-// ─── Static uploads (legacy) ─────────────────────────────────────────────────
+// ─── Static uploads (legacy) — REMOVED ──────────────────────────────────────
+// The /uploads static serve was removed (VULN-09): it served local filesystem
+// files without authentication. All assets are on Cloudinary with signed URLs.
+// If needed for local dev only, add requireAuth middleware before restoring.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ─── Sentry Error Handler (must be before custom error handler) ───────────────
 // Sentry v8+ error handler — must be before other error handlers
@@ -570,6 +573,8 @@ async function startServer() {
     currentServer = app.listen(PORT, () => {
       logger.info({ port: PORT, env: process.env.NODE_ENV }, '🚀 Juriq API started');
     });
+
+    initSocketServer(currentServer);
 
     currentServer.on('error', (error) => {
       if (error.code === 'EADDRINUSE') {

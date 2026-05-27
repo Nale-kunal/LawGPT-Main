@@ -15,6 +15,7 @@ import activityEmitter from '../utils/eventEmitter.js';
 import { enforcePlanLimits } from '../middleware/planEnforcement.js';
 import { checkPlanAccess }   from '../middleware/checkPlanAccess.js';
 import { uploadToCloudinary, deleteFromCloudinary, extractPublicIdFromUrl } from '../config/cloudinary.js';
+import { uploadSecurityMiddleware } from '../middleware/uploadSecurity.js';
 
 const router = express.Router();
 
@@ -457,7 +458,7 @@ router.get('/files/:id/download', requireAuth, async (req, res) => {
 
 
 
-router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array('files'), async (req, res) => {
+router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array('files'), uploadSecurityMiddleware, async (req, res) => {
   try {
     // Parse folderId - handle empty string, null, undefined
     let folderId = req.body.folderId;

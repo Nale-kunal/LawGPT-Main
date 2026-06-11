@@ -7,22 +7,22 @@
 
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "https://api.juriq.in/api/$1"
+      "source": "/api/:path*",
+      "destination": "https://api.juriq.in/api/:path*"
     },
     {
       "source": "/loaderio-34d139185382f185e2660a604d645f89.txt",
       "destination": "/loaderio-34d139185382f185e2660a604d645f89.txt"
     },
     {
-      "source": "/(.*)",
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ],
 
   "headers": [
     {
-      "source": "/assets/(.*)",
+      "source": "/assets/:path*",
       "headers": [
         {
           "key": "Cache-Control",
@@ -39,7 +39,7 @@
       ]
     },
     {
-      "source": "/(.*\\.(js|css|woff|woff2|ttf|eot|png|jpg|jpeg|gif|ico|svg|webp))",
+      "source": "/:path(.*\\.(?:js|css|woff|woff2|ttf|eot|png|jpg|jpeg|gif|ico|svg|webp))",
       "headers": [
         {
           "key": "Cache-Control",
@@ -52,7 +52,7 @@
       ]
     },
     {
-      "source": "/(.*)",
+      "source": "/:path*",
       "headers": [
         {
           "key": "X-Frame-Options",

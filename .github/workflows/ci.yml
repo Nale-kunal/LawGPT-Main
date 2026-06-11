@@ -31,10 +31,9 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies (clean install)
-        working-directory: ./backend
         run: npm ci
 
       - name: Run tests with coverage
@@ -59,10 +58,9 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - run: npm ci
-        working-directory: ./backend
 
       - name: Run ESLint
         working-directory: ./backend
@@ -71,7 +69,6 @@ jobs:
       - name: Frontend ESLint
         working-directory: ./frontend
         run: |
-          npm ci
           npx eslint src/ --max-warnings=400
 
   # ── Backend Security Audit ─────────────────────────────────────────────────
@@ -85,15 +82,13 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - run: npm ci
-        working-directory: ./backend
 
       # Fail CI on HIGH or CRITICAL vulnerabilities only
       - name: npm audit (high severity)
-        working-directory: ./backend
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=high -w backend
 
   # ── Frontend Build + Type Check ───────────────────────────────────────────────
   frontend-build:
@@ -106,10 +101,9 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: package-lock.json
 
-      - name: Clean install frontend
-        working-directory: ./frontend
+      - name: Clean install dependencies
         run: npm ci
 
       - name: TypeScript type check (zero errors)
@@ -123,5 +117,4 @@ jobs:
         run: npm run build
 
       - name: Frontend security audit
-        working-directory: ./frontend
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=high -w frontend

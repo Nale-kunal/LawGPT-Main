@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -214,7 +215,7 @@ const Documents = () => {
           description: `${f.length} file(s) uploaded successfully`
         });
       } catch (error: unknown) {
-        console.error('Upload error:', error);
+        logger.error('Upload error:', error);
         // Don't show duplicate toast if we already showed one above
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (!errorMessage.includes('Upload failed')) {
@@ -268,7 +269,7 @@ const Documents = () => {
         description: `Downloading ${sanitizedName}...`
       });
     } catch (error) {
-      console.error('Download error:', error);
+      logger.error('Download error:', error);
       toast({
         title: 'Download Failed',
         description: error instanceof Error ? error.message : 'Failed to download file',
@@ -295,7 +296,7 @@ const Documents = () => {
       await loadFiles();
       toast({ title: 'Document Deleted', description: `${doc.name} has been deleted` });
     } catch (error: unknown) {
-      console.error('Delete error:', error);
+      logger.error('Delete error:', error);
       toast({
         title: 'Delete Failed',
         description: error instanceof Error ? error.message : 'Failed to delete document',
@@ -441,7 +442,7 @@ const Documents = () => {
         throw new Error(errorData.error || 'Failed to create folder');
       }
     } catch (error: unknown) {
-      console.error('Create folder error:', error);
+      logger.error('Create folder error:', error);
       toast({
         title: 'Create Failed',
         description: error instanceof Error ? error.message : 'Failed to create folder',
@@ -486,7 +487,7 @@ const Documents = () => {
         });
       }
     } catch (error: unknown) {
-      console.error('Delete folder error:', error);
+      logger.error('Delete folder error:', error);
       toast({
         title: 'Delete Failed',
         description: error instanceof Error ? error.message : 'Failed to delete folder',

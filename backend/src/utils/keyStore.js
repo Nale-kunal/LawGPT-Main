@@ -19,15 +19,16 @@
 
 import jwt from 'jsonwebtoken';
 import logger from './logger.js';
+import { env } from '../config/env.js';
 
 // ── Build key registry ────────────────────────────────────────────────────────
 function buildKeyRegistry() {
     const registry = new Map(); // kid → { kid, secret, active }
     let activeKey = null;
 
-    if (process.env.JWT_KEYS) {
+    if (env.JWT_KEYS) {
         try {
-            const keys = JSON.parse(process.env.JWT_KEYS);
+            const keys = JSON.parse(env.JWT_KEYS);
             if (!Array.isArray(keys) || keys.length === 0) {
                 throw new Error('JWT_KEYS must be a non-empty JSON array');
             }
@@ -54,7 +55,7 @@ function buildKeyRegistry() {
 
     // Fallback to single-key mode
     if (registry.size === 0) {
-        const secret = process.env.JWT_SECRET;
+        const secret = env.JWT_SECRET;
         if (!secret) {throw new Error('JWT_SECRET is required');}
         const singleKey = { kid: 'default', secret, active: true };
         registry.set('default', singleKey);
@@ -116,11 +117,11 @@ export function verifyToken(token) {
  * Sign a refresh token (uses JWT_REFRESH_SECRET — not rotated via keyStore).
  */
 export function signRefreshToken(payload, options = {}) {
-    return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, options);
+    return jwt.sign(payload, env.JWT_REFRESH_SECRET, options);
 }
 
 export function verifyRefreshToken(token) {
-    return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+    return jwt.verify(token, env.JWT_REFRESH_SECRET);
 }
 
 /** Returns the active key ID — useful for logging/debugging */

@@ -187,7 +187,7 @@ export default function SubscriptionDashboard() {
 
   if (subLoading) {
     return (
-      <div className="space-y-4 max-w-4xl mx-auto">
+      <div className="space-y-4">
         <Skeleton className="h-8 w-64" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
@@ -215,14 +215,14 @@ export default function SubscriptionDashboard() {
   const hasCancelRequest = sub?.cancelRequested;
 
   return (
-    <div className="space-y-5 max-w-4xl mx-auto">
+    <div className="space-y-5">
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Shield className="w-6 h-6 text-primary" /> Subscription
+          <h1 className="text-xl md:text-2xl font-bold flex items-center gap-1.5">
+            <Shield className="w-5 h-5 text-primary" /> Subscription
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage your plan, billing &amp; invoices</p>
+          <p className="text-xs text-muted-foreground">Manage your plan, billing &amp; invoices</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/pricing')}
           className="gap-2 self-start sm:self-auto">
@@ -234,7 +234,7 @@ export default function SubscriptionDashboard() {
       <Card className={`border-2 ${isExpired ? 'border-destructive/50' : sub?.status === 'active' ? 'border-primary/50' : 'border-border'}`}>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <CardTitle className="flex items-center gap-1.5 text-sm">
               <CreditCard className="w-4 h-4 text-primary" /> Current Plan
             </CardTitle>
             {statusCfg && (
@@ -361,14 +361,14 @@ export default function SubscriptionDashboard() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="flex items-center gap-1.5 text-sm">
               <Receipt className="w-4 h-4 text-primary" /> Invoice History
             </CardTitle>
             {(invoiceData?.total ?? 0) > 0 && (
               <span className="text-xs text-muted-foreground">{invoiceData?.total} invoice{invoiceData!.total !== 1 ? 's' : ''}</span>
             )}
           </div>
-          <CardDescription className="text-xs">All GST-compliant invoices for your subscription</CardDescription>
+          <CardDescription className="text-[10px]">All GST-compliant invoices for your subscription</CardDescription>
         </CardHeader>
         <CardContent>
           {invoiceLoading ? (

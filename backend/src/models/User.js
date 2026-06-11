@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import logger from '../utils/logger.js';
 
 const userSchema = new mongoose.Schema({
   // Basic info
@@ -25,7 +26,7 @@ const userSchema = new mongoose.Schema({
   // Account status (soft-delete support)
   status: {
     type: String,
-    enum: ['active', 'deleted'],
+    enum: ['active', 'suspended', 'deleted'],
     default: 'active',
     index: true
   },
@@ -98,7 +99,6 @@ const userSchema = new mongoose.Schema({
     pushNotifications: { type: Boolean, default: true },
     hearingReminders: { type: Boolean, default: true },
     clientUpdates: { type: Boolean, default: true },
-    billingAlerts: { type: Boolean, default: false },
     weeklyReports: { type: Boolean, default: true },
   },
 
@@ -192,6 +192,12 @@ const userSchema = new mongoose.Schema({
   // Security question (set during onboarding, used to protect account deletion)
   securityQuestion: { type: String, default: null },
   securityAnswerHash: { type: String, default: null },
+
+  // ── Session versioning (logout-all-devices) ───────────────────────────────
+  // Incremented by admin/user to invalidate all previously issued JWTs.
+  // Any JWT with iat < sessionVersionAt is rejected by auth middleware.
+  sessionVersion: { type: Number, default: 0 },
+  sessionVersionAt: { type: Date, default: null },
 }, { timestamps: true });
 
 // Indexes (email already has unique index from field definition)
@@ -214,10 +220,12 @@ userSchema.pre('save', function (next) {
   return next();
 });
 
+const BCRYPT_ROUNDS = 12;
+
 userSchema.methods.verifyPassword = async function (password) {
   // Check if password hash exists
   if (!this.passwordHash) {
-    console.error(`verifyPassword: User ${this._id} has no passwordHash`);
+    logger.warn({ userId: this._id }, 'verifyPassword: user has no passwordHash');
     return false;
   }
 
@@ -228,20 +236,33 @@ userSchema.methods.verifyPassword = async function (password) {
 
   // Verify the password hash format (bcrypt hashes start with $2a$, $2b$, or $2y$)
   if (!this.passwordHash.startsWith('$2')) {
-    console.error(`verifyPassword: User ${this._id} has an invalid password hash format`);
+    logger.error({ userId: this._id }, 'verifyPassword: invalid password hash format');
     return false;
   }
 
   try {
-    return await bcrypt.compare(password, this.passwordHash);
+    const isMatch = await bcrypt.compare(password, this.passwordHash);
+
+    // Transparent bcrypt round upgrade: if the stored hash uses fewer than
+    // BCRYPT_ROUNDS cost factor, re-hash on successful login.
+    if (isMatch) {
+      const storedRounds = bcrypt.getRounds(this.passwordHash);
+      if (storedRounds < BCRYPT_ROUNDS) {
+        this.passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+        // Fire-and-forget save — do not block the login response
+        this.save().catch(err => logger.warn({ userId: this._id, err: err.message }, 'bcrypt rehash save failed'));
+      }
+    }
+
+    return isMatch;
   } catch (error) {
-    console.error(`verifyPassword error for user ${this._id}:`, error);
+    logger.error({ userId: this._id, err: error }, 'verifyPassword error');
     return false;
   }
 };
 
 userSchema.statics.hashPassword = function (password) {
-  return bcrypt.hash(password, 10);
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
 };
 
 export default mongoose.model('User', userSchema);

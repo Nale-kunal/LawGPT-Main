@@ -1,5 +1,6 @@
+import { logger } from '@/lib/logger';
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -232,7 +233,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
 
       onClose();
     } catch (error) {
-      console.error('Error saving hearing:', error);
+      logger.error('Error saving hearing:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to save hearing. Please try again.';
       alert(`Error: ${errorMessage}`);
     } finally {
@@ -259,7 +260,7 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
 
       onClose();
     } catch (error) {
-      console.error('Error deleting hearing:', error);
+      logger.error('Error deleting hearing:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete hearing. Please try again.';
       alert(`Error: ${errorMessage}`);
     } finally {
@@ -329,6 +330,9 @@ export const HearingRecordPopup: React.FC<HearingRecordPopupProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogDescription className="sr-only">
+          Form to record new hearing details or edit an existing hearing record.
+        </DialogDescription>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {hearing ? (

@@ -33,7 +33,7 @@ const Experience = () => {
                             { n: '3', t: 'Hearing Scheduling', d: 'Track hearings and record proceedings.' },
                             { n: '4', t: 'Strategy Notes', d: 'Internal case strategy and evidence references.' },
                             { n: '5', t: 'Document Management', d: 'Case-linked document vault and storage.' },
-                            { n: '6', t: 'Billing & Invoicing', d: 'Generate invoices and track payments.' },
+                            { n: '6', t: 'Legal Templates', d: 'Access standard drafts and legal templates.' },
                             { n: '7', t: 'Export & Reporting', d: 'Professional legal summaries and exports.' },
                         ].map(s => (
                             <div key={s.t} className="lp-wf-tl-item">
@@ -61,7 +61,7 @@ const Experience = () => {
                             { n: '3', t: 'Create & Organize Cases', d: 'Build structured case files with court details, parties, and case type.' },
                             { n: '4', t: 'Schedule & Track Hearings', d: 'Add hearing dates, record outcomes, and get a full calendar view.' },
                             { n: '5', t: 'Upload Documents & Notes', d: 'Attach case documents and maintain internal strategy notes per case.' },
-                            { n: '6', t: 'Export & Invoice', d: 'Generate professional case summaries and billing invoices.' },
+                            { n: '6', t: 'Export & Share', d: 'Generate professional case summaries and exports.' },
                         ].map(s => (
                             <div key={s.t} className="lp-step-card">
                                 <div className="lp-step-num-row">
@@ -90,7 +90,7 @@ const Experience = () => {
                                 <div className="lp-app-sidebar">
                                     <div className="lp-app-logo-row"><BrandLogo size={14} className="rounded-none bg-black" /><div className="lp-app-logo-text">Juriq</div></div>
                                     <div className="lp-app-nav-label">Navigation</div>
-                                    {['Dashboard', 'Cases', 'Calendar', 'Clients', 'Legal Research', 'Billing', 'Documents', 'Notes'].map((item, i) => (
+                                    {['Dashboard', 'Cases', 'Calendar', 'Clients', 'Legal Research', 'Documents', 'Notes'].map((item, i) => (
                                         <div key={item} className={`lp-app-nav-item${i === 0 ? ' active' : ''}`}><div className="lp-app-nav-dot" />{item}</div>
                                     ))}
                                 </div>
@@ -128,7 +128,7 @@ const Experience = () => {
                                 <div className="lp-app-sidebar">
                                     <div className="lp-app-logo-row"><BrandLogo size={14} className="rounded-none bg-black" /><div className="lp-app-logo-text">Juriq</div></div>
                                     <div className="lp-app-nav-label">Navigation</div>
-                                    {['Dashboard', 'Cases', 'Calendar', 'Clients', 'Legal Research', 'Billing', 'Documents', 'Notes'].map((item, i) => (
+                                    {['Dashboard', 'Cases', 'Calendar', 'Clients', 'Legal Research', 'Documents', 'Notes'].map((item, i) => (
                                         <div key={item} className={`lp-app-nav-item${i === 2 ? ' active' : ''}`}><div className="lp-app-nav-dot" />{item}</div>
                                     ))}
                                 </div>

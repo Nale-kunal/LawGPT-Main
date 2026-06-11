@@ -28,6 +28,17 @@ import logger          from '../utils/logger.js';
 import { notifyUser }   from '../services/notificationService.js';
 import { inc }          from '../services/metricsService.js';
 import SettlementLog    from '../models/SettlementLog.js';
+import { validate } from '../middleware/validate.js';
+import { env }      from '../config/env.js';
+import {
+    subscriptionIdParamSchema,
+    adminPaymentLogsQuerySchema,
+    adminSubscriptionsQuerySchema,
+    adminRefundsQuerySchema,
+    adminSettlementsQuerySchema,
+    adminMetricsQuerySchema,
+    adminRefundBodySchema,
+} from '../schemas/paramSchemas.js';
 
 const router = express.Router();
 
@@ -38,8 +49,8 @@ router.use(requireAuth, requireRole('admin'));
 let _rzp = null;
 function getRazorpay() {
   if (!_rzp) {
-    const key_id     = process.env.RAZORPAY_KEY_ID;
-    const key_secret = process.env.RAZORPAY_KEY_SECRET;
+    const key_id     = env.RAZORPAY_KEY_ID;
+    const key_secret = env.RAZORPAY_KEY_SECRET;
     if (!key_id || !key_secret) { throw new Error('Razorpay keys not configured'); }
     _rzp = new Razorpay({ key_id, key_secret });
   }
@@ -49,7 +60,9 @@ function getRazorpay() {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /refund/:subscriptionId
 // ─────────────────────────────────────────────────────────────────────────────
-router.post('/refund/:subscriptionId', async (req, res) => {
+router.post('/refund/:subscriptionId',
+  validate({ params: subscriptionIdParamSchema, body: adminRefundBodySchema }),
+  async (req, res) => {
   const adminUserId      = req.user.userId;
   const { subscriptionId } = req.params;
   const { reason, amount } = req.body;  // amount in paise (optional — defaults to full)
@@ -225,10 +238,10 @@ router.post('/refund/:subscriptionId', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /logs — Query PaymentLog (with pagination + filters)
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/logs', async (req, res) => {
+router.get('/logs', validate({ query: adminPaymentLogsQuerySchema }), async (req, res) => {
   try {
-    const page  = Math.max(1,   parseInt(req.query.page  || '1',   10));
-    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || '50', 10)));
+    const page  = req.query.page  ?? 1;
+    const limit = req.query.limit ?? 50;
     const skip  = (page - 1) * limit;
 
     const filter = {};
@@ -252,10 +265,10 @@ router.get('/logs', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /subscriptions — Query all subscriptions
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/subscriptions', async (req, res) => {
+router.get('/subscriptions', validate({ query: adminSubscriptionsQuerySchema }), async (req, res) => {
   try {
-    const page  = Math.max(1,   parseInt(req.query.page  || '1',  10));
-    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || '50', 10)));
+    const page  = req.query.page  ?? 1;
+    const limit = req.query.limit ?? 50;
     const skip  = (page - 1) * limit;
 
     const filter = {};
@@ -284,10 +297,10 @@ router.get('/subscriptions', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /refunds — Query RefundLog (spec #11)
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/refunds', async (req, res) => {
+router.get('/refunds', validate({ query: adminRefundsQuerySchema }), async (req, res) => {
   try {
-    const page  = Math.max(1,   parseInt(req.query.page  || '1',   10));
-    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || '50', 10)));
+    const page  = req.query.page  ?? 1;
+    const limit = req.query.limit ?? 50;
     const skip  = (page - 1) * limit;
 
     const filter = {};
@@ -309,10 +322,10 @@ router.get('/refunds', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /settlements — Query SettlementLog (spec #11)
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/settlements', async (req, res) => {
+router.get('/settlements', validate({ query: adminSettlementsQuerySchema }), async (req, res) => {
   try {
-    const page  = Math.max(1,   parseInt(req.query.page  || '1',   10));
-    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || '50', 10)));
+    const page  = req.query.page  ?? 1;
+    const limit = req.query.limit ?? 50;
     const skip  = (page - 1) * limit;
 
     const filter = {};
@@ -333,7 +346,7 @@ router.get('/settlements', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /metrics?range=24h|7d|30d — Persistent payment metrics (specs #1, #8)
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/metrics', async (req, res) => {
+router.get('/metrics', validate({ query: adminMetricsQuerySchema }), async (req, res) => {
   try {
     const RANGES = { '24h': 86_400_000, '7d': 604_800_000, '30d': 2_592_000_000 };
     const rangeMs = RANGES[req.query.range] ?? RANGES['24h'];

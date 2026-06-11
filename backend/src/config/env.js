@@ -46,7 +46,7 @@ const envSchema = z.object({
     FROM_EMAIL: z.string().email().optional(),
 
     // Deployment
-    SHUTDOWN_TIMEOUT: z.coerce.number().default(2000),
+    SHUTDOWN_TIMEOUT: z.coerce.number().default(30000),
     FRONTEND_URL: z.string().url().optional().or(z.literal('')),
 
     // Google OAuth (optional — feature disabled if absent)
@@ -68,7 +68,70 @@ const envSchema = z.object({
     RAZORPAY_PLAN_ID_PRO_YEARLY:     z.string().optional(),
     RAZORPAY_PLAN_ID_PREMIUM_YEARLY: z.string().optional(),
     RAZORPAY_PLAN_ID_ELITE_YEARLY:   z.string().optional(),
+
+    // ── Community System ──────────────────────────────────────────────────
+    // Generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+    COMMUNITY_ENCRYPTION_SECRET: z.string().min(32).optional(),
+
+    // ── Admin Internal API ────────────────────────────────────────────────
+    // REQUIRED — generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+    ADMIN_INTERNAL_SECRET: z.string().min(32, 'ADMIN_INTERNAL_SECRET must be at least 32 characters'),
+
+    // ── SMTP / Email ──────────────────────────────────────────────────────
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().optional(),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASS: z.string().optional(),
+    MAIL_FROM: z.string().optional(),
+    RESET_PASSWORD_BASE_URL: z.string().url().optional().or(z.literal('')),
+    RESEND_API_KEY: z.string().optional(),
+    EMAIL_FROM: z.string().optional(),
+    SUPPORT_EMAIL: z.string().email().optional(),
+
+    // ── Alerting ─────────────────────────────────────────────────────────
+    SLACK_WEBHOOK_URL: z.string().url().optional().or(z.literal('')),
+
+    // ── Note Attachments ──────────────────────────────────────────────────
+    NOTE_ATTACHMENT_MAX_SIZE_MB: z.coerce.number().optional(),
+
+    // ── Activity TTL ──────────────────────────────────────────────────────
+    ACTIVITY_EVENT_TTL_DAYS: z.coerce.number().optional(),
+
+    // ── Metrics ───────────────────────────────────────────────────────────
+    METRICS_TOKEN: z.string().optional(),
 });
+
+// ── Known insecure placeholder strings that must never appear in production secrets ──
+const INSECURE_PLACEHOLDERS = [
+    'your-jwt-secret',
+    'your-refresh-secret',
+    'change-this',
+    'change-in-production',
+    'changeme',
+    'placeholder',
+    'replace-with',
+    'your-secret',
+    'secret-key',
+    'minimum-32-characters',
+    'minimum-64-characters',
+];
+
+/**
+ * Returns true if the string contains any known insecure placeholder substring.
+ * Case-insensitive check.
+ */
+function containsPlaceholder(value) {
+    const lower = value.toLowerCase();
+    return INSECURE_PLACEHOLDERS.some(p => lower.includes(p));
+}
+
+/**
+ * The hardcoded fallback that used to exist in adminInternal.js.
+ * Explicitly rejected — if anyone copies this into env it will be blocked.
+ */
+const KNOWN_COMPROMISED_SECRETS = new Set([
+    'c7e5a6f912b3d8c4e5a6f912b3d8c4e5a6f912b3d8c4e5a6f912b3d8c4e5a6f9',
+]);
 
 // ── Production-specific extra rules ──────────────────────────────────────────
 function applyProductionRules(data) {
@@ -91,6 +154,9 @@ function applyProductionRules(data) {
         if (data.JWT_REFRESH_SECRET.length < 64) {
             errors.push('JWT_REFRESH_SECRET must be at least 64 characters in production');
         }
+        if (data.ADMIN_INTERNAL_SECRET.length < 32) {
+            errors.push('ADMIN_INTERNAL_SECRET must be at least 32 characters in production');
+        }
         // ── Razorpay production requirements ──────────────────────────────
         if (!data.RAZORPAY_KEY_ID || !data.RAZORPAY_KEY_ID.startsWith('rzp_')) {
             errors.push('RAZORPAY_KEY_ID is required in production (must start with rzp_live_ or rzp_test_)');
@@ -110,6 +176,20 @@ function applyProductionRules(data) {
         if (missingPlanIds.length > 0) {
             console.warn(`[startup] Missing Razorpay plan IDs (payment creation will fail for those tiers): ${missingPlanIds.join(', ')}`);
         }
+    }
+
+    // ── Placeholder/insecure secret rejection (all environments) ──────────
+    if (containsPlaceholder(data.JWT_SECRET)) {
+        errors.push('JWT_SECRET contains insecure placeholder text. Generate a real secret: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
+    }
+    if (containsPlaceholder(data.JWT_REFRESH_SECRET)) {
+        errors.push('JWT_REFRESH_SECRET contains insecure placeholder text. Generate a real secret.');
+    }
+    if (KNOWN_COMPROMISED_SECRETS.has(data.ADMIN_INTERNAL_SECRET)) {
+        errors.push('ADMIN_INTERNAL_SECRET is using a known compromised value. Generate a new one: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+    }
+    if (containsPlaceholder(data.ADMIN_INTERNAL_SECRET)) {
+        errors.push('ADMIN_INTERNAL_SECRET contains insecure placeholder text.');
     }
 
     return errors;

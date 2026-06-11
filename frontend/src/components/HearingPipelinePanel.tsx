@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogFooter,
+    DialogDescription,
 } from '@/components/ui/dialog';
 import {
     MapPin,
@@ -138,7 +140,7 @@ export const HearingPipelinePanel: React.FC<HearingPipelinePanelProps> = ({
                 setNodes(data.nodes || []);
             }
         } catch (err) {
-            console.error('[HearingPipelinePanel] Failed to fetch pipeline:', err);
+            logger.error('[HearingPipelinePanel] Failed to fetch pipeline:', err);
         } finally {
             setIsLoading(false);
         }
@@ -212,7 +214,7 @@ export const HearingPipelinePanel: React.FC<HearingPipelinePanelProps> = ({
                     body: JSON.stringify({ customNodes, pipelineOrder }),
                 });
             } catch (err) {
-                console.error('[HearingPipelinePanel] Failed to save pipeline:', err);
+                logger.error('[HearingPipelinePanel] Failed to save pipeline:', err);
             } finally {
                 setIsSaving(false);
             }
@@ -427,6 +429,9 @@ export const HearingPipelinePanel: React.FC<HearingPipelinePanelProps> = ({
             {/* ── Add Custom Node Dialog ──────────────────────────────────────────── */}
             <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
                 <DialogContent className="max-w-sm">
+                    <DialogDescription className="sr-only">
+                        Form to add a custom node to the case's hearing pipeline.
+                    </DialogDescription>
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <Plus className="h-4 w-4" />
@@ -519,11 +524,11 @@ export const HearingPipelinePanel: React.FC<HearingPipelinePanelProps> = ({
 
                     {deleteTarget?.type === 'custom' ? (
                         <>
-                            <p className="text-sm text-muted-foreground py-2">
+                            <DialogDescription className="text-sm text-muted-foreground py-2">
                                 Delete this custom pipeline node?
                                 <span className="block mt-1 font-medium text-foreground">"{deleteTarget.name}"</span>
                                 This will remove it from the case pipeline. This action cannot be undone.
-                            </p>
+                            </DialogDescription>
                             <DialogFooter>
                                 <Button variant="outline" onClick={() => setDeleteTarget(null)}
                                     className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">
@@ -537,14 +542,14 @@ export const HearingPipelinePanel: React.FC<HearingPipelinePanelProps> = ({
                         </>
                     ) : (
                         <>
-                            <p className="text-sm text-muted-foreground py-2">
+                            <DialogDescription className="text-sm text-muted-foreground py-2">
                                 Remove the system node
                                 <span className="font-medium text-foreground"> "{deleteTarget?.name}" </span>
                                 from this case's pipeline?
                                 <span className="block mt-2 text-xs text-orange-400">
                                     ⚠ This will hide it from your pipeline. It can be restored by reordering nodes (add it back via drag &amp; drop is not supported — you'd need to reload the default pipeline).
                                 </span>
-                            </p>
+                            </DialogDescription>
                             <DialogFooter>
                                 <Button variant="outline" onClick={() => setDeleteTarget(null)}
                                     className="border-transparent hover:border-accent hover:border-2 hover:bg-transparent hover:text-foreground transition-all">

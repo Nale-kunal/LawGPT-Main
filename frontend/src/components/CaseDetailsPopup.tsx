@@ -1,5 +1,6 @@
+import { logger } from '@/lib/logger';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -68,7 +69,7 @@ const normalizeHearing = (hearing: Hearing): Hearing => {
   const preservedId = hearing.id || (hearing as any).id || (hearing as any)._id; // eslint-disable-line @typescript-eslint/no-explicit-any
 
   if (!preservedId) {
-    console.error('Hearing missing ID:', hearing);
+    logger.error('Hearing missing ID:', hearing);
     throw new Error('Cannot normalize hearing without ID');
   }
 
@@ -171,7 +172,7 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
       }
     } catch (error) {
       // Swallow errors to avoid crashing the interface
-      console.error('Failed to reload hearings', error);
+      logger.error('Failed to reload hearings', error);
     } finally {
       setIsLoading(false);
     }
@@ -268,6 +269,9 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+          <DialogDescription className="sr-only">
+            Detailed overview of case information, timeline, and hearings.
+          </DialogDescription>
           <DialogHeader className="p-6 pb-0">
             <DialogTitle className="flex items-center gap-3 text-2xl">
               {getStatusIcon(case_.status)}
@@ -602,7 +606,7 @@ export const CaseDetailsPopup: React.FC<CaseDetailsPopupProps> = ({ case_, isOpe
             try {
               await refreshCase(case_.id);
             } catch (error) {
-              console.error('Failed to refresh case:', error);
+              logger.error('Failed to refresh case:', error);
             }
           }
           await new Promise(resolve => setTimeout(resolve, 800));

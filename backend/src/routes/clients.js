@@ -2,6 +2,7 @@ import express from 'express';
 import { requireAuth } from '../middleware/auth-jwt.js';
 import logger from '../utils/logger.js';
 import { logActivity } from '../middleware/activityLogger.js';
+import { validateClientOwnership } from '../services/ownershipService.js';
 import {
   createDocument,
   getDocumentById,
@@ -155,8 +156,8 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const existing = await getDocumentById(COLLECTIONS.CLIENTS, req.params.id);
-    if (!existing || existing.owner.toString() !== req.user.userId.toString()) {
+    const isOwner = await validateClientOwnership(req.params.id, req.user.userId);
+    if (!isOwner) {
       return res.status(404).json({ error: 'Not found' });
     }
 
@@ -267,8 +268,8 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
-    const existing = await getDocumentById(COLLECTIONS.CLIENTS, req.params.id);
-    if (!existing || existing.owner.toString() !== req.user.userId.toString()) {
+    const isOwner = await validateClientOwnership(req.params.id, req.user.userId);
+    if (!isOwner) {
       return res.status(404).json({ error: 'Not found' });
     }
 
@@ -287,10 +288,11 @@ router.get('/:id/cases', requireAuth, async (req, res) => {
     const ownerId = req.user.userId;
 
     // Verify client exists and belongs to user
-    const client = await getDocumentById(COLLECTIONS.CLIENTS, clientId);
-    if (!client || client.owner.toString() !== ownerId.toString()) {
+    const isOwner = await validateClientOwnership(clientId, ownerId);
+    if (!isOwner) {
       return res.status(404).json({ error: 'Client not found' });
     }
+    const client = await getDocumentById(COLLECTIONS.CLIENTS, clientId);
 
     // Get query parameters for filtering and pagination
     const { hearingType, status, caseType, limit = 50, offset = 0 } = req.query;

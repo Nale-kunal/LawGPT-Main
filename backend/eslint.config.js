@@ -12,6 +12,7 @@ export default [
             globals: {
                 // Node.js process/env built-ins not in ecmaVersion set
                 process: 'readonly',
+                global: 'readonly',
                 console: 'readonly',
                 Buffer: 'readonly',
                 __dirname: 'readonly',

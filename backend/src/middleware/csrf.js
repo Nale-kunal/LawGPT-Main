@@ -34,6 +34,7 @@ const CSRF_EXEMPT_PATTERNS = [
     /\/auth\/google\/callback$/, // Google OAuth callback (GET redirect)
     /\/auth\/google\/link$/, // Google account linking initiation (GET, requires auth via signed state)
     /\/auth\/google\/link\/callback$/, // Google account link callback (GET redirect from Google)
+    /\/logs\/client-error$/, // window.onerror handler — fires before React context, no CSRF token available; endpoint has its own rate limiter + payload guard
 ];
 
 function isExempt(req) {

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import JuriqLoader from '@/components/ui/JuriqLoader';
@@ -117,7 +118,7 @@ const LegalNews: React.FC = () => {
             }
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : '';
-            console.error('Error fetching news:', err);
+            logger.error('Error fetching news:', err);
             if (isMounted.current) {
                 if (message.includes('fetch') || message.includes('Network')) setApiDown(true);
                 else setError('Could not load latest news updates.');

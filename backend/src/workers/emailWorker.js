@@ -58,7 +58,16 @@ async function processEmailJob(job) {
     const { type, payload } = job.data;
     logger.info({ jobId: job.id, type }, 'Email worker: processing job');
 
-    // Dynamically import SendGrid to avoid loading at startup if not configured
+    // ── NEW: generic send_email job (from notificationService / emailService) ──
+    if (type === 'send_email' || job.data.to) {
+        const { sendEmail } = await import('../services/emailService.js');
+        const emailParams = type === 'send_email' ? job.data : payload;
+        const result = await sendEmail(emailParams);
+        if (!result.success) {throw new Error(result.error || 'Email send failed');}
+        logger.info({ jobId: job.id, to: emailParams.to }, 'Email worker: generic send_email completed');
+        return { sent: true };
+    }
+
     const sgMailModule = await import('@sendgrid/mail').catch(() => null);
     const sgMail = sgMailModule?.default;
 
@@ -105,6 +114,7 @@ async function processEmailJob(job) {
     await sgMail.send(emailConfig);
     logger.info({ jobId: job.id, type, to: payload.to }, 'Email worker: email sent');
     return { sent: true };
+
 }
 
 // ── Worker ────────────────────────────────────────────────────────────────────

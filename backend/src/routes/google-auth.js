@@ -55,7 +55,7 @@ const oauthLimiter = rateLimit({
   max: 5,              // 5 attempts per minute per IP
   standardHeaders: 'draft-7',
   legacyHeaders: false,
-  skip: () => process.env.NODE_ENV === 'test', // Skip in tests for easier automation
+  skip: () => env.NODE_ENV === 'test', // Skip in tests for easier automation
   store: redis.isAvailable() 
     ? new RedisStore({
         sendCommand: (...args) => redis.raw()?.call(...args),
@@ -97,7 +97,7 @@ function generateJWT(userId, email, role) {
   return jwt.sign({ userId, email, role }, secret, { expiresIn: '15m' });
 }
 function generateRefreshToken(userId) {
-  const refreshSecret = env.JWT_REFRESH_SECRET || (env.JWT_SECRET + '_refresh');
+  const refreshSecret = env.JWT_REFRESH_SECRET;
   return jwt.sign({ userId, type: 'refresh' }, refreshSecret, { expiresIn: '7d' });
 }
 function setAuthCookie(res, token) {
@@ -142,7 +142,9 @@ function verifyLinkState(cookieValue) {
     const encodedPayload = cookieValue.slice(0, dotIdx);
     const receivedSig = cookieValue.slice(dotIdx + 1);
     const payload = Buffer.from(encodedPayload, 'base64url').toString('utf8');
-    const secret = process.env.JWT_SECRET || 'fallback';
+    // JWT_SECRET guaranteed by env.js fail-fast validation — no fallback.
+    const secret = env.JWT_SECRET;
+    if (!secret) { throw new Error('JWT_SECRET not configured'); }
     const expectedSig = crypto.createHmac('sha256', secret)
       .update(payload)
       .digest('hex');
@@ -161,7 +163,7 @@ function verifyLinkState(cookieValue) {
   }
 }
 function getFrontendUrl() {
-  return process.env.FRONTEND_URL || 'http://localhost:8080';
+  return env.FRONTEND_URL || 'http://localhost:8080';
 }
 
 // Moved helper function to top (hoisted or defined before use)
@@ -281,7 +283,7 @@ async function auditOAuthAttempt(req, { userId = null, email, action, success, r
 // ── Default settings (mirrors auth-jwt.js) ─────────────────────────────────
 const DEFAULT_NOTIFICATIONS = {
   emailAlerts: true, smsAlerts: true, pushNotifications: true,
-  hearingReminders: true, clientUpdates: true, billingAlerts: false, weeklyReports: true,
+  hearingReminders: true, clientUpdates: true, weeklyReports: true,
 };
 const DEFAULT_PREFERENCES = {
   theme: 'light', language: 'en-IN', timezone: 'Asia/Kolkata',
@@ -305,7 +307,10 @@ function verifyRecoveryData(cookieValue) {
     const encodedPayload = cookieValue.slice(0, dotIdx);
     const receivedSig = cookieValue.slice(dotIdx + 1);
     const payload = Buffer.from(encodedPayload, 'base64url').toString('utf8');
-    const expectedSig = crypto.createHmac('sha256', process.env.JWT_SECRET || 'fallback')
+    // JWT_SECRET guaranteed by env.js fail-fast validation — no fallback.
+    const secret = env.JWT_SECRET;
+    if (!secret) { throw new Error('JWT_SECRET not configured'); }
+    const expectedSig = crypto.createHmac('sha256', secret)
       .update(payload)
       .digest('hex');
     const sigBuf = Buffer.from(receivedSig);
@@ -377,7 +382,7 @@ router.get('/google', async (req, res) => {
 
   const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: env.NODE_ENV === 'production',
     sameSite: 'lax',
     maxAge: OAUTH_STATE_TTL_MS,
     path: '/',
@@ -434,7 +439,7 @@ router.get('/google/callback', async (req, res) => {
     const storedState = req.cookies?.[OAUTH_STATE_COOKIE];
     if (!storedState && !isLinkFlowFallback && !oauthError && req.cookies?.token) {
       try {
-        jwt.verify(req.cookies.token, process.env.JWT_SECRET);
+        jwt.verify(req.cookies.token, env.JWT_SECRET);
         logger.info({ ip: req.ip }, 'Google OAuth: Already authenticated (back-button). Bypassing to dashboard.');
         return safeRedirect(res, frontendUrl, '/dashboard');
       } catch (_e) {
@@ -475,7 +480,9 @@ router.get('/google/callback', async (req, res) => {
         if (parts.length === 2) {
           const iv = Buffer.from(parts[0], 'hex');
           const encrypted = parts[1];
-          const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from((process.env.JWT_SECRET || 'fallback').padEnd(32, '0').slice(0, 32)), iv);
+          // Derive a proper 256-bit AES key via HKDF instead of naive padEnd/slice.
+          const aesKey = crypto.hkdfSync('sha256', env.JWT_SECRET, 'juriq-oauth-link', 'aes-256-cbc-key', 32);
+          const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(aesKey), iv);
           let decrypted = decipher.update(encrypted, 'hex', 'utf8');
           decrypted += decipher.final('utf8');
           const payload = JSON.parse(decrypted);
@@ -572,7 +579,7 @@ router.get('/google/callback', async (req, res) => {
     try {
       const ticket = await client.verifyIdToken({
         idToken: tokens.id_token,
-        audience: process.env.GOOGLE_CLIENT_ID,
+        audience: env.GOOGLE_CLIENT_ID,
       });
       payload = ticket.getPayload();
     } catch (verifyErr) {
@@ -592,9 +599,11 @@ router.get('/google/callback', async (req, res) => {
     
     // Determine the user's INTENT (login vs signup) early for case handling.
     // If it's a link flow, intent is technically 'link', otherwise it's in the state.
-    const intent = isLinkFlow 
-      ? 'link' 
-      : (typeof storedState === 'string' && storedState.includes('|') ? storedState.split('|')[1] : 'login');
+    const intent = isLinkFlow
+      ? 'link'
+      // storedState may be undefined if the non-link flow reached here without a valid cookie
+      // (already rejected above, but defensive check prevents TypeError on .includes())
+      : (storedState && typeof storedState === 'string' && storedState.includes('|') ? storedState.split('|')[1] : 'login');
     
     // Correctly categorize the action for auditing (used in the login audit call below)
     const _auditAction = intent === 'signup' ? 'register' : 'login'; // eslint-disable-line no-unused-vars
@@ -850,7 +859,9 @@ router.get('/google/link', requireAuth, linkLimiter, async (req, res) => {
   await redis.set(`oauth_nonce:${nonce}`, "valid", 300); // 5 minutes
 
   const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from((process.env.JWT_SECRET || 'fallback').padEnd(32, '0').slice(0, 32)), iv);
+  // Derive a proper 256-bit AES key via HKDF — same derivation as in the callback decryptor.
+  const aesKey = crypto.hkdfSync('sha256', env.JWT_SECRET, 'juriq-oauth-link', 'aes-256-cbc-key', 32);
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(aesKey), iv);
   const payload = JSON.stringify({ userId, action: 'link', nonce, timestamp });
   let encrypted = cipher.update(payload, 'utf8', 'hex');
   encrypted += cipher.final('hex');
@@ -962,7 +973,7 @@ router.get('/google/link/callback', async (req, res) => {
     try {
       const ticket = await client.verifyIdToken({
         idToken: tokens.id_token,
-        audience: process.env.GOOGLE_CLIENT_ID,
+        audience: env.GOOGLE_CLIENT_ID,
       });
       payload = ticket.getPayload();
     } catch (verifyErr) {

@@ -7,18 +7,24 @@ import {
   Calendar,
   Users,
   BookOpen,
-  Receipt,
   FolderOpen,
   Settings,
   Newspaper,
   ChevronsLeftRight,
   MessageSquare,
   LayoutGrid,
-  Zap
+  Zap,
+  CreditCard,
+  ShieldAlert,
+  Lightbulb,
 } from 'lucide-react';
+
+
 import { Badge } from '@/components/ui/badge';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { useLegalData } from '@/contexts/LegalDataContext';
+import { useCommunity } from '@/modules/community/contexts/CommunityContext';
+
 import {
   Sidebar as SidebarComponent,
   SidebarContent,
@@ -39,21 +45,25 @@ const navigation = [
   { name: 'Calendar', href: '/dashboard/calendar', icon: Calendar },
   { name: 'Clients', href: '/dashboard/clients', icon: Users },
   { name: 'Legal Research', href: '/dashboard/legal-research', icon: BookOpen },
-  { name: 'Billing', href: '/dashboard/billing', icon: Receipt },
   { name: 'Documents', href: '/dashboard/documents', icon: FolderOpen },
   { name: 'Legal Templates', href: '/dashboard/templates', icon: LayoutGrid },
   { name: 'Notes', href: '/dashboard/notes', icon: MessageSquare },
+  { name: 'Community', href: '/dashboard/community', icon: Users },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  { name: 'Subscription', href: '/dashboard/subscription', icon: CreditCard },
   { name: 'Upgrade Plan', href: '/dashboard/pricing', icon: Zap },
 ];
+
 
 export const Sidebar = () => {
   const location = useLocation();
   const { alerts } = useLegalData();
+  const { unreadCount } = useCommunity();
   const { state, toggleSidebar, setOpen, isMobile } = useSidebar();
   const unreadAlerts = alerts.filter(alert => !alert.isRead).length;
   const hoverCollapsedRef = useRef(false);
   const [isPinnedExpanded, setIsPinnedExpanded] = useState(false);
+
 
   const handleMouseEnter = () => {
     if (isMobile || isPinnedExpanded) return;
@@ -130,6 +140,11 @@ export const Sidebar = () => {
                             {unreadAlerts}
                           </Badge>
                         )}
+                        {item.name === 'Community' && unreadCount > 0 && (
+                          <Badge variant="destructive" className="ml-auto text-xs h-5 w-5 rounded-full p-0 flex items-center justify-center">
+                            {unreadCount}
+                          </Badge>
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -138,6 +153,7 @@ export const Sidebar = () => {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
 
         <SidebarGroup>
           <SidebarGroupContent>

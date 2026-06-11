@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -62,7 +63,7 @@ export const NotificationDropdown = ({ unreadCount }: NotificationDropdownProps)
                     setNotifications(data);
                 }
             } catch (error) {
-                console.error('Failed to fetch notifications:', error);
+                logger.error('Failed to fetch notifications:', error);
             } finally {
                 setLoading(false);
             }

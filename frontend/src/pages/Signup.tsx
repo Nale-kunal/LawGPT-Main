@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -103,7 +104,7 @@ const Signup = () => {
         });
       }
     } catch (error) {
-      console.error('Registration error:', error);
+      logger.error('Registration error:', error);
       toast({
         title: "Error",
         description: "An error occurred during registration.",

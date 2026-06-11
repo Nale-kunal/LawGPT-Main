@@ -56,59 +56,23 @@ window.onerror = async (message, source, lineno, colno, error) => {
   isSendingError = false;
 };
 
-async function initApp() {
-  const p = window.location.pathname;
-  const isAuthPage = ['/login', '/signup', '/forgot-password', '/reset-password'].includes(p) || p === '/';
-
-  // Update status text if it exists (placed in index.html)
-  const setStatus = (text: string) => {
-    const el = document.querySelector('.loader-text');
-    if (el) el.textContent = text;
-  };
-
-  // GLOBAL AUTH GUARD (RUN BEFORE RENDER)
-  if (isAuthPage) {
-    try {
-      // If we take more than 1.5s, update the text to show we are waking up the vault
-      const wakeTimer = setTimeout(() => setStatus('Waking up secure vault...'), 1500);
-      
-      const res = await fetch('/api/v1/auth/validate', {
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
-      
-      clearTimeout(wakeTimer);
-
-      // Check if we got HTML instead of JSON (Render Waking Up page or Vite Proxy Error)
-      const contentType = res.headers.get('content-type');
-      if (contentType && contentType.includes('text/html')) {
-        console.warn('API returned HTML. Backend might be down or proxy misconfigured. Falling back to React render.');
-        setStatus('Waking up secure vault...');
-        // Let it fall through to React instead of infinitely reloading
-      } else {
-        const data = await res.json();
-        if (data.authenticated) {
-          // HARD REDIRECT
-          setStatus('Redirecting to dashboard...');
-          window.location.replace('/dashboard');
-          return; // Prevent render
-        }
-      }
-    } catch (_err) {
-      // allow fallback to standard react behaviors
-      console.warn('Auth validation failed, falling back to app render');
-    }
-  }
-
-  const initialLoader = document.querySelector('.initial-loader');
-  if (initialLoader) {
-    initialLoader.remove();
-  }
-
-  createRoot(document.getElementById("root")!).render(<App />);
-}
-
-initApp();
+/**
+ * OPTIMIZED BOOT SEQUENCE
+ *
+ * Auth validation no longer blocks first paint. The initial loader is removed
+ * immediately and React mounts right away.
+ *
+ * Auth redirect logic is handled in two layers:
+ *  1. boot.js (synchronous, runs before React): cookie-based redirect for users
+ *     with `is_authenticated=true` cookie — covers the vast majority of returning
+ *     authenticated users with zero network round-trip.
+ *  2. AuthContext (async, after first paint): validates the session via
+ *     /api/v1/auth/validate after React mounts. If authenticated, redirects to
+ *     /dashboard. This runs AFTER first paint so LCP/FCP are not blocked.
+ *
+ * Security is unchanged — unauthenticated users cannot access protected routes
+ * because RequireAuth / AuthContext still enforces access control. The only
+ * behavioral change is that the async redirect happens ~200-300ms after first
+ * paint instead of before it.
+ */
+createRoot(document.getElementById("root")!).render(<App />);

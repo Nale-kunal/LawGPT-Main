@@ -128,4 +128,17 @@ export function emitToConversation(conversationId, event, data) {
   io.to(`conv:${conversationId}`).emit(event, data);
 }
 
-export default { initSocketServer, getIO, emitToUser, emitToConversation };
+/**
+ * Disconnect all active socket connections for a given user.
+ * @param {string} userId
+ * @param {string} reason
+ */
+export function disconnectUserSockets(userId, reason = 'SESSION_REVOKED') {
+  if (!io) { return; }
+  const roomName = `user:${userId}`;
+  logger.info({ userId, reason }, 'Forcing socket disconnect across cluster');
+  io.to(roomName).emit('error', { code: reason, message: 'Your session has been terminated.' });
+  io.in(roomName).disconnectSockets(true);
+}
+
+export default { initSocketServer, getIO, emitToUser, emitToConversation, disconnectUserSockets };

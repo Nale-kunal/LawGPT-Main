@@ -2,6 +2,7 @@ import React, { type ReactNode, createContext, useContext, useState, useEffect, 
 
 import { getApiUrl, apiFetch } from '@/lib/api';
 import JuriqLoader from '@/components/ui/JuriqLoader';
+import { logger } from '@/lib/logger';
 
 interface NotificationSettings {
   emailAlerts: boolean;
@@ -9,7 +10,6 @@ interface NotificationSettings {
   pushNotifications: boolean;
   hearingReminders: boolean;
   clientUpdates: boolean;
-  billingAlerts: boolean;
   weeklyReports: boolean;
 }
 
@@ -262,7 +262,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const PUBLIC_PATHS = ['/', '/product', '/experience', '/security', '/about', '/pricing',
       '/privacy', '/terms', '/data-processing', '/cookie-policy', '/client-portal', '/legal-notes'];
     const handleUnauthorized = () => {
-      console.warn('Handling global auth:unauthorized event');
+      logger.warn('Handling global auth:unauthorized event');
       // NOTE: Do NOT clear __refreshFailTs here — the circuit breaker must stay
       // active across the redirect so it suppresses the next cycle's retry.
       sessionStorage.removeItem('__isRefreshing');
@@ -378,7 +378,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         credentials: 'include',
       });
     } catch (error) {
-      console.error('Logout error:', error);
+      logger.error('Logout error:', error);
     } finally {
       // Wipe ALL user-scoped plan caches so the next account login starts fresh.
       try {
@@ -450,7 +450,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated: !!user
   };
 
-  if (authState === "loading") {
+  /**
+   * Non-blocking render for public routes.
+   *
+   * Public pages (landing, login, signup, etc.) render immediately without
+   * waiting for auth validation. This eliminates the full-page spinner that
+   * previously blocked FCP on every landing page visit.
+   *
+   * Protected routes (/dashboard/*) still block on loading — they will show
+   * the loader until the session is verified, then RequireAuth redirects
+   * unauthenticated users to /login.
+   *
+   * Auth redirect for authenticated users on public routes still works:
+   *  - Fast path: boot.js cookie check (synchronous, before React)
+   *  - Slow path: runGlobalAuthGuard calls window.location.replace('/dashboard')
+   *    after validation completes (~200-400ms after first paint)
+   */
+  const PUBLIC_RENDER_PATHS = [
+    '/', '/product', '/experience', '/security', '/about',
+    '/pricing', '/privacy', '/terms', '/data-processing',
+    '/cookie-policy', '/client-portal', '/legal-notes',
+    '/login', '/signup', '/forgot-password', '/reset-password',
+    '/verify-email', '/verification-pending',
+  ];
+  const isPublicRenderPath = PUBLIC_RENDER_PATHS.some(
+    (p) => window.location.pathname === p || window.location.pathname.startsWith(p + '/')
+  );
+
+  if (authState === "loading" && !isPublicRenderPath) {
     return (
       <JuriqLoader size="full" text="Checking session..." />
     );

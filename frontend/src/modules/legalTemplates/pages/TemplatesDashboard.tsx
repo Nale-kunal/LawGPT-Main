@@ -1,5 +1,6 @@
 // f:\LAWGPT\LawGPT\frontend\src\modules\legalTemplates\pages\TemplatesDashboard.tsx
 
+import { logger } from '@/lib/logger';
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -51,7 +52,7 @@ const TemplatesDashboard = () => {
         const response = await api.get<typeof drafts>("/api/v1/templates");
         setDrafts(response);
       } catch (error) {
-        console.error("Failed to fetch drafts", error);
+        logger.error("Failed to fetch drafts", error);
       } finally {
         setLoading(false);
       }
@@ -77,7 +78,7 @@ const TemplatesDashboard = () => {
       setDrafts((prev) => prev.filter((d) => d._id !== id));
       toast({ title: "Draft Deleted", description: "The template draft has been removed." });
     } catch (error) {
-      console.error("Failed to delete draft", error);
+      logger.error("Failed to delete draft", error);
       toast({ title: "Error", description: "Failed to delete the draft. Please try again.", variant: "destructive" });
     } finally {
       setDeletingId(null);

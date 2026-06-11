@@ -80,6 +80,7 @@ const SIZE_LIMITS = {
 const DANGEROUS_FILENAME_PATTERNS = [
   /\.\./,           // Path traversal
   /[<>:"|?*]/,     // Windows reserved chars
+  // eslint-disable-next-line no-control-regex
   /[\x00-\x1f]/,  // Control characters
   /\.php$/i, /\.asp$/i, /\.aspx$/i, /\.jsp$/i, /\.py$/i,
   /\.sh$/i, /\.bash$/i, /\.exe$/i, /\.bat$/i, /\.cmd$/i,
@@ -110,10 +111,10 @@ function validateMagicBytes(buffer, mimeType) {
   const signature = MAGIC_BYTES[mimeType];
 
   // Types without magic bytes: validated separately
-  if (signature === null) return true;
+  if (signature === null) {return true;}
 
   // MIME type not in our registry: reject
-  if (signature === undefined) return false;
+  if (signature === undefined) {return false;}
 
   const expectedHex = signature.hex.toLowerCase();
   const fileHex = buffer.slice(signature.offset, signature.offset + Math.ceil(expectedHex.length / 2))

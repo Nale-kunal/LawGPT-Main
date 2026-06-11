@@ -113,3 +113,177 @@ export const folderCreateSchema = z.object({
 });
 
 export const folderUpdateSchema = folderCreateSchema.partial();
+
+// ── Profile and Settings Update Schemas ─────────────────────────────────────
+
+export const updateNotificationsSchema = z.object({
+  emailAlerts: z.boolean().optional(),
+  smsAlerts: z.boolean().optional(),
+  pushNotifications: z.boolean().optional(),
+  hearingReminders: z.boolean().optional(),
+  clientUpdates: z.boolean().optional(),
+  weeklyReports: z.boolean().optional()
+});
+
+export const updatePreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark']).optional(),
+  language: z.string().max(10).optional(),
+  timezone: z.string().max(50).optional(),
+  dateFormat: z.string().max(20).optional(),
+  currency: z.string().max(10).optional()
+});
+
+export const updateSecuritySchema = z.object({
+  twoFactorEnabled: z.boolean().optional(),
+  sessionTimeout: z.string().max(10).optional(),
+  loginNotifications: z.boolean().optional()
+});
+
+export const updateUserSchema = z.object({
+  name: z.string().min(2).max(100).trim().optional(),
+  recoveryEmail: z.string().email().max(255).or(z.literal('').optional()).nullable(),
+  profile: z.object({
+    lawFirmName: z.string().max(200).nullable().optional(),
+    practiceAreas: z.array(z.string().max(50)).max(20).optional(),
+    courtLevels: z.array(z.string().max(50)).max(20).optional(),
+    phoneNumber: z.string().max(20).nullable().optional(),
+    address: z.string().max(500).nullable().optional(),
+    city: z.string().max(100).nullable().optional(),
+    state: z.string().max(100).nullable().optional(),
+    country: z.string().max(100).nullable().optional(),
+    timezone: z.string().max(50).optional()
+  }).optional(),
+  notifications: updateNotificationsSchema.optional(),
+  preferences: updatePreferencesSchema.optional(),
+  security: updateSecuritySchema.optional()
+});
+
+// ── Data Import Validation Schema ───────────────────────────────────────────
+
+export const importDataSchema = z.object({
+  user: z.object({
+    name: z.string().min(2).max(100).optional(),
+    profile: z.object({
+      fullName: z.string().max(100).nullable().optional(),
+      barCouncilNumber: z.string().max(50).nullable().optional(),
+      currency: z.string().max(10).nullable().optional(),
+      phoneNumber: z.string().max(20).nullable().optional(),
+      lawFirmName: z.string().max(200).nullable().optional(),
+      practiceAreas: z.array(z.string().max(50)).max(50).optional(),
+      courtLevels: z.array(z.string().max(50)).max(50).optional(),
+      address: z.string().max(500).nullable().optional(),
+      city: z.string().max(100).nullable().optional(),
+      state: z.string().max(100).nullable().optional(),
+      country: z.string().max(100).nullable().optional(),
+      timezone: z.string().max(50).nullable().optional()
+    }).optional(),
+    notifications: updateNotificationsSchema.optional(),
+    preferences: updatePreferencesSchema.optional(),
+    security: updateSecuritySchema.optional()
+  }),
+  data: z.object({
+    cases: z.array(z.object({
+      caseNumber: z.string().max(100),
+      clientName: z.string().max(100),
+      opposingParty: z.string().max(100).optional(),
+      courtName: z.string().max(200).optional(),
+      judgeName: z.string().max(100).optional(),
+      hearingDate: z.string().max(100).optional().nullable(),
+      hearingTime: z.string().max(20).optional(),
+      status: z.enum(['active', 'pending', 'closed', 'won', 'lost']).optional(),
+      priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+      caseType: z.string().max(100).optional(),
+      description: z.string().max(5000).optional(),
+      nextHearing: z.string().max(100).optional().nullable(),
+      notes: z.string().max(10000).optional(),
+      customPipelineNodes: z.array(z.object({
+        nodeId: z.string().max(50),
+        name: z.string().max(100),
+        description: z.string().max(500).optional(),
+        color: z.string().max(20).optional()
+      })).max(50).optional(),
+      pipelineOrder: z.array(z.string().max(50)).max(50).optional()
+    })).max(1000).optional().default([]),
+    clients: z.array(z.object({
+      name: z.string().max(100),
+      email: z.string().max(255).optional(),
+      phone: z.string().max(20),
+      address: z.string().max(500).optional(),
+      panNumber: z.string().max(20).optional(),
+      aadharNumber: z.string().max(20).optional(),
+      notes: z.string().max(5000).optional()
+    })).max(1000).optional().default([]),
+    documents: z.array(z.object({
+      name: z.string().max(255),
+      mimetype: z.string().max(100),
+      size: z.number().int().nonnegative(),
+      url: z.string().url().max(1000),
+      cloudinaryPublicId: z.string().max(255).optional(),
+      resourceType: z.enum(['image', 'video', 'raw', 'auto']).optional()
+    })).max(1000).optional().default([]),
+    hearings: z.array(z.object({
+      hearingDate: z.string().max(100),
+      hearingTime: z.string().max(20).optional(),
+      timezone: z.string().max(50).optional(),
+      startAt: z.string().max(100).optional(),
+      endAt: z.string().max(100).optional(),
+      duration: z.number().int().nonnegative().optional(),
+      courtName: z.string().max(200),
+      judgeName: z.string().max(100).optional(),
+      hearingType: z.string().max(100).optional(),
+      customHearingType: z.string().max(100).optional(),
+      status: z.enum(['scheduled', 'completed', 'adjourned', 'cancelled']).optional(),
+      purpose: z.string().max(1000).optional(),
+      courtInstructions: z.string().max(5000).optional(),
+      documentsToBring: z.array(z.string().max(500)).max(50).optional(),
+      proceedings: z.string().max(10000).optional(),
+      nextHearingDate: z.string().max(100).optional().nullable(),
+      nextHearingTime: z.string().max(20).optional(),
+      adjournmentReason: z.string().max(1000).optional(),
+      attendance: z.object({
+        clientPresent: z.boolean().optional(),
+        opposingPartyPresent: z.boolean().optional(),
+        witnessesPresent: z.array(z.string().max(100)).max(50).optional()
+      }).optional(),
+      orders: z.array(z.object({
+        orderType: z.string().max(100).optional(),
+        orderDetails: z.string().max(5000).optional(),
+        orderDate: z.string().max(100).optional()
+      })).max(50).optional(),
+      notes: z.string().max(10000).optional(),
+      resourceScope: z.object({
+        courtroomId: z.string().max(100).optional(),
+        counselId: z.string().max(100).optional(),
+        clientId: z.string().max(100).optional()
+      }).optional(),
+      conflictOverride: z.object({
+        allowed: z.boolean().optional(),
+        reason: z.string().max(1000).optional(),
+        overriddenBy: z.string().max(100).optional(),
+        overriddenAt: z.string().max(100).optional(),
+        conflictingHearings: z.array(z.string().max(100)).max(50).optional()
+      }).optional()
+    })).max(1000).optional().default([]),
+    invoices: z.array(z.object({
+      invoiceNumber: z.string().max(50),
+      issueDate: z.string().max(100),
+      dueDate: z.string().max(100),
+      status: z.enum(['draft', 'sent', 'paid', 'overdue']).optional(),
+      currency: z.string().max(10).optional(),
+      items: z.array(z.object({
+        description: z.string().max(500),
+        quantity: z.number().nonnegative(),
+        unitPrice: z.number().nonnegative(),
+        amount: z.number().nonnegative()
+      })).max(100).optional().default([]),
+      subtotal: z.number().nonnegative(),
+      taxRate: z.number().nonnegative().optional(),
+      taxAmount: z.number().nonnegative().optional(),
+      discountAmount: z.number().nonnegative().optional(),
+      total: z.number().nonnegative(),
+      notes: z.string().max(5000).optional(),
+      terms: z.string().max(5000).optional(),
+      paidAt: z.string().max(100).optional().nullable()
+    })).max(1000).optional().default([])
+  })
+});

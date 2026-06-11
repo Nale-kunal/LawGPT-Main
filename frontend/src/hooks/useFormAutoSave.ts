@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useEffect, useRef, useCallback } from 'react';
 
 interface UseFormAutoSaveOptions {
@@ -55,7 +56,7 @@ export function useFormAutoSave<T extends Record<string, any>>(
                     }));
                 }
             } catch (error) {
-                console.error('Failed to save form data:', error);
+                logger.error('Failed to save form data:', error);
             }
         }, debounceMs);
 
@@ -72,7 +73,7 @@ export function useFormAutoSave<T extends Record<string, any>>(
         try {
             localStorage.removeItem(storageKey);
         } catch (error) {
-            console.error('Failed to clear saved form data:', error);
+            logger.error('Failed to clear saved form data:', error);
         }
     }, [storageKey]);
 
@@ -85,7 +86,7 @@ export function useFormAutoSave<T extends Record<string, any>>(
                 return parsed.data as T;
             }
         } catch (error) {
-            console.error('Failed to retrieve saved form data:', error);
+            logger.error('Failed to retrieve saved form data:', error);
         }
         return null;
     }, [storageKey]);

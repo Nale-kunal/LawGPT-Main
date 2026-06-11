@@ -82,12 +82,24 @@ export const Header = () => {
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 10);
+    // rAF-batched scroll handler — batches DOM reads and React state writes
+    // into a single animation frame to prevent forced reflows during scroll.
+    let rafId = 0;
+    const handleScroll = () => {
+      if (rafId) return; // coalesce rapid scroll events
+      rafId = requestAnimationFrame(() => {
+        setScrolled(window.scrollY > 10);
+        rafId = 0;
+      });
+    };
     // Also listen on the main scrollable container inside the dashboard
     const mainEl = document.getElementById('dashboard-main');
     const target: EventTarget = mainEl ?? window;
     target.addEventListener('scroll', handleScroll, { passive: true });
-    return () => target.removeEventListener('scroll', handleScroll);
+    return () => {
+      target.removeEventListener('scroll', handleScroll);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, []);
 
   // ESC key closes modal

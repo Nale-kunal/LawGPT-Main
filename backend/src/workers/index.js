@@ -17,6 +17,9 @@ import { startEmailWorker } from './emailWorker.js';
 import { startCleanupWorker } from './cleanupWorker.js';
 import { startAdminWorker } from './adminWorker.js';
 import { startCronWorker } from './cronWorker.js';
+import { startCommunityNotifWorker } from '../community/workers/communityNotificationWorker.js';
+import { startModerationWorker } from '../community/workers/moderationWorker.js';
+import { startMalwareWorker } from '../community/workers/malwareWorker.js';
 
 if (!process.env.REDIS_URL) {
     logger.error('REDIS_URL is required to run workers. Exiting.');
@@ -29,8 +32,19 @@ const emailWorker = startEmailWorker();
 const cleanupWorker = startCleanupWorker();
 const adminWorker = startAdminWorker();
 const cronWorker = startCronWorker();
+const communityNotifWorker = startCommunityNotifWorker();
+const moderationWorker = startModerationWorker();
+const malwareWorker = startMalwareWorker();
 
-const workers = [emailWorker, cleanupWorker, adminWorker, cronWorker].filter(Boolean);
+const workers = [
+    emailWorker,
+    cleanupWorker,
+    adminWorker,
+    cronWorker,
+    communityNotifWorker,
+    moderationWorker,
+    malwareWorker
+].filter(Boolean);
 logger.info({ count: workers.length }, 'Workers started');
 
 // Graceful shutdown

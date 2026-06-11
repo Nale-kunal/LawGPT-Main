@@ -64,7 +64,7 @@ const hearingSchema = new mongoose.Schema({
     conflictingHearings: [{ type: String }], // IDs of conflicting hearings
   },
 
-  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
+  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 
 // Indexes for efficient queries

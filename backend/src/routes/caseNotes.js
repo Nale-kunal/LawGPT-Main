@@ -5,31 +5,33 @@ import logger from '../utils/logger.js';
 import { logActivity } from '../middleware/activityLogger.js';
 import CaseNote from '../models/CaseNote.js';
 import Case from '../models/Case.js';
-// We might need Hearing model if we want to validate hearingId actually belongs to caseId
-// assuming hearing is stored somewhere, but prompt says "verify hearing belongs to case". Let's import it if we know where it is, or we just validate it exists.
-// Wait, prompt says: Verify hearing belongs to case.
 import xss from 'xss';
+import { validate } from '../middleware/validate.js';
+import {
+    caseNoteParamSchema,
+    caseParamSchema,
+    objectIdSchema,
+    caseNotesQuerySchema,
+} from '../schemas/paramSchemas.js';
+import { z } from 'zod';
 
 const router = express.Router({ mergeParams: true }); // Important: merge params to get :caseId from parent router if mounted that way, or we'll mount it directly on `/cases/:caseId/notes`.
 
 router.use(requireAuth);
 router.use(checkPlanAccess('notes'));
 
-// Middleware to verify case access
+// Middleware to verify case access (validates caseId is a valid ObjectId first)
 const verifyCaseAccess = async (req, res, next) => {
     try {
         const caseId = req.params.caseId;
         logger.debug({ caseId }, '[CaseNotes] Verifying access');
-        // Assuming we have Case model or use getDocumentById
         const caseDoc = await Case.findById(caseId);
         if (!caseDoc) {
             logger.debug({ caseId }, '[CaseNotes] Case not found');
             return res.status(404).json({ error: 'Case not found' });
         }
 
-        // Check ownership
         if (String(caseDoc.owner) !== String(req.user.userId)) {
-            // we might also want to check if authorized user, but currently MVP has just owner
             return res.status(403).json({ error: 'Unauthorized to access this case notes' });
         }
 
@@ -41,10 +43,23 @@ const verifyCaseAccess = async (req, res, next) => {
     }
 };
 
+// Apply caseId param validation before case access check
+router.use(validate({ params: caseParamSchema }));
 router.use(verifyCaseAccess);
 
-// Create Note
-router.post('/', async (req, res) => {
+// Create Note — validate body fields
+const createNoteBodySchema = z.object({
+    content: z.string().min(1, 'Content is required').max(10000),
+    title: z.string().max(150).optional(),
+    noteType: z.enum(['general', 'evidence', 'witness', 'legal', 'procedural']).optional(),
+    hearingId: objectIdSchema.optional().nullable(),
+    parentNoteId: objectIdSchema.optional().nullable(),
+    evidenceTags: z.array(z.string().max(50)).max(20).optional(),
+    isPinned: z.boolean().optional(),
+    isPrivate: z.boolean().optional(),
+});
+
+router.post('/', validate({ body: createNoteBodySchema }), async (req, res) => {
     try {
         const { caseId } = req.params;
         let { title, content, evidenceTags } = req.body;
@@ -118,25 +133,25 @@ router.post('/', async (req, res) => {
     }
 });
 
-// Get Notes (Hierarchical)
-router.get('/', async (req, res) => {
+// Get Notes (Hierarchical) — validate query
+router.get('/', validate({ query: caseNotesQuerySchema }), async (req, res) => {
     try {
         const { caseId } = req.params;
+        // Query params already validated + typed by Zod
         const { hearingId, noteType, includeDeleted } = req.query;
 
         const query = { caseId };
 
-        // Admins might pass includeDeleted, for now just filter soft deleted out mostly
         if (!includeDeleted) {
             query.isDeleted = false;
         }
 
         if (hearingId) {
-            query.hearingId = hearingId;
+            query.hearingId = hearingId; // Already validated as ObjectId by schema
         }
 
         if (noteType && noteType !== 'all') {
-            query.noteType = noteType;
+            query.noteType = noteType; // Already validated as enum by schema
         }
 
         const notes = await CaseNote.find(query)
@@ -171,8 +186,22 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Update Note
-router.put('/:noteId', async (req, res) => {
+// Update Note — validate noteId param and body
+const updateNoteBodySchema = z.object({
+    content: z.string().min(1).max(10000).optional(),
+    title: z.string().max(150).optional(),
+    noteType: z.enum(['general', 'evidence', 'witness', 'legal', 'procedural']).optional(),
+    hearingId: z.union([objectIdSchema, z.literal('none')]).optional().nullable(),
+    evidenceTags: z.array(z.string().max(50)).max(20).optional(),
+    isPinned: z.boolean().optional(),
+    isPrivate: z.boolean().optional(),
+    addAttachments: z.array(z.any()).max(10).optional(),
+    removeAttachmentIds: z.array(objectIdSchema).max(10).optional(),
+});
+
+router.put('/:noteId',
+    validate({ params: caseNoteParamSchema, body: updateNoteBodySchema }),
+    async (req, res) => {
     try {
         const { caseId, noteId } = req.params;
         const note = await CaseNote.findOne({ _id: noteId, caseId, isDeleted: false });
@@ -254,8 +283,8 @@ router.put('/:noteId', async (req, res) => {
     }
 });
 
-// Soft Delete Note
-router.delete('/:noteId', async (req, res) => {
+// Soft Delete Note — validate noteId param
+router.delete('/:noteId', validate({ params: caseNoteParamSchema }), async (req, res) => {
     try {
         const { caseId, noteId } = req.params;
         const note = await CaseNote.findOne({ _id: noteId, caseId, isDeleted: false });

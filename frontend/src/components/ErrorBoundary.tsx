@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -36,7 +37,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     // Log to console in development, Sentry in production
-    console.error(
+    logger.error(
       `[ErrorBoundary${this.props.name ? `:${this.props.name}` : ''}]`,
       error,
       errorInfo.componentStack

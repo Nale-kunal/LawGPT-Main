@@ -15,8 +15,6 @@ router.get('/stats', async (req, res) => {
   try {
     const userId = req.user.userId;
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
 
@@ -41,65 +39,6 @@ router.get('/stats', async (req, res) => {
     );
     const totalClients = allClients.length;
 
-    // Calculate revenue from ALL invoices this month (not just paid ones for better visibility)
-    const allInvoices = await queryDocuments(
-      COLLECTIONS.INVOICES,
-      [{ field: 'owner', operator: '==', value: userId }]
-    );
-
-    const allInvoicesThisMonth = allInvoices.filter(inv => {
-      if (!inv.createdAt) { return false; }
-      const created = inv.createdAt.toDate ? inv.createdAt.toDate() : new Date(inv.createdAt);
-      return created >= startOfMonth && created <= endOfMonth;
-    });
-
-    // Also get paid invoices specifically
-    const paidInvoicesThisMonth = allInvoices.filter(inv => {
-      if (inv.status !== 'paid') { return false; }
-      // Fall back to updatedAt if paidAt is missing (invoices marked paid via UI)
-      const paidTimestamp = inv.paidAt || inv.updatedAt;
-      if (!paidTimestamp) { return false; }
-      const paid = paidTimestamp.toDate ? paidTimestamp.toDate() : new Date(paidTimestamp);
-      return paid >= startOfMonth && paid <= endOfMonth;
-    });
-
-    const totalInvoiceRevenue = allInvoicesThisMonth.reduce((total, invoice) => total + (invoice.total || 0), 0);
-    const paidInvoiceRevenue = paidInvoicesThisMonth.reduce((total, invoice) => total + (invoice.total || 0), 0);
-
-    // Calculate previous month for comparison
-    const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const endOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-
-    const paidInvoicesPrevMonth = allInvoices.filter(inv => {
-      if (inv.status !== 'paid') { return false; }
-      const paidTimestamp = inv.paidAt || inv.updatedAt;
-      if (!paidTimestamp) { return false; }
-      const paid = paidTimestamp.toDate ? paidTimestamp.toDate() : new Date(paidTimestamp);
-      return paid >= startOfPrevMonth && paid <= endOfPrevMonth;
-    });
-
-    const prevMonthRevenue = paidInvoicesPrevMonth.reduce((total, invoice) => total + (invoice.total || 0), 0);
-    const revenueGrowth = prevMonthRevenue > 0 ? ((paidInvoiceRevenue - prevMonthRevenue) / prevMonthRevenue * 100).toFixed(1) : 0;
-
-    // Get billable time entries for this month
-    const allTimeEntries = await queryDocuments(
-      COLLECTIONS.TIME_ENTRIES,
-      [
-        { field: 'owner', operator: '==', value: userId },
-        { field: 'billable', operator: '==', value: true }
-      ]
-    );
-
-    const billableTimeEntries = allTimeEntries.filter(entry => {
-      if (!entry.date) { return false; }
-      const entryDate = entry.date.toDate ? entry.date.toDate() : new Date(entry.date);
-      return entryDate >= startOfMonth && entryDate <= endOfMonth;
-    });
-
-    const monthlyBillableMinutes = billableTimeEntries.reduce((total, entry) => total + (entry.duration || 0), 0);
-    const monthlyBillableHours = monthlyBillableMinutes / 60;
-    const monthlyBillableAmount = billableTimeEntries.reduce((total, entry) => total + ((entry.duration || 0) * (entry.hourlyRate || 0)), 0);
-
     return res.json({
       totalCases,
       activeCases,
@@ -107,12 +46,12 @@ router.get('/stats', async (req, res) => {
       urgentCases,
       totalClients,
       revenue: {
-        currentMonth: paidInvoiceRevenue, // Actual paid revenue, matches Billing 'Paid Amount'
-        growth: revenueGrowth,
-        invoiced: totalInvoiceRevenue,
-        paid: paidInvoiceRevenue,
-        billable: monthlyBillableAmount,
-        billableHours: monthlyBillableHours
+        currentMonth: 0,
+        growth: 0,
+        invoiced: 0,
+        paid: 0,
+        billable: 0,
+        billableHours: 0
       }
     });
   } catch (error) {
@@ -204,68 +143,30 @@ router.get('/activity', async (req, res) => {
       });
     });
 
-    // Get recent invoices (last 7 days)
-    const allInvoices = await queryDocuments(
-      COLLECTIONS.INVOICES,
+    // Get recent hearings (last 7 days)
+    const allHearings = await queryDocuments(
+      COLLECTIONS.HEARINGS,
       [{ field: 'owner', operator: '==', value: userId }],
       { field: 'createdAt', direction: 'desc' }
     );
 
-    const recentInvoices = allInvoices.filter(inv => {
-      if (!inv.createdAt) { return false; }
-      const created = inv.createdAt.toDate ? inv.createdAt.toDate() : new Date(inv.createdAt);
+    const recentHearings = allHearings.filter(h => {
+      if (!h.createdAt) { return false; }
+      const created = h.createdAt.toDate ? h.createdAt.toDate() : new Date(h.createdAt);
       return created >= sevenDaysAgo;
     }).slice(0, 2);
 
-    for (const invoice of recentInvoices) {
-      const client = invoice.clientId ? await getDocumentById(COLLECTIONS.CLIENTS, invoice.clientId) : null;
-      const createdAt = invoice.createdAt?.toDate ? invoice.createdAt.toDate() : new Date(invoice.createdAt);
+    for (const hearing of recentHearings) {
+      const caseRecord = hearing.caseId ? await getDocumentById(COLLECTIONS.CASES, hearing.caseId) : null;
+      const createdAt = hearing.createdAt?.toDate ? hearing.createdAt.toDate() : new Date(hearing.createdAt);
       activities.push({
-        id: `invoice-${invoice.id}`,
-        type: 'invoice_created',
-        message: `Invoice ${invoice.invoiceNumber} created for ${client?.name || 'client'}`,
+        id: `hearing-${hearing.id}`,
+        type: 'hearing_scheduled',
+        message: `Hearing scheduled for ${caseRecord?.caseNumber || 'case'}`,
         timestamp: createdAt,
         metadata: {
-          invoiceNumber: invoice.invoiceNumber,
-          clientName: client?.name,
-          amount: invoice.total,
-          currency: invoice.currency
-        }
-      });
-    }
-
-    // Get recent time entries (last 3 days)
-    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-    const allTimeEntries = await queryDocuments(
-      COLLECTIONS.TIME_ENTRIES,
-      [{ field: 'owner', operator: '==', value: userId }],
-      { field: 'createdAt', direction: 'desc' }
-    );
-
-    const recentTimeEntries = allTimeEntries.filter(te => {
-      if (!te.createdAt) { return false; }
-      const created = te.createdAt.toDate ? te.createdAt.toDate() : new Date(te.createdAt);
-      return created >= threeDaysAgo;
-    }).slice(0, 2);
-
-    for (const timeEntry of recentTimeEntries) {
-      const case_ = timeEntry.caseId ? await getDocumentById(COLLECTIONS.CASES, timeEntry.caseId) : null;
-      const durationText = timeEntry.duration >= 60
-        ? `${Math.floor(timeEntry.duration / 60)}h ${timeEntry.duration % 60}m`
-        : `${timeEntry.duration}m`;
-      const createdAt = timeEntry.createdAt?.toDate ? timeEntry.createdAt.toDate() : new Date(timeEntry.createdAt);
-
-      activities.push({
-        id: `time-${timeEntry.id}`,
-        type: 'time_logged',
-        message: `${durationText} logged for ${case_?.caseNumber || 'case'}`,
-        timestamp: createdAt,
-        metadata: {
-          duration: timeEntry.duration,
-          durationText: durationText,
-          description: timeEntry.description,
-          caseNumber: case_?.caseNumber,
-          billable: timeEntry.billable
+          caseNumber: caseRecord?.caseNumber,
+          hearingDate: hearing.hearingDate
         }
       });
     }
@@ -345,33 +246,16 @@ router.get('/notifications', async (req, res) => {
       return aDate - bDate;
     });
 
-    // Get overdue invoices
-    const allInvoices = await queryDocuments(
-      COLLECTIONS.INVOICES,
-      [{ field: 'owner', operator: '==', value: userId }]
-    );
-
-    const overdueInvoices = allInvoices.filter(inv => {
-      if (!['sent', 'overdue'].includes(inv.status)) { return false; }
-      if (!inv.dueDate) { return false; }
-      const dueDate = inv.dueDate.toDate ? inv.dueDate.toDate() : new Date(inv.dueDate);
-      return dueDate < today;
-    }).sort((a, b) => {
-      const aDate = a.dueDate.toDate ? a.dueDate.toDate() : new Date(a.dueDate);
-      const bDate = b.dueDate.toDate ? b.dueDate.toDate() : new Date(b.dueDate);
-      return aDate - bDate;
-    }).slice(0, 5);
-
     const notifications = {
       alerts: upcomingAlerts,
       urgentCases,
-      overdueInvoices,
+      overdueInvoices: [],
       todaysHearings,
       tomorrowsHearings,
       summary: {
         totalUnread: upcomingAlerts.filter(a => !a.isRead).length,
         urgentCount: urgentCases.length,
-        overdueCount: overdueInvoices.length,
+        overdueCount: 0,
         todayHearings: todaysHearings.length,
         tomorrowHearings: tomorrowsHearings.length
       }

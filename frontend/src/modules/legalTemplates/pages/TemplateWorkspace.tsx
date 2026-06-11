@@ -1,13 +1,13 @@
 // f:\LAWGPT\LawGPT\frontend\src\modules\legalTemplates\pages\TemplateWorkspace.tsx
 
+import { logger } from '@/lib/logger';
 import React, { useState, useEffect } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Save, Download, Copy, Check, FileText } from "lucide-react";
 import { TemplateForm } from "../components/TemplateForm";
 import { TemplateEditor } from "../components/TemplateEditor";
-import { ALL_TEMPLATES } from "../templates";
-import type { LegalTemplate } from "../templates";
+import { ALL_TEMPLATES, type LegalTemplate } from "../templates";
 import { generateDocument } from "../utils/templateEngine";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -131,7 +131,7 @@ const TemplateWorkspace = () => {
       saveAs(blob, `${template?.name || 'Document'}_${new Date().toLocaleDateString()}.docx`);
       toast.success("Download started");
     } catch (error) {
-       console.error("Docx generation failed", error);
+       logger.error("Docx generation failed", error);
        toast.error("Download failed");
     }
   };

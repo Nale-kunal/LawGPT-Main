@@ -18,6 +18,12 @@ import logger from '../utils/logger.js';
 import { uploadFileToCloudinary, deleteFromCloudinary } from '../config/cloudinary.js';
 import CaseNote from '../models/CaseNote.js';
 import Case from '../models/Case.js';
+import { validate } from '../middleware/validate.js';
+import {
+    caseNoteParamSchema,
+    caseNoteAttachmentParamSchema,
+    caseParamSchema,
+} from '../schemas/paramSchemas.js';
 
 const router = express.Router({ mergeParams: true }); // inherit :caseId, :noteId
 
@@ -113,6 +119,9 @@ const upload = multer({
 router.use(requireAuth);
 router.use(checkPlanAccess('notes'));
 
+// Validate caseId as a valid ObjectId before ANY route handler runs
+router.use(validate({ params: caseParamSchema }));
+
 const verifyCaseAccess = async (req, res, next) => {
     try {
         const caseDoc = await Case.findById(req.params.caseId).lean();
@@ -174,7 +183,7 @@ function handleMulterError(err, _req, res, next) {
 // ─── POST /api/v1/cases/:caseId/notes/:noteId/attachments ───────────────────
 // Upload one or more files and attach them to the note.
 
-router.post('/', verifyNoteAccess, (req, res, next) => {
+router.post('/', validate({ params: caseNoteParamSchema }), verifyNoteAccess, (req, res, next) => {
     upload.array('files', MAX_FILES_PER_UPLOAD)(req, res, (err) => {
         if (err) { return handleMulterError(err, req, res, next); }
         return next();
@@ -282,7 +291,7 @@ router.post('/', verifyNoteAccess, (req, res, next) => {
 // ─── DELETE /api/v1/cases/:caseId/notes/:noteId/attachments/:attachmentId ───
 // Remove a single attachment from a note and delete it from Cloudinary.
 
-router.delete('/:attachmentId', verifyNoteAccess, async (req, res) => {
+router.delete('/:attachmentId', validate({ params: caseNoteAttachmentParamSchema }), verifyNoteAccess, async (req, res) => {
     const { note } = req;
     const { attachmentId } = req.params;
 

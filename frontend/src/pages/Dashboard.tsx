@@ -5,13 +5,12 @@ import {
   FileText,
   Users,
   Calendar,
-  TrendingUp,
-  IndianRupee,
+  AlertTriangle,
   Plus,
+  TrendingUp,
 } from 'lucide-react';
 import { useLegalData } from '@/contexts/LegalDataContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useFormatting } from '@/contexts/FormattingContext';
 import { useNavigate } from 'react-router-dom';
 import { getApiUrl, apiFetch } from '@/lib/api';
 import MiniCalendar from '@/components/MiniCalendar';
@@ -22,19 +21,11 @@ interface DashboardStats {
   todaysCases: number;
   urgentCases: number;
   totalClients: number;
-  revenue: {
-    currentMonth: number;
-    growth: string;
-    invoiced: number;
-    billable: number;
-    billableHours: number;
-  };
 }
 
 const Dashboard = () => {
   const { cases, clients } = useLegalData();
   const { user } = useAuth();
-  const { formatCurrency } = useFormatting();
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [_loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -108,15 +99,11 @@ const Dashboard = () => {
       trend: (dashboardStats?.urgentCases ?? urgentCases.length) > 0 ? `${dashboardStats?.urgentCases ?? urgentCases.length} urgent` : "No urgent cases"
     },
     {
-      title: "Revenue This Month",
-      value: dashboardStats?.revenue ? formatCurrency(dashboardStats.revenue.currentMonth) : formatCurrency(0),
-      description: dashboardStats?.revenue && dashboardStats.revenue.billableHours > 0
-        ? `${dashboardStats.revenue.billableHours.toFixed(1)} billable hours`
-        : "Billing & payments",
-      icon: IndianRupee,
-      trend: dashboardStats?.revenue && dashboardStats.revenue.growth !== undefined
-        ? `${parseFloat(dashboardStats.revenue.growth) >= 0 ? '+' : ''}${dashboardStats.revenue.growth}% from last month`
-        : undefined
+      title: "Urgent Cases",
+      value: dashboardStats?.urgentCases ?? urgentCases.length,
+      description: (dashboardStats?.urgentCases ?? urgentCases.length) > 0 ? "Requires immediate attention" : "No urgent matters",
+      icon: AlertTriangle,
+      trend: undefined
     }
   ];
 

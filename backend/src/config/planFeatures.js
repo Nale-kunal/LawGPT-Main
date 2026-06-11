@@ -23,10 +23,6 @@ export const FEATURE_MAP = {
   clients:         'free',
   settings:        'free',
 
-  // Basic tier
-  billing:         'basic',
-  invoices:        'basic',
-
   // Pro tier
   documents:       'pro',
   'legal-research':'pro',

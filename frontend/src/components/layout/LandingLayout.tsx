@@ -21,27 +21,36 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
         if (!isLoading && isAuthenticated) navigate('/dashboard', { replace: true });
     }, [isAuthenticated, isLoading, navigate]);
 
-    // Sticky nav
+    // Sticky nav — rAF-batched to prevent forced reflows.
+    // Reads window.scrollY (layout read) and writes classList (layout write)
+    // inside a single requestAnimationFrame so they never interleave.
     useEffect(() => {
-        if (isLoading) return;
         const nav = navRef.current;
         if (!nav) return;
-        const fn = () => nav.classList.toggle('scrolled', window.scrollY > 24);
+        let rafId = 0;
+        const fn = () => {
+            if (rafId) return; // already scheduled — skip redundant scroll events
+            rafId = requestAnimationFrame(() => {
+                nav.classList.toggle('scrolled', window.scrollY > 24);
+                rafId = 0;
+            });
+        };
         window.addEventListener('scroll', fn, { passive: true });
         fn(); // Initial check
-        return () => window.removeEventListener('scroll', fn);
-    }, [isLoading]);
+        return () => {
+            window.removeEventListener('scroll', fn);
+            if (rafId) cancelAnimationFrame(rafId);
+        };
+    }, []);
 
     // Scroll to top on route change
     useEffect(() => {
         window.scrollTo(0, 0);
     }, [location.pathname]);
 
-    if (isLoading) return (
-        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0B0F19' }}>
-            <div style={{ width: 28, height: 28, border: '2px solid #D4AF37', borderTopColor: 'transparent', borderRadius: '50%', animation: 'lp-spin 0.7s linear infinite' }} />
-        </div>
-    );
+    // Auth loading no longer blocks public route rendering.
+    // AuthContext validates asynchronously after first paint; boot.js
+    // handles the synchronous cookie-based redirect for returning users.
 
 
     return (

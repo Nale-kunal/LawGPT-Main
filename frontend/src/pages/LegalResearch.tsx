@@ -29,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 
 const ErrorScreen = ({ message }: { message: string }) => (
@@ -512,6 +513,9 @@ const LegalResearch = () => {
                         <Button variant="link" className="h-auto p-0 text-[10px]">View all {favorites.length} items</Button>
                       </DialogTrigger>
                       <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
+                        <DialogDescription className="sr-only">
+                          List of all favorited search items.
+                        </DialogDescription>
                         <DialogHeader>
                           <DialogTitle className="flex items-center gap-2">
                             <Star className="h-4 w-4 text-warning fill-current" /> All Favorites ({favorites.length})

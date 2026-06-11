@@ -2,6 +2,8 @@ import express from 'express';
 import multer from 'multer';
 import logger from '../utils/logger.js';
 import { requireAuth } from '../middleware/auth-jwt.js';
+import { logActivity } from '../middleware/activityLogger.js';
+import { validateFolderOwnership, validateCaseOwnership, validateDocumentOwnership } from '../services/ownershipService.js';
 import {
   createDocument,
   getDocumentById,
@@ -16,6 +18,14 @@ import { enforcePlanLimits } from '../middleware/planEnforcement.js';
 import { checkPlanAccess }   from '../middleware/checkPlanAccess.js';
 import { uploadToCloudinary, deleteFromCloudinary, extractPublicIdFromUrl } from '../config/cloudinary.js';
 import { uploadSecurityMiddleware } from '../middleware/uploadSecurity.js';
+import { validate } from '../middleware/validate.js';
+import {
+  idParamSchema,
+  createFolderBodySchema,
+  updateFolderBodySchema,
+  documentFilesQuerySchema,
+} from '../schemas/paramSchemas.js';
+import { validateCloudinaryUrl } from '../utils/urlValidator.js';
 
 const router = express.Router();
 
@@ -100,10 +110,24 @@ router.get('/folders', requireAuth, checkPlanAccess('documents'), async (req, re
   }
 });
 
-router.post('/folders', requireAuth, checkPlanAccess('documents'), async (req, res) => {
+router.post('/folders', requireAuth, checkPlanAccess('documents'), validate({ body: createFolderBodySchema }), async (req, res) => {
   try {
     const { name, parentId, caseId } = req.body;
     const ownerId = req.user.userId;
+
+    if (parentId) {
+      const isOwner = await validateFolderOwnership(parentId, ownerId);
+      if (!isOwner) {
+        return res.status(404).json({ error: 'Parent folder not found or access denied' });
+      }
+    }
+
+    if (caseId) {
+      const isOwner = await validateCaseOwnership(caseId, ownerId);
+      if (!isOwner) {
+        return res.status(404).json({ error: 'Case not found or access denied' });
+      }
+    }
 
     if (!name || !ownerId) {
       return res.status(400).json({ error: 'Folder name and user authentication required' });
@@ -160,7 +184,7 @@ router.post('/folders', requireAuth, checkPlanAccess('documents'), async (req, r
   }
 });
 
-router.put('/folders/:id', requireAuth, checkPlanAccess('documents'), async (req, res) => {
+router.put('/folders/:id', requireAuth, checkPlanAccess('documents'), validate({ params: idParamSchema, body: updateFolderBodySchema }), async (req, res) => {
   try {
     const { name, caseId } = req.body;
     const ownerId = req.user.userId;
@@ -169,11 +193,19 @@ router.put('/folders/:id', requireAuth, checkPlanAccess('documents'), async (req
       return res.status(400).json({ error: 'Folder name and user authentication required' });
     }
 
-    const existing = await getDocumentById(COLLECTIONS.FOLDERS, req.params.id);
-    // Compare as strings to handle ObjectId vs string inconsistencies
-    if (!existing || String(existing.ownerId) !== String(ownerId)) {
+    const isOwner = await validateFolderOwnership(req.params.id, ownerId);
+    if (!isOwner) {
       return res.status(404).json({ error: 'Folder not found or access denied' });
     }
+
+    if (caseId) {
+      const isOwnerCase = await validateCaseOwnership(caseId, ownerId);
+      if (!isOwnerCase) {
+        return res.status(404).json({ error: 'Case not found or access denied' });
+      }
+    }
+
+    const existing = await getDocumentById(COLLECTIONS.FOLDERS, req.params.id);
 
     // Check for duplicate folder name within the same parent folder (excluding current folder)
     const foldersInParent = await queryDocuments(COLLECTIONS.FOLDERS, [
@@ -229,7 +261,7 @@ router.put('/folders/:id', requireAuth, checkPlanAccess('documents'), async (req
   }
 });
 
-router.delete('/folders/:id', requireAuth, checkPlanAccess('documents'), async (req, res) => {
+router.delete('/folders/:id', requireAuth, checkPlanAccess('documents'), validate({ params: idParamSchema }), async (req, res) => {
   try {
     const folderId = req.params.id;
     const ownerId = req.user.userId;
@@ -238,11 +270,12 @@ router.delete('/folders/:id', requireAuth, checkPlanAccess('documents'), async (
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const folder = await getDocumentById(COLLECTIONS.FOLDERS, folderId);
-    // Compare as strings to handle ObjectId vs string inconsistencies
-    if (!folder || String(folder.ownerId) !== String(ownerId)) {
+    const isOwner = await validateFolderOwnership(folderId, ownerId);
+    if (!isOwner) {
       return res.status(404).json({ error: 'Folder not found or access denied' });
     }
+
+    const folder = await getDocumentById(COLLECTIONS.FOLDERS, folderId);
 
     // Get all documents in this folder to clean up Cloudinary assets
     const docs = await queryDocuments(COLLECTIONS.DOCUMENTS, [
@@ -284,13 +317,20 @@ router.delete('/folders/:id', requireAuth, checkPlanAccess('documents'), async (
 });
 
 // Documents CRUD - All routes require authentication
-router.get('/files', requireAuth, checkPlanAccess('documents'), async (req, res) => {
+router.get('/files', requireAuth, checkPlanAccess('documents'), validate({ query: documentFilesQuerySchema }), async (req, res) => {
   try {
     const { folderId, all } = req.query;
     const ownerId = req.user.userId;
 
     if (!ownerId) {
       return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    if (folderId && folderId !== 'null' && folderId !== 'undefined' && folderId !== '') {
+      const isOwner = await validateFolderOwnership(folderId, ownerId);
+      if (!isOwner) {
+        return res.status(404).json({ error: 'Folder not found or access denied' });
+      }
     }
 
     const filters = [{ field: 'ownerId', operator: '==', value: ownerId }];
@@ -358,40 +398,37 @@ router.get('/files', requireAuth, checkPlanAccess('documents'), async (req, res)
 });
 
 // View a specific document (proxy to serve inline for browser viewing)
-router.get('/files/:id/view', requireAuth, async (req, res) => {
+router.get('/files/:id/view', requireAuth, validate({ params: idParamSchema }), async (req, res) => {
   try {
     const ownerId = req.user.userId;
-
-    if (!ownerId) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
-
-    const doc = await getDocumentById(COLLECTIONS.DOCUMENTS, req.params.id);
-
-    // Compare as strings to handle ObjectId vs string inconsistencies
-    if (!doc || String(doc.ownerId) !== String(ownerId)) {
+    const isOwner = await validateDocumentOwnership(req.params.id, ownerId);
+    if (!isOwner) {
       return res.status(404).json({ error: 'Document not found or access denied' });
     }
+    const doc = await getDocumentById(COLLECTIONS.DOCUMENTS, req.params.id);
 
-    logger.debug({ name: doc.name }, '👁️ View requested');
+    logger.debug({ docId: req.params.id }, '👁️ View requested');
 
-    // Fetch from Cloudinary and serve with inline disposition
-    if (doc.url && (doc.url.startsWith('http://') || doc.url.startsWith('https://'))) {
+    if (doc.url) {
+      // SSRF prevention: validate URL is from allowed Cloudinary CDN before fetching
+      const urlCheck = validateCloudinaryUrl(doc.url);
+      if (!urlCheck.ok) {
+        logger.error({ docId: req.params.id, reason: urlCheck.error }, 'Document URL failed SSRF validation');
+        return res.status(400).json({ error: 'File URL is not valid or not from an allowed source' });
+      }
+
       try {
         const response = await fetch(doc.url);
-
         if (!response.ok) {
           throw new Error(`Failed to fetch file from storage: ${response.statusText}`);
         }
 
-        // Set headers for inline viewing (open in browser, not download)
         res.setHeader('Content-Type', doc.mimetype || 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename="${doc.name}"`);
         if (doc.size) {
           res.setHeader('Content-Length', doc.size);
         }
 
-        // Pipe the file data to response
         const buffer = await response.arrayBuffer();
         return res.send(Buffer.from(buffer));
       } catch (fetchError) {
@@ -408,25 +445,27 @@ router.get('/files/:id/view', requireAuth, async (req, res) => {
 });
 
 // Download a specific document (proxy to handle CORS and filename issues)
-router.get('/files/:id/download', requireAuth, async (req, res) => {
+router.get('/files/:id/download', requireAuth, validate({ params: idParamSchema }), async (req, res) => {
   try {
     const ownerId = req.user.userId;
-
-    if (!ownerId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+    const isOwner = await validateDocumentOwnership(req.params.id, ownerId);
+    if (!isOwner) {
+      return res.status(404).json({ error: 'Document not found or access denied' });
     }
-
     const doc = await getDocumentById(COLLECTIONS.DOCUMENTS, req.params.id);
 
-    // Compare as strings to handle ObjectId vs string inconsistencies
-    logger.debug({ name: doc.name }, '📥 Download requested');
+    logger.debug({ docId: req.params.id }, '📥 Download requested');
 
-    // If the URL is a Cloudinary URL, fetch it and pipe it to the response
-    if (doc.url && (doc.url.startsWith('http://') || doc.url.startsWith('https://'))) {
+    if (doc.url) {
+      // SSRF prevention: validate URL is from allowed Cloudinary CDN before fetching
+      const urlCheck = validateCloudinaryUrl(doc.url);
+      if (!urlCheck.ok) {
+        logger.error({ docId: req.params.id, reason: urlCheck.error }, 'Document URL failed SSRF validation');
+        return res.status(400).json({ error: 'File URL is not valid or not from an allowed source' });
+      }
+
       try {
-        // Fetch the file from Cloudinary
         const response = await fetch(doc.url);
-
         if (!response.ok) {
           throw new Error(`Failed to fetch file from storage: ${response.statusText}`);
         }
@@ -434,12 +473,10 @@ router.get('/files/:id/download', requireAuth, async (req, res) => {
         // Sanitize filename to avoid header injection
         const sanitizedName = doc.name.replace(/[^\x20-\x7E]/g, '').trim() || 'document';
 
-        // Set proper headers for download with original filename
         res.setHeader('Content-Type', doc.mimetype || 'application/octet-stream');
         res.setHeader('Content-Disposition', `attachment; filename="${sanitizedName}"`);
         res.setHeader('Content-Length', doc.size);
 
-        // Pipe the file data to response
         const buffer = await response.arrayBuffer();
         return res.send(Buffer.from(buffer));
       } catch (fetchError) {
@@ -447,7 +484,6 @@ router.get('/files/:id/download', requireAuth, async (req, res) => {
         return res.status(500).json({ error: 'Failed to fetch file from storage' });
       }
     } else {
-      // For local files (if any), return error as we only support cloud storage
       return res.status(400).json({ error: 'File URL not found or invalid' });
     }
   } catch (error) {
@@ -455,6 +491,7 @@ router.get('/files/:id/download', requireAuth, async (req, res) => {
     return res.status(500).json({ error: 'Failed to retrieve document' });
   }
 });
+
 
 
 
@@ -487,12 +524,12 @@ router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array(
     // Verify folder exists if folderId is provided
     if (folderId) {
       try {
-        const folder = await getDocumentById(COLLECTIONS.FOLDERS, folderId);
-        // Compare as strings to handle ObjectId vs string inconsistencies
-        if (!folder || String(folder.ownerId) !== String(ownerId)) {
+        const isOwner = await validateFolderOwnership(folderId, ownerId);
+        if (!isOwner) {
           logger.error({ folderId }, '❌ Folder not found or access denied');
           return res.status(404).json({ error: 'Folder not found or access denied' });
         }
+        const folder = await getDocumentById(COLLECTIONS.FOLDERS, folderId);
         logger.debug({ folderName: folder.name }, '✅ Folder verified');
       } catch (folderError) {
         logger.error({ err: folderError }, '❌ Error verifying folder');
@@ -648,7 +685,7 @@ router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array(
   }
 });
 
-router.put('/files/:id', requireAuth, async (req, res) => {
+router.put('/files/:id', requireAuth, validate({ params: idParamSchema }), async (req, res) => {
   try {
     const { name, tags, folderId } = req.body;
     const ownerId = req.user.userId;
@@ -657,11 +694,19 @@ router.put('/files/:id', requireAuth, async (req, res) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const existing = await getDocumentById(COLLECTIONS.DOCUMENTS, req.params.id);
-    // Compare as strings to handle ObjectId vs string inconsistencies
-    if (!existing || String(existing.ownerId) !== String(ownerId)) {
+    const isDocOwner = await validateDocumentOwnership(req.params.id, ownerId);
+    if (!isDocOwner) {
       return res.status(404).json({ error: 'File not found or access denied' });
     }
+
+    if (folderId) {
+      const isFolderOwner = await validateFolderOwnership(folderId, ownerId);
+      if (!isFolderOwner) {
+        return res.status(404).json({ error: 'Folder not found or access denied' });
+      }
+    }
+
+    const existing = await getDocumentById(COLLECTIONS.DOCUMENTS, req.params.id);
 
     const updates = {};
     if (name) { updates.name = name.trim(); }
@@ -684,7 +729,7 @@ router.put('/files/:id', requireAuth, async (req, res) => {
   }
 });
 
-router.delete('/files/:id', requireAuth, async (req, res) => {
+router.delete('/files/:id', requireAuth, validate({ params: idParamSchema }), async (req, res) => {
   try {
     const ownerId = req.user.userId;
 
@@ -692,11 +737,12 @@ router.delete('/files/:id', requireAuth, async (req, res) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const doc = await getDocumentById(COLLECTIONS.DOCUMENTS, req.params.id);
-    // Compare as strings to handle ObjectId vs string inconsistencies
-    if (!doc || String(doc.ownerId) !== String(ownerId)) {
+    const isOwner = await validateDocumentOwnership(req.params.id, ownerId);
+    if (!isOwner) {
       return res.status(404).json({ error: 'File not found or access denied' });
     }
+
+    const doc = await getDocumentById(COLLECTIONS.DOCUMENTS, req.params.id);
 
     // Delete from Cloudinary if URL is a Cloudinary URL
     try {

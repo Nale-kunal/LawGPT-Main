@@ -112,6 +112,7 @@ private/
 data/
 dump/
 mongodump/
+backups/
 
 # ==============================================================================
 # CLOUDINARY / UPLOAD TEMP
@@ -179,3 +180,4 @@ gcp-key*.json
 *.heapsnapshot
 *.heapdump
 *.cpuprofile
+.turbo/

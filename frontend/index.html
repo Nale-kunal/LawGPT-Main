@@ -19,7 +19,30 @@
 
     <!-- Initial loader styles -->
     <link rel="stylesheet" href="/loader.css" />
-    <link rel="icon" href="/logo.png" />
+
+    <!-- ── Favicon suite ───────────────────────────────────────────────────
+         favicon.ico   — legacy browsers (7.6 KB, kept as-is)
+         favicon-32.webp — modern browsers, 32×32 (< 3 KB)
+         favicon-32.png  — WebP fallback, 32×32 optimized PNG
+         apple-touch-icon — 180×180 for iOS home screen
+         ──────────────────────────────────────────────────────────────── -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" href="/favicon-32.webp" type="image/webp" sizes="32x32" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/favicon-180.png" />
+
+    <!-- ── Resource Hints ─────────────────────────────────────────────────
+         Only preconnect to origins that serve critical resources on first load.
+         dns-prefetch for origins used on authenticated / payment pages.
+         ──────────────────────────────────────────────────────────────── -->
+    <!-- Backend API — critical for auth validation after first paint -->
+    <link rel="preconnect" href="https://api.juriq.in" crossorigin />
+    <!-- Cloudinary — profile images (used on dashboard) -->
+    <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+    <!-- Razorpay — payment checkout (used on billing/subscription pages) -->
+    <link rel="dns-prefetch" href="https://checkout.razorpay.com" />
+    <!-- Sentry error reporting — dns-prefetch only (not critical path) -->
+    <link rel="dns-prefetch" href="https://o0.ingest.sentry.io" />
 
     <meta property="og:title" content="Juriq – AI Powered Legal Case Management" />
     <meta property="og:description" content="Professional legal case management software for Indian law firms." />
@@ -33,10 +56,40 @@
   <body>
     <div class="initial-loader">
       <div class="pulse-container">
-        <div class="pulse-ring"></div>
+        <!-- Outer Rotating Gradient Ring -->
+        <svg
+          class="pulse-ring"
+          viewBox="0 0 50 50"
+        >
+          <defs>
+            <linearGradient id="loader-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="var(--p)" stop-opacity="1" />
+              <stop offset="100%" stop-color="var(--acc)" stop-opacity="0.3" />
+            </linearGradient>
+          </defs>
+          <circle
+            cx="25"
+            cy="25"
+            r="20"
+            fill="none"
+            stroke="url(#loader-gradient)"
+            stroke-width="3"
+            stroke-linecap="round"
+            stroke-dasharray="80, 200"
+          />
+        </svg>
+
+        <!-- Central Pulsing Scale Icon -->
         <div class="pulse-icon">
-          <img src="/logo.png" alt="Juriq Logo" style="width: 32px; height: 32px; object-fit: contain;" />
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scale">
+            <path d="m16 16 3-8 3 8c-.1.3-.3.5-.6.5h-4.8c-.3 0-.5-.2-.6-.5z"/>
+            <path d="m2 16 3-8 3 8c-.1.3-.3.5-.6.5H2.6c-.3 0-.5-.2-.6-.5z"/>
+            <path d="M7 21h10"/>
+            <path d="M12 3v18"/>
+            <path d="M3 7h18"/>
+          </svg>
         </div>
+        
         <div class="loader-text">Initializing Juriq</div>
       </div>
     </div>

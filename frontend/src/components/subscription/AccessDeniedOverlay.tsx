@@ -18,8 +18,6 @@ const PLAN_LABELS: Record<Plan, string> = {
 };
 
 const FEATURE_LABELS: Record<string, string> = {
-  billing:          'Billing & Invoicing',
-  invoices:         'Invoices',
   documents:        'Document Manager',
   'legal-research': 'Legal Research',
   hearings:         'Hearing Management',
@@ -30,7 +28,7 @@ const FEATURE_LABELS: Record<string, string> = {
 
 const PLAN_INCLUDES: Record<Plan, string[]> = {
   free:    ['Dashboard', 'Calendar', 'Cases (5 max)', 'Clients', 'Settings'],
-  basic:   ['Everything in Free', 'Billing & Invoices'],
+  basic:   ['Everything in Free', 'Cases (50 max)'],
   pro:     ['Everything in Basic', 'Documents', 'Legal Research', 'Hearings'],
   premium: ['Everything in Pro', 'Legal Templates', 'Case Notes'],
   elite:   ['Everything in Premium', 'Legal News', 'All Future Features'],

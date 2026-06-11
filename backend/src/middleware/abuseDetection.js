@@ -2,6 +2,8 @@ import User from '../models/User.js';
 import AbuseSignalLog from '../models/AbuseSignalLog.js';
 import activityEmitter from '../utils/eventEmitter.js';
 import logger from '../utils/logger.js';
+import { invalidateUserCache } from '../utils/userCache.js';
+import { disconnectUserSockets } from '../community/socket/socketServer.js';
 
 const SIGNAL_SCORES = {
     failed_login: 10,
@@ -136,6 +138,10 @@ export const recordAbuseSignal = async (user, signalType, metadata = {}, req) =>
             user.securityFlags.temporarySuspensionUntil = new Date(Date.now() + 60 * 60 * 1000); // 1 hour suspension
             user.accountStatus.isSuspended = true;
             user.accountStatus.suspensionReason = `Automated suspension due to ${signalType}`;
+
+            await user.save();
+            await invalidateUserCache(user._id.toString());
+            disconnectUserSockets(user._id.toString(), 'ACCOUNT_SUSPENDED');
 
             await activityEmitter.emit({
                 userId: user._id,

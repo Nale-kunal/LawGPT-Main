@@ -29,7 +29,7 @@ export function requestId(req, res, next) {
  */
 export function requestLogger(req) {
     // Assumes req.log is set by pino-http; fall back to imported logger
-    const base = req.log || (async () => { const { default: l } = await import('./logger.js'); return l; })();
+    const base = req.log || (async () => { const { default: l } = await import('../utils/logger.js'); return l; })();
     return typeof base.child === 'function'
         ? base.child({ requestId: req.requestId })
         : base;

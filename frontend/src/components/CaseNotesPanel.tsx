@@ -7,6 +7,7 @@ import { NoteAttachmentViewer } from './NoteAttachmentViewer';
 
 import { getApiUrl, apiRequest } from '@/lib/api';
 import { formatDistanceToNow, format } from 'date-fns';
+import { logger } from '@/lib/logger';
 import {
     X, Filter, Plus, MessageSquare, Edit2, Trash2,
     Pin, Lock, FileText, Paperclip, ChevronRight, ChevronDown,
@@ -684,7 +685,7 @@ const AddNoteModal = ({
             });
             onClose();
         } catch (_error) {
-            console.error('[AddNoteModal] Save error:', _error);
+            logger.error('[AddNoteModal] Save error:', _error);
             toast({ title: 'Error', description: 'Failed to save note', variant: 'destructive' });
         } finally {
             setIsSubmitting(false);
@@ -902,7 +903,7 @@ export const CaseNotesPanel = ({
             const data = await apiRequest(url, { credentials: 'include' });
             setNotes(data);
         } catch (error) {
-            console.error('Failed to fetch case notes', error);
+            logger.error('Failed to fetch case notes', error);
             toast({ title: 'Error Loading Notes', description: 'Failed to load case notes.', variant: 'destructive' });
         } finally {
             setLoading(false);
@@ -964,7 +965,7 @@ export const CaseNotesPanel = ({
                     response._id,
                     () => { /* per-file done — refresh on completion */ },
                     (localId, err) => {
-                        console.warn(`[NoteAttachment] Staged upload failed for ${localId}:`, err);
+                        logger.warn(`[NoteAttachment] Staged upload failed for ${localId}:`, err);
                     }
                 ).finally(() => fetchNotes());
             } else {
@@ -999,7 +1000,7 @@ export const CaseNotesPanel = ({
                     caseId,
                     response._id,
                     () => { },
-                    (localId, err) => console.warn(`[DirectReply] File upload failed ${localId}:`, err)
+                    (localId, err) => logger.warn(`[DirectReply] File upload failed ${localId}:`, err)
                 );
             }
 

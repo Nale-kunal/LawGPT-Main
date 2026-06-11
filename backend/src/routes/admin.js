@@ -11,6 +11,22 @@ import { requireAuth } from '../middleware/auth-jwt.js';
 import { requireRole } from '../middleware/rbac.js';
 import AuditLog from '../models/AuditLog.js';
 import logger from '../utils/logger.js';
+import { validate } from '../middleware/validate.js';
+import { paginationSchema, objectIdSchema } from '../schemas/paramSchemas.js';
+import { z } from 'zod';
+
+// ── Zod schemas for this router ───────────────────────────────────────────────
+const auditQuerySchema = paginationSchema.extend({
+    userId: objectIdSchema.optional(),
+    action: z.string().max(100).optional(),
+});
+
+const authLogQuerySchema = paginationSchema.extend({
+    event_type: z.string().max(100).optional(),
+    success: z.enum(['true', 'false']).optional(),
+    // email_hash: a SHA-256 hex hash (64 chars) or SHA-1 (40 chars)
+    email_hash: z.string().regex(/^[0-9a-fA-F]{32,64}$/, 'email_hash must be a hex string').optional(),
+});
 
 // ActivityEvent is the audit trail for auth events (login, OAuth, link, unlink)
 let ActivityEvent = null;
@@ -55,10 +71,10 @@ router.get('/audit/verify', async (req, res) => {
 });
 
 // ─── Audit Log Query ──────────────────────────────────────────────────────────
-router.get('/audit', async (req, res) => {
+router.get('/audit', validate({ query: auditQuerySchema }), async (req, res) => {
     try {
-        const page = Math.max(1, parseInt(req.query.page || '1', 10));
-        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '50', 10)));
+        const page = req.query.page ?? 1;
+        const limit = req.query.limit ?? 50;
         const skip = (page - 1) * limit;
 
         const filter = {};
@@ -151,13 +167,13 @@ router.get('/queues', async (req, res) => {
  * Protected by requireAuth + requireRole('admin') (applied via router.use above).
  * Raw IPs are never stored — they are hashed at emission time.
  */
-router.get('/auth-logs', async (req, res) => {
+router.get('/auth-logs', validate({ query: authLogQuerySchema }), async (req, res) => {
     if (!ActivityEvent) {
         return res.status(503).json({ error: 'AUTH_LOG_UNAVAILABLE', message: 'ActivityEvent model not loaded' });
     }
     try {
-        const page  = Math.max(1, parseInt(req.query.page  || '1',   10));
-        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '100', 10)));
+        const page  = req.query.page ?? 1;
+        const limit = req.query.limit ?? 100;
         const skip  = (page - 1) * limit;
 
         const filter = {};

@@ -15,6 +15,8 @@ import {
 } from '../services/mongodb.js';
 import logger from '../utils/logger.js';
 import { requireAuth } from '../middleware/auth-jwt.js';
+import { invalidateUserCache } from '../utils/userCache.js';
+import { disconnectUserSockets } from '../community/socket/socketServer.js';
 import { setCsrfToken } from '../middleware/csrf.js';
 import { sendPasswordResetEmail } from '../utils/mailer.js';
 import { validate } from '../middleware/validate.js';
@@ -25,6 +27,9 @@ import {
   resetPasswordSchema,
   changePasswordSchema,
   reactivateSchema,
+  importDataSchema,
+  updateUserSchema,
+  updateSecuritySchema
 } from '../schemas/authSchemas.js';
 import { blacklistToken, isTokenBlacklisted } from '../services/tokenService.js';
 import activityEmitter from '../utils/eventEmitter.js';
@@ -63,8 +68,10 @@ router.get('/validate', async (req, res) => {
 
 
 // Helper constants
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || (JWT_SECRET + '_refresh');
+// Validated at startup via env.js — guaranteed non-null, minimum 32 chars.
+// env is already imported at line 32. Using it here ensures fail-fast if JWT secrets are missing.
+const JWT_SECRET = env.JWT_SECRET;
+const JWT_REFRESH_SECRET = env.JWT_REFRESH_SECRET;
 const JWT_EXPIRES_IN = '15m'; // Short-lived access token
 const JWT_REFRESH_EXPIRES_IN = '7d'; // Long-lived refresh token
 const PASSWORD_RESET_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
@@ -77,7 +84,6 @@ const defaultNotificationSettings = {
   pushNotifications: true,
   hearingReminders: true,
   clientUpdates: true,
-  billingAlerts: false,
   weeklyReports: true
 };
 
@@ -215,9 +221,9 @@ router.post('/register', validate({ body: registerSchema }), async (req, res) =>
       return res.status(400).json({ error: 'Invalid email format' });
     }
 
-    // Validate password strength (minimum 6 characters for now)
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    // Validate password strength — NIST SP 800-63B minimum 8 characters
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long' });
     }
 
     // Normalize email
@@ -700,7 +706,7 @@ router.get('/me', requireAuth, async (req, res) => {
     }
 
     const response = buildUserResponse(user._id.toString(), user);
-    logger.info('GET /me - profile data: %j', response.profile);
+    logger.debug({ userId: user._id }, 'GET /me — profile served');
     return res.json({ user: response });
   } catch (error) {
     logger.error({ error }, 'Get profile error');
@@ -744,10 +750,24 @@ router.patch('/settings/notifications', requireAuth, async (req, res) => {
   try {
     const user = await getDocumentById(MODELS.USERS, req.user.userId);
 
+    // Strict allowlist — only permit known boolean notification keys
+    const ALLOWED_NOTIFICATION_KEYS = new Set(Object.keys(defaultNotificationSettings));
+    const bodyUpdates = {};
+    for (const key of ALLOWED_NOTIFICATION_KEYS) {
+      if (key in req.body) {
+        const val = req.body[key];
+        // Coerce to boolean — reject non-boolean values
+        if (typeof val !== 'boolean') {
+          return res.status(400).json({ error: `Field '${key}' must be a boolean` });
+        }
+        bodyUpdates[key] = val;
+      }
+    }
+
     const updatedNotifications = {
       ...defaultNotificationSettings,
       ...(user.notifications || {}),
-      ...req.body
+      ...bodyUpdates
     };
 
     const updatedUser = await updateDocument(MODELS.USERS, req.user.userId, {
@@ -769,10 +789,26 @@ router.patch('/settings/preferences', requireAuth, async (req, res) => {
   try {
     const user = await getDocumentById(MODELS.USERS, req.user.userId);
 
+    // Strict allowlist — only permit known preference keys
+    const ALLOWED_PREFERENCE_KEYS = new Set(Object.keys(defaultPreferenceSettings));
+    const bodyUpdates = {};
+    for (const key of ALLOWED_PREFERENCE_KEYS) {
+      if (key in req.body) {
+        const val = req.body[key];
+        if (typeof val !== 'string') {
+          return res.status(400).json({ error: `Field '${key}' must be a string` });
+        }
+        if (val.length > 100) {
+          return res.status(400).json({ error: `Field '${key}' exceeds maximum length of 100 characters` });
+        }
+        bodyUpdates[key] = val.trim();
+      }
+    }
+
     const updatedPreferences = {
       ...defaultPreferenceSettings,
       ...(user.preferences || {}),
-      ...req.body
+      ...bodyUpdates
     };
 
     const updatedUser = await updateDocument(MODELS.USERS, req.user.userId, {
@@ -886,8 +922,17 @@ router.post('/_deprecated-reset-password', validate({ body: resetPasswordSchema 
     // Hash new password
     const passwordHash = await User.hashPassword(newPassword);
 
-    // Update user password
-    await updateDocument(MODELS.USERS, resetRequest.userId, { passwordHash });
+    // Update user password and session version
+    await User.findByIdAndUpdate(resetRequest.userId, {
+      $set: { passwordHash, sessionVersionAt: new Date() },
+      $inc: { sessionVersion: 1 }
+    });
+
+    // Invalidate Redis cache
+    await invalidateUserCache(resetRequest.userId);
+
+    // Disconnect active sockets
+    disconnectUserSockets(resetRequest.userId, 'SESSION_REVOKED');
 
     // Delete used reset token
     await PasswordReset.deleteMany({ userId: resetRequest.userId });
@@ -909,12 +954,12 @@ router.post('/_deprecated-reset-password', validate({ body: resetPasswordSchema 
  * PUT /api/auth/me
  * Update user profile and settings (unified endpoint)
  */
-router.put('/me', requireAuth, async (req, res) => {
+router.put('/me', requireAuth, validate({ body: updateUserSchema }), async (req, res) => {
   logger.info('🔥🔥🔥 PUT /me ENDPOINT HIT 🔥🔥🔥');
   try {
     const { name, recoveryEmail, profile, notifications, preferences, security } = req.body;
 
-    logger.info('📝 PUT /api/auth/me - Received: %j', { name, recoveryEmail, profile });
+    logger.info('📝 PUT /api/auth/me - Received update request for user: %s', req.user.userId);
 
     // Get current user
     const user = await User.findById(req.user.userId);
@@ -1002,7 +1047,7 @@ router.put('/me', requireAuth, async (req, res) => {
       updateQuery.$set.security = { ...(user.security?.toObject?.() || user.security || {}), ...security };
     }
 
-    logger.info('💾 Saving update fields: %j', updateQuery);
+    logger.info({ userId: req.user.userId, updateKeys: Object.keys(updateQuery.$set || {}) }, '💾 Saving update fields');
 
     // Perform update
     const updatedUser = await User.findByIdAndUpdate(
@@ -1016,7 +1061,7 @@ router.put('/me', requireAuth, async (req, res) => {
     }
 
     const response = buildUserResponse(updatedUser._id.toString(), updatedUser);
-    logger.info('✅ Profile updated. New profile: %j', response.profile);
+    logger.info({ userId: req.user.userId }, '✅ Profile updated successfully');
 
     // Emit activity event if recovery email was added/changed/removed
     if (recoveryEmail !== undefined && recoveryEmail !== user.recoveryEmail) {
@@ -1046,7 +1091,7 @@ router.put('/me', requireAuth, async (req, res) => {
  * PATCH /api/auth/settings/security
  * Update security settings
  */
-router.patch('/settings/security', requireAuth, async (req, res) => {
+router.patch('/settings/security', requireAuth, validate({ body: updateSecuritySchema }), async (req, res) => {
   try {
     const user = await getDocumentById(MODELS.USERS, req.user.userId);
 
@@ -1117,7 +1162,29 @@ router.post('/change-password', requireAuth, validate({ body: changePasswordSche
 
     await updateDocument(MODELS.USERS, req.user.userId, updatePayload);
 
-    return res.json({ message: 'Password changed successfully' });
+    // Security: Increment session version to invalidate ALL active sessions/tokens
+    // (forces all devices to re-authenticate after a password change)
+    await User.findByIdAndUpdate(req.user.userId, {
+      $inc: { sessionVersion: 1 },
+      $set:  { sessionVersionAt: new Date() }
+    });
+
+    // Invalidate user cache immediately
+    await invalidateUserCache(req.user.userId);
+
+    // Disconnect user's active sockets immediately
+    disconnectUserSockets(req.user.userId, 'SESSION_REVOKED');
+
+    // Blacklist the current token so this session is immediately terminated
+    const currentToken = req.cookies?.token ||
+      (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+    if (currentToken) {
+      await blacklistToken(currentToken).catch(err =>
+        logger.warn({ err }, 'change-password: failed to blacklist current token (non-fatal)')
+      );
+    }
+
+    return res.json({ message: 'Password changed successfully. Please log in again on all devices.' });
   } catch (error) {
     logger.error({ error }, 'Change password error');
     return res.status(500).json({ error: 'Failed to change password' });
@@ -1153,10 +1220,6 @@ router.get('/export-data', requireAuth, async (req, res) => {
       { field: 'userId', operator: '==', value: req.user.userId }
     ]);
 
-    const invoices = await queryDocuments(MODELS.INVOICES, [
-      { field: 'userId', operator: '==', value: req.user.userId }
-    ]);
-
     // Compile export data
     const exportData = {
       exportDate: new Date().toISOString(),
@@ -1165,15 +1228,13 @@ router.get('/export-data', requireAuth, async (req, res) => {
         cases,
         clients,
         documents,
-        hearings,
-        invoices
+        hearings
       },
       statistics: {
         totalCases: cases.length,
         totalClients: clients.length,
         totalDocuments: documents.length,
-        totalHearings: hearings.length,
-        totalInvoices: invoices.length
+        totalHearings: hearings.length
       }
     };
 
@@ -1192,7 +1253,7 @@ router.get('/export-data', requireAuth, async (req, res) => {
  * POST /api/auth/import-data
  * Import user data from a backup file
  */
-router.post('/import-data', requireAuth, async (req, res) => {
+router.post('/import-data', requireAuth, validate({ body: importDataSchema }), async (req, res) => {
   logger.info('🚀 DATA IMPORT INITIATED for user: %s', req.user.userId);
   try {
     const { user: importedUser, data: importedData } = req.body;
@@ -1221,8 +1282,7 @@ router.post('/import-data', requireAuth, async (req, res) => {
       { key: 'cases', collection: MODELS.CASES },
       { key: 'clients', collection: MODELS.CLIENTS },
       { key: 'documents', collection: MODELS.DOCUMENTS },
-      { key: 'hearings', collection: MODELS.HEARINGS },
-      { key: 'invoices', collection: MODELS.INVOICES }
+      { key: 'hearings', collection: MODELS.HEARINGS }
     ];
 
     for (const item of collectionsToRestore) {

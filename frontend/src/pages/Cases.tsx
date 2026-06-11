@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -272,7 +273,7 @@ const Cases = () => {
             createdClientId = newClient.id;
           }
         } catch (error) {
-          console.error('Error creating client:', error);
+          logger.error('Error creating client:', error);
           // Don't block case creation - just log the error
           // We'll show a notification after case is created
         }
@@ -321,7 +322,7 @@ const Cases = () => {
           }, 500);
         }
       } catch (error) {
-        console.error('Error creating case:', error);
+        logger.error('Error creating case:', error);
         toast({
           title: 'Failed to create case',
           description: error instanceof Error ? error.message : 'Unable to create case. Please try again.',

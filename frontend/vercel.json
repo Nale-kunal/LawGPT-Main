@@ -11,6 +11,10 @@
       "destination": "https://api.juriq.in/api/$1"
     },
     {
+      "source": "/loaderio-34d139185382f185e2660a604d645f89.txt",
+      "destination": "/loaderio-34d139185382f185e2660a604d645f89.txt"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
@@ -80,7 +84,7 @@
         },
         {
           "key": "Content-Security-Policy-Report-Only",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://api.cloudinary.com https://lh3.googleusercontent.com https://*.gravatar.com https://checkout.razorpay.com; connect-src 'self' https://api.juriq.in wss://api.juriq.in https://res.cloudinary.com https://api.cloudinary.com https://upload.cloudinary.com https://accounts.google.com https://oauth2.googleapis.com https://sentry.io https://*.sentry.io https://o*.ingest.sentry.io; frame-src https://checkout.razorpay.com https://api.razorpay.com https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com https://api.razorpay.com; worker-src 'self' blob:; manifest-src 'self'; report-uri https://api.juriq.in/api/v1/security/csp-report"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://res.cloudinary.com https://api.cloudinary.com https://lh3.googleusercontent.com https://*.gravatar.com https://checkout.razorpay.com; connect-src 'self' https://api.juriq.in wss://api.juriq.in https://res.cloudinary.com https://api.cloudinary.com https://upload.cloudinary.com https://accounts.google.com https://oauth2.googleapis.com https://sentry.io https://*.sentry.io https://o*.ingest.sentry.io; frame-src https://checkout.razorpay.com https://api.razorpay.com https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com https://api.razorpay.com; worker-src 'self' blob:; manifest-src 'self'; report-uri https://api.juriq.in/api/v1/security/csp-report"
         },
         {
           "key": "Cache-Control",

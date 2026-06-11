@@ -9,7 +9,7 @@ const documentSchema = new mongoose.Schema({
   resourceType: { type: String, enum: ['image', 'video', 'raw', 'auto'], default: 'auto' }, // Cloudinary resource type
   folderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Folder' },
   caseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Case' }, // Optional case reference
-  ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true });
 
 // Indexes for efficient queries

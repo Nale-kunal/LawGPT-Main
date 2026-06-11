@@ -2,6 +2,7 @@ import express from 'express';
 import { requireAuth } from '../middleware/auth-jwt.js';
 import { checkPlanAccess } from '../middleware/checkPlanAccess.js';
 import { logActivity } from '../middleware/activityLogger.js';
+import { validateCaseOwnership } from '../services/ownershipService.js';
 import {
   createDocument,
   getDocumentById,
@@ -90,6 +91,10 @@ router.post('/check-conflict', async (req, res) => {
 // Get all hearings for a specific case
 router.get('/case/:caseId', async (req, res) => {
   try {
+    const isOwner = await validateCaseOwnership(req.params.caseId, req.user.userId);
+    if (!isOwner) {
+      return res.status(404).json({ error: 'Case not found or access denied' });
+    }
     const hearings = await queryDocuments(
       COLLECTIONS.HEARINGS,
       [
@@ -174,6 +179,12 @@ router.get('/:id', async (req, res) => {
 // Create a new hearing
 router.post('/', async (req, res) => {
   try {
+    if (req.body.caseId) {
+      const isOwner = await validateCaseOwnership(req.body.caseId, req.user.userId);
+      if (!isOwner) {
+        return res.status(404).json({ error: 'Case not found or access denied' });
+      }
+    }
     const normalizedHearingDate = normalizeDateInput(req.body.hearingDate);
     if (!normalizedHearingDate) {
       return res.status(400).json({ error: 'Valid hearing date is required' });
@@ -378,6 +389,13 @@ router.put('/:id', async (req, res) => {
 
     if (String(original.owner) !== String(req.user.userId)) {
       return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    if (req.body.caseId) {
+      const isOwner = await validateCaseOwnership(req.body.caseId, req.user.userId);
+      if (!isOwner) {
+        return res.status(404).json({ error: 'Case not found or access denied' });
+      }
     }
 
     const updates = { ...req.body };

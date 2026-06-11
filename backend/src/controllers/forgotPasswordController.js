@@ -2,6 +2,8 @@ import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import User from '../models/User.js';
 import ClientErrorLog from '../models/ClientErrorLog.js';
+import { invalidateUserCache } from '../utils/userCache.js';
+import { disconnectUserSockets } from '../community/socket/socketServer.js';
 
 
 
@@ -227,7 +229,17 @@ export const resetPassword = async (req, res) => {
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
     
+    // Security: Increment session version to invalidate ALL active sessions/tokens
+    user.sessionVersion = (user.sessionVersion || 0) + 1;
+    user.sessionVersionAt = new Date();
+    
     await user.save();
+
+    // Invalidate user cache immediately
+    await invalidateUserCache(user._id.toString());
+
+    // Disconnect user's active sockets immediately
+    disconnectUserSockets(user._id.toString(), 'SESSION_REVOKED');
 
     return res.json({ message: 'Password reset successfully' });
   } catch (error) {

@@ -64,10 +64,10 @@ const Product = () => {
                                 tag: 'Documents',
                             },
                             {
-                                Icon: Ic.Billing,
-                                title: 'Billing & Invoicing',
-                                desc: 'Generate professional invoices, track payments, manage retainers and log billable hours — all tied directly to your client and case records.',
-                                tag: 'Finance',
+                                Icon: Ic.Scale,
+                                title: 'Legal Templates',
+                                desc: 'Access standard drafts and pre-formatted templates for commonly used affidavits, agreements, notices, and legal pleadings.',
+                                tag: 'Drafting',
                             },
                             {
                                 Icon: Ic.Export,
@@ -206,7 +206,7 @@ const Product = () => {
                             { Icon: Ic.Calendar, label: 'Hearings', sub: 'Court calendar management' },
                             { Icon: Ic.Folder, label: 'Documents', sub: 'Secure case documents' },
                             { Icon: Ic.Note, label: 'Legal Notes', sub: 'Strategy & research notes' },
-                            { Icon: Ic.Billing, label: 'Billing', sub: 'Invoicing & payment tracking' },
+                            { Icon: Ic.Scale, label: 'Templates', sub: 'Standard legal drafts' },
                         ].map(({ Icon, label, sub }) => (
                             <div key={label} className="lp-hub-item">
                                 <div className="lp-hub-icon"><Icon /></div>

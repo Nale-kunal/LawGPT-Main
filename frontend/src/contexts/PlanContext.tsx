@@ -37,8 +37,6 @@ const FEATURE_MAP: Record<string, Plan> = {
   cases:            'free',
   clients:          'free',
   settings:         'free',
-  billing:          'basic',
-  invoices:         'basic',
   documents:        'pro',
   'legal-research': 'pro',
   hearings:         'pro',

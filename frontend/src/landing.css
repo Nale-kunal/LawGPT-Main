@@ -2,7 +2,9 @@
    Juriq Landing Page — Elite Professional Design System
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+/* Inter font is self-hosted via @fontsource-variable/inter (imported in index.css).
+   The Google Fonts @import has been removed to eliminate the render-blocking
+   external network dependency. */
 
 /* ── Dark mode (default) ─────────────────────────────────── */
 :root,
@@ -20,7 +22,9 @@ html.dark {
   --lp-blue: #3b82f6;
   --lp-text: #F9FAFB;
   --lp-muted: #9CA3AF;
-  --lp-subtle: #6B7280;
+  /* WCAG AA fix: #6B7280 on #0B0F19 = 3.88:1 (FAILS). #94A3B8 = 5.52:1 (PASSES). */
+  --lp-subtle: #94A3B8;
+
   --lp-border: rgba(255, 255, 255, 0.07);
   --lp-border-gold: hsla(35, 100%, 55%, 0.2);
   --lp-r: 14px;
@@ -167,7 +171,6 @@ html.light {
 }
 
 @keyframes lp-orb {
-
   0%,
   100% {
     transform: translate(0, 0) scale(1);
@@ -202,13 +205,16 @@ html.light {
   }
 }
 
+/* GPU-composited bar animation — uses transform: scaleX() instead of width
+   to avoid triggering layout recalculation on every animation frame.
+   Elements using this animation must have transform-origin: left center. */
 @keyframes lp-bar-grow {
   from {
-    width: 0;
+    transform: scaleX(0);
   }
 
   to {
-    width: var(--lp-bar-w);
+    transform: scaleX(1);
   }
 }
 
@@ -604,6 +610,9 @@ html.light {
   position: absolute;
   border-radius: 50%;
   filter: blur(90px);
+  /* Promote to own compositor layer — prevents orb animation from causing
+     repaints of surrounding page content during infinite 14-18s animations. */
+  will-change: transform;
 }
 
 .lp-orb-1 {

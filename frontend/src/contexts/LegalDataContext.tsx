@@ -60,16 +60,6 @@ export interface LegalSection {
   keywords: string[];
 }
 
-export interface TimeEntry {
-  id: string;
-  caseId: string;
-  description: string;
-  duration: number; // in minutes
-  hourlyRate: number;
-  date: Date;
-  billable: boolean;
-}
-
 export interface Hearing {
   id: string;
   caseId: string;
@@ -103,34 +93,6 @@ export interface Hearing {
   updatedAt: Date;
 }
 
-export interface InvoiceItem {
-  description: string;
-  quantity: number;
-  unitPrice: number;
-  amount: number;
-}
-
-export interface Invoice {
-  id: string;
-  clientId: string;
-  caseId?: string;
-  invoiceNumber: string;
-  issueDate: Date;
-  dueDate: Date;
-  status: 'draft' | 'sent' | 'paid' | 'overdue';
-  currency: string;
-  items: InvoiceItem[];
-  subtotal: number;
-  taxRate: number;
-  taxAmount: number;
-  discountAmount: number;
-  total: number;
-  notes?: string;
-  terms?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 interface LegalDataContextType {
   // Cases
   cases: Case[];
@@ -156,10 +118,6 @@ interface LegalDataContextType {
   legalSections: LegalSection[];
   searchLegalSections: (query: string) => LegalSection[];
 
-  // Time Entries
-  timeEntries: TimeEntry[];
-  addTimeEntry: (entry: Omit<TimeEntry, 'id'>) => void;
-
   // Hearings
   hearings: Hearing[];
   addHearing: (hearing: Omit<Hearing, 'id' | 'createdAt' | 'updatedAt'>, override?: boolean, overrideReason?: string) => Promise<void>;
@@ -167,13 +125,6 @@ interface LegalDataContextType {
   deleteHearing: (hearingId: string) => void;
   getHearingsByCaseId: (caseId: string) => Hearing[];
   checkHearingConflict: (startAt: Date, endAt: Date, timezone: string, resourceScope?: unknown, excludeHearingId?: string) => Promise<{ hasConflict: boolean; conflicts: unknown[] }>;
-
-  // Invoices
-  invoices: Invoice[];
-  createInvoice: (invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  updateInvoice: (invoiceId: string, updates: Partial<Invoice>) => Promise<void>;
-  deleteInvoice: (invoiceId: string) => Promise<void>;
-  sendInvoice: (invoiceId: string, payload: { to?: string; subject?: string; message?: string }) => Promise<{ previewUrl?: string }>;
 }
 
 const LegalDataContext = createContext<LegalDataContextType | undefined>(undefined);
@@ -235,9 +186,7 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
   const [clients, setClients] = useState<Client[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [legalSections] = useState<LegalSection[]>(mockLegalSections);
-  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [hearings, setHearings] = useState<Hearing[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
   // Get authentication status
   const { isAuthenticated } = useAuth();
@@ -275,33 +224,19 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
           return r.ok ? r.json() : Promise.resolve([]);
         })
         .catch(() => []),
-      apiFetch(getApiUrl('/api/time-entries'), { credentials: 'include', signal: abortController.signal })
-        .then(r => {
-          if (r.status === 401) return [];
-          return r.ok ? r.json() : Promise.resolve([]);
-        })
-        .catch(() => []),
       apiFetch(getApiUrl('/api/hearings'), { credentials: 'include', signal: abortController.signal })
         .then(r => {
           if (r.status === 401) return [];
           return r.ok ? r.json() : Promise.resolve([]);
         })
         .catch(() => []),
-      apiFetch(getApiUrl('/api/invoices'), { credentials: 'include', signal: abortController.signal })
-        .then(r => {
-          if (r.status === 401) return [];
-          return r.ok ? r.json() : Promise.resolve([]);
-        })
-        .catch(() => []),
-    ]).then(([casesRes, clientsRes, alertsRes, timeEntriesRes, hearingsRes, invoicesRes]) => {
+    ]).then(([casesRes, clientsRes, alertsRes, hearingsRes]) => {
       if (!mounted) return;
       setCases(Array.isArray(casesRes) ? casesRes.map(mapCaseFromApi) : []);
       setClients(Array.isArray(clientsRes) ? clientsRes.map(mapClientFromApi) : []);
       setAlerts(Array.isArray(alertsRes) ? alertsRes.map(mapAlertFromApi) : []);
-      setTimeEntries(Array.isArray(timeEntriesRes) ? timeEntriesRes.map(mapTimeEntryFromApi) : []);
       const mappedHearings = Array.isArray(hearingsRes) ? hearingsRes.map(mapHearingFromApi) : [];
       setHearings(mappedHearings);
-      setInvoices(Array.isArray(invoicesRes) ? invoicesRes.map(mapInvoiceFromApi) : []);
     }).catch((error) => {
       // Silently ignore errors; UI can still function without data
       // Don't log aborted requests or 401 errors as they're expected
@@ -423,14 +358,7 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
     );
   };
 
-  // Time tracking
-  const addTimeEntry = async (entry: Omit<TimeEntry, 'id'>) => {
-    const res = await apiFetch(getApiUrl('/api/time-entries'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(entry) });
-    if (res.ok) {
-      const saved = await res.json();
-      setTimeEntries(prev => [...prev, mapTimeEntryFromApi(saved)]);
-    }
-  };
+
 
   // Hearing management functions
   const checkHearingConflict = async (
@@ -552,35 +480,7 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
     });
   };
 
-  // Invoices
-  const createInvoice = async (invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const payload = mapInvoiceToApi(invoice);
-    const res = await apiFetch(getApiUrl('/api/invoices'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload) });
-    if (res.ok) {
-      const saved = await res.json();
-      setInvoices(prev => [mapInvoiceFromApi(saved), ...prev]);
-    }
-  };
 
-  const updateInvoice = async (invoiceId: string, updates: Partial<Invoice>) => {
-    const res = await apiFetch(getApiUrl(`/api/invoices/${invoiceId}`), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(mapInvoicePartialToApi(updates)) });
-    if (res.ok) {
-      const saved = await res.json();
-      setInvoices(prev => prev.map(i => i.id === invoiceId ? mapInvoiceFromApi(saved) : i));
-    }
-  };
-
-  const deleteInvoice = async (invoiceId: string) => {
-    const res = await apiFetch(getApiUrl(`/api/invoices/${invoiceId}`), { method: 'DELETE', credentials: 'include' });
-    if (res.ok) setInvoices(prev => prev.filter(i => i.id !== invoiceId));
-  };
-
-  const sendInvoice = async (invoiceId: string, payload: { to?: string; subject?: string; message?: string }) => {
-    const res = await apiFetch(getApiUrl(`/api/invoices/${invoiceId}/send`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload) });
-    if (!res.ok) throw new Error('Failed to send invoice');
-    const body = await res.json();
-    return { previewUrl: body.previewUrl } as { previewUrl?: string };
-  };
 
   // Refresh a single case from the API
   const refreshCase = async (caseId: string) => {
@@ -626,19 +526,12 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
     deleteAlert,
     legalSections,
     searchLegalSections,
-    timeEntries,
-    addTimeEntry,
     hearings,
     addHearing,
     updateHearing,
     deleteHearing,
     getHearingsByCaseId,
     checkHearingConflict,
-    invoices,
-    createInvoice,
-    updateInvoice,
-    deleteInvoice,
-    sendInvoice,
   };
 
   return (
@@ -745,19 +638,6 @@ function mapAlertFromApi(raw: any): Alert {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapTimeEntryFromApi(raw: any): TimeEntry {
-  return {
-    id: raw._id || raw.id,
-    caseId: raw.caseId,
-    description: raw.description,
-    duration: raw.duration,
-    hourlyRate: raw.hourlyRate,
-    date: toSafeDate(raw.date) || new Date(),
-    billable: !!raw.billable,
-  };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapHearingFromApi(raw: any): Hearing & { populatedCase?: any } {
   return {
     id: raw._id || raw.id,
@@ -792,56 +672,4 @@ function mapHearingFromApi(raw: any): Hearing & { populatedCase?: any } {
     populatedCase: raw.caseId && typeof raw.caseId === 'object' ? raw.caseId : null,
   };
 }
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapInvoiceFromApi(raw: any): Invoice {
-  return {
-    id: raw._id || raw.id,
-    clientId: raw.clientId,
-    caseId: raw.caseId,
-    invoiceNumber: raw.invoiceNumber,
-    issueDate: toSafeDate(raw.issueDate) || new Date(),
-    dueDate: toSafeDate(raw.dueDate) || new Date(),
-    status: raw.status,
-    currency: raw.currency || 'INR',
-    items: (raw.items || []).map((i: { description: string; quantity: number; unitPrice: number; amount: number }) => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice, amount: i.amount })),
-    subtotal: raw.subtotal || 0,
-    taxRate: raw.taxRate || 0,
-    taxAmount: raw.taxAmount || 0,
-    discountAmount: raw.discountAmount || 0,
-    total: raw.total || 0,
-    notes: raw.notes,
-    terms: raw.terms,
-    createdAt: raw.createdAt ? new Date(raw.createdAt) : new Date(),
-    updatedAt: raw.updatedAt ? new Date(raw.updatedAt) : new Date(),
-  } as Invoice;
-}
-
-function mapInvoiceToApi(inv: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>) {
-  return {
-    clientId: inv.clientId,
-    caseId: inv.caseId,
-    invoiceNumber: inv.invoiceNumber,
-    issueDate: inv.issueDate,
-    dueDate: inv.dueDate,
-    status: inv.status,
-    currency: inv.currency,
-    items: inv.items,
-    subtotal: inv.subtotal,
-    taxRate: inv.taxRate,
-    taxAmount: inv.taxAmount,
-    discountAmount: inv.discountAmount,
-    total: inv.total,
-    notes: inv.notes,
-    terms: inv.terms,
-  };
-}
-
-function mapInvoicePartialToApi(updates: Partial<Invoice>) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const u: any = { ...updates };
-  if ('id' in u) delete u.id;
-  if (u.issueDate instanceof Date) u.issueDate = u.issueDate.toISOString();
-  if (u.dueDate instanceof Date) u.dueDate = u.dueDate.toISOString();
-  return u;
-}
+

@@ -38,10 +38,8 @@ import caseNotesRoutes from './src/routes/caseNotes.js';
 import noteAttachmentsRoute from './src/routes/noteAttachments.js';
 import clientRoutes from './src/routes/clients.js';
 import alertRoutes from './src/routes/alerts.js';
-import timeEntryRoutes from './src/routes/timeEntries.js';
 import legalSectionRoutes from './src/routes/legalSections.js';
 import documentsRoutes from './src/routes/documents.js';
-import invoiceRoutes from './src/routes/invoices.js';
 import hearingRoutes from './src/routes/hearings.js';
 import dashboardRoutes from './src/routes/dashboard.js';
 import twoFactorRoutes from './src/routes/twoFactor.js';
@@ -370,7 +368,21 @@ app.get('/health', async (req, res) => {
 });
 
 // Enhanced health check
-app.get('/api/v1/health', async (_req, res) => {
+app.get('/api/v1/health', async (req, res) => {
+  // In production: only expose full details if authenticated with METRICS_TOKEN.
+  // Public callers get a minimal healthy/unhealthy signal — no topology info.
+  const hasToken = METRICS_TOKEN && req.headers.authorization === `Bearer ${METRICS_TOKEN}`;
+  const isPublic = isProduction && !hasToken;
+
+  if (isPublic) {
+    // Minimal response — no internal topology exposed
+    return res.json({
+      ok: true,
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   const redisStatus = redis.isAvailable() ? 'connected' : 'fallback (in-memory)';
   let redisPing = 'N/A';
   try { redisPing = await redis.ping(); } catch { /* ignore */ }
@@ -463,10 +475,8 @@ app.use('/api/v1/cases/:caseId/notes', caseNotesRoutes);
 app.use('/api/v1/cases', caseRoutes);
 app.use('/api/v1/clients', clientRoutes);
 app.use('/api/v1/alerts', alertRoutes);
-app.use('/api/v1/time-entries', timeEntryRoutes);
 app.use('/api/v1/legal-sections', legalSectionRoutes);
 app.use('/api/v1/documents', documentsRoutes);
-app.use('/api/v1/invoices', invoiceRoutes);
 app.use('/api/v1/hearings', hearingRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/2fa', twoFactorRoutes);
@@ -496,10 +506,8 @@ app.use('/api/cases/:caseId/notes/:noteId/attachments', noteAttachmentsRoute);
 app.use('/api/cases/:caseId/notes', caseNotesRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/alerts', alertRoutes);
-app.use('/api/time-entries', timeEntryRoutes);
 app.use('/api/legal-sections', legalSectionRoutes);
 app.use('/api/documents', documentsRoutes);
-app.use('/api/invoices', invoiceRoutes);
 app.use('/api/hearings', hearingRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/2fa', twoFactorRoutes);

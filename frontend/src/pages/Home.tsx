@@ -161,16 +161,16 @@ const Home = () => {
                                 <div className="lp-why-card-num">{item.number}</div>
                                 <div className="lp-why-card-split">
                                     <div className="lp-why-side-problem">
-                                        <h4>The Struggle</h4>
-                                        <h5>{item.problem}</h5>
+                                        <h3>The Struggle</h3>
+                                        <h4>{item.problem}</h4>
                                         <p>{item.problemDesc}</p>
                                     </div>
                                     <div className="lp-why-side-arrow">
                                         <div className="lp-asym-arrow">→</div>
                                     </div>
                                     <div className="lp-why-side-solution">
-                                        <h4>The Resolution</h4>
-                                        <h5>{item.solution}</h5>
+                                        <h3>The Resolution</h3>
+                                        <h4>{item.solution}</h4>
                                         <p>{item.solutionDesc}</p>
                                     </div>
                                 </div>
@@ -273,7 +273,7 @@ const Home = () => {
                         ].map((item, idx) => (
                             <div key={idx} className="lp-roadmap-item-premium lp-reveal" ref={r(21 + idx)}>
                                 <div className="lp-roadmap-meta">
-                                    <h4>{item.phase}</h4>
+                                    <h3>{item.phase}</h3>
                                     <span className="lp-roadmap-tag">{item.tag}</span>
                                 </div>
                                 <p>{item.desc}</p>

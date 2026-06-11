@@ -49,7 +49,6 @@ const defaultNotificationSettings = {
   pushNotifications: true,
   hearingReminders: true,
   clientUpdates: true,
-  billingAlerts: false,
   weeklyReports: true
 };
 
@@ -922,13 +921,6 @@ const Settings = () => {
                 <p className="text-[10px] text-muted-foreground">Client case updates</p>
               </div>
               <Switch id="clientUpdates" checked={!!notifications.clientUpdates} onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, clientUpdates: checked }))} disabled={isSavingNotifications} />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="billingAlerts" className="text-xs font-medium">Billing Alerts</Label>
-                <p className="text-[10px] text-muted-foreground">Payment & invoice alerts</p>
-              </div>
-              <Switch id="billingAlerts" checked={!!notifications.billingAlerts} onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, billingAlerts: checked }))} disabled={isSavingNotifications} />
             </div>
             <div className="flex items-center justify-between">
               <div>

@@ -2,6 +2,7 @@ import express from 'express';
 import { requireAuth } from '../middleware/auth-jwt.js';
 import logger from '../utils/logger.js';
 import { logActivity } from '../middleware/activityLogger.js';
+import { validateCaseOwnership } from '../services/ownershipService.js';
 import {
   createDocument,
   getDocumentById,
@@ -155,11 +156,11 @@ router.post('/', enforcePlanLimits('case'), async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const item = await getDocumentById(COLLECTIONS.CASES, req.params.id);
-    // Compare as strings to handle ObjectId vs string inconsistencies
-    if (!item || String(item.owner) !== String(req.user.userId)) {
+    const isOwner = await validateCaseOwnership(req.params.id, req.user.userId);
+    if (!isOwner) {
       return res.status(404).json({ error: 'Not found' });
     }
+    const item = await getDocumentById(COLLECTIONS.CASES, req.params.id);
     return res.json(item);
   } catch (error) {
     logger.error({ err: error }, 'Get case error');
@@ -169,11 +170,11 @@ router.get('/:id', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const existing = await getDocumentById(COLLECTIONS.CASES, req.params.id);
-    // Compare as strings to handle ObjectId vs string inconsistencies
-    if (!existing || String(existing.owner) !== String(req.user.userId)) {
+    const isOwner = await validateCaseOwnership(req.params.id, req.user.userId);
+    if (!isOwner) {
       return res.status(404).json({ error: 'Not found' });
     }
+    const existing = await getDocumentById(COLLECTIONS.CASES, req.params.id);
 
     // Validate case number if being updated (any format allowed, just ensure it's not empty)
     if (req.body.caseNumber !== undefined) {
@@ -301,10 +302,11 @@ const SYSTEM_PIPELINE_NODES = [
  */
 router.get('/:id/pipeline', async (req, res) => {
   try {
-    const caseDoc = await getDocumentById(COLLECTIONS.CASES, req.params.id);
-    if (!caseDoc || String(caseDoc.owner) !== String(req.user.userId)) {
+    const isOwner = await validateCaseOwnership(req.params.id, req.user.userId);
+    if (!isOwner) {
       return res.status(404).json({ error: 'Not found' });
     }
+    const caseDoc = await getDocumentById(COLLECTIONS.CASES, req.params.id);
 
     const customNodes = (caseDoc.customPipelineNodes || []).map(n => ({
       nodeId: n.nodeId,
@@ -348,10 +350,11 @@ router.get('/:id/pipeline', async (req, res) => {
  */
 router.post('/:id/pipeline', async (req, res) => {
   try {
-    const caseDoc = await getDocumentById(COLLECTIONS.CASES, req.params.id);
-    if (!caseDoc || String(caseDoc.owner) !== String(req.user.userId)) {
+    const isOwner = await validateCaseOwnership(req.params.id, req.user.userId);
+    if (!isOwner) {
       return res.status(404).json({ error: 'Not found' });
     }
+    const caseDoc = await getDocumentById(COLLECTIONS.CASES, req.params.id);
 
     const { customNodes = [], pipelineOrder = [] } = req.body;
 

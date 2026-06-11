@@ -20,9 +20,10 @@
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import logger from '../../utils/logger.js';
+import { env } from '../../config/env.js';
 
 // ── Configuration ─────────────────────────────────────────────────────────────
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = env.JWT_SECRET;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;         // 1 minute
 const RATE_LIMIT_MAX_EVENTS = 120;               // 120 events/minute max per socket
 const RATE_LIMIT_DISCONNECT_THRESHOLD = 200;     // Auto-disconnect at 200/minute (abuse)
@@ -319,7 +320,7 @@ export function handleSocketDisconnect(socket, reason) {
 
 // ── Utility ───────────────────────────────────────────────────────────────────
 function parseCookieToken(cookieHeader) {
-  if (!cookieHeader) return null;
+  if (!cookieHeader) {return null;}
   const cookies = Object.fromEntries(
     cookieHeader.split(';').map(c => {
       const [k, ...v] = c.trim().split('=');

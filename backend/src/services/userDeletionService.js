@@ -5,10 +5,8 @@ import {
     Client,
     Document,
     Folder,
-    Invoice,
     Hearing,
     Alert,
-    TimeEntry,
     Activity,
     AuditLog,
     PasswordReset
@@ -69,10 +67,8 @@ export async function deleteUserAccount(userId) {
         const mainModels = [
             { model: Case, name: 'cases', field: 'owner' },
             { model: Client, name: 'clients', field: 'owner' },
-            { model: Invoice, name: 'invoices', field: 'owner' },
             { model: Hearing, name: 'hearings', field: 'owner' },
             { model: Alert, name: 'alerts', field: 'owner' },
-            { model: TimeEntry, name: 'timeEntries', field: 'owner' },
             { model: Activity, name: 'activities', field: 'owner' }
         ];
 
@@ -150,8 +146,7 @@ export async function deleteUserAccount(userId) {
                 `dashboard:metrics:${userId}`,
                 `cases:${userId}`,
                 `clients:${userId}`,
-                `docs:${userId}`,
-                `invoices:${userId}`
+                `docs:${userId}`
             ];
             for (const key of keysToInvalidate) {
                 await cache.invalidatePattern(key);

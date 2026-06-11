@@ -28,6 +28,8 @@ import logger          from '../utils/logger.js';
 import { notifyUser }          from '../services/notificationService.js';
 import { inc }                  from '../services/metricsService.js';
 import { generatePaymentInvoice } from '../services/invoiceService.js';
+import { isAllowedFetchUrl }    from '../utils/urlValidator.js';
+import { env }                 from '../config/env.js';
 
 const router = express.Router();
 
@@ -64,14 +66,14 @@ const createSubLimiter = rateLimit({
 
 // ── Server-side plan map (source of truth — frontend never controls price) ────
 const PLAN_MAP = {
-  basic:   { planId: process.env.RAZORPAY_PLAN_ID_BASIC,   billingCycle: 'monthly' },
-  pro:     { planId: process.env.RAZORPAY_PLAN_ID_PRO,     billingCycle: 'monthly' },
-  premium: { planId: process.env.RAZORPAY_PLAN_ID_PREMIUM, billingCycle: 'monthly' },
-  elite:   { planId: process.env.RAZORPAY_PLAN_ID_ELITE,   billingCycle: 'monthly' },
-  basic_yearly:   { planId: process.env.RAZORPAY_PLAN_ID_BASIC_YEARLY,   billingCycle: 'yearly' },
-  pro_yearly:     { planId: process.env.RAZORPAY_PLAN_ID_PRO_YEARLY,     billingCycle: 'yearly' },
-  premium_yearly: { planId: process.env.RAZORPAY_PLAN_ID_PREMIUM_YEARLY, billingCycle: 'yearly' },
-  elite_yearly:   { planId: process.env.RAZORPAY_PLAN_ID_ELITE_YEARLY,   billingCycle: 'yearly' },
+  basic:   { planId: env.RAZORPAY_PLAN_ID_BASIC,   billingCycle: 'monthly' },
+  pro:     { planId: env.RAZORPAY_PLAN_ID_PRO,     billingCycle: 'monthly' },
+  premium: { planId: env.RAZORPAY_PLAN_ID_PREMIUM, billingCycle: 'monthly' },
+  elite:   { planId: env.RAZORPAY_PLAN_ID_ELITE,   billingCycle: 'monthly' },
+  basic_yearly:   { planId: env.RAZORPAY_PLAN_ID_BASIC_YEARLY,   billingCycle: 'yearly' },
+  pro_yearly:     { planId: env.RAZORPAY_PLAN_ID_PRO_YEARLY,     billingCycle: 'yearly' },
+  premium_yearly: { planId: env.RAZORPAY_PLAN_ID_PREMIUM_YEARLY, billingCycle: 'yearly' },
+  elite_yearly:   { planId: env.RAZORPAY_PLAN_ID_ELITE_YEARLY,   billingCycle: 'yearly' },
 };
 
 // ── Lazily instantiated Razorpay client ───────────────────────────────────────
@@ -80,8 +82,8 @@ let _razorpay = null;
 export function _resetRazorpayClient() { _razorpay = null; }
 function getRazorpay() {
   if (!_razorpay) {
-    const key_id     = process.env.RAZORPAY_KEY_ID;
-    const key_secret = process.env.RAZORPAY_KEY_SECRET;
+    const key_id     = env.RAZORPAY_KEY_ID;
+    const key_secret = env.RAZORPAY_KEY_SECRET;
     if (!key_id || !key_secret) {
       throw new Error('Razorpay keys not configured');
     }
@@ -117,12 +119,17 @@ function triggerAlert(type, payload = {}) {
   // Log level based on severity
   if (severity === 'HIGH') { logger.error({ alertType: type, ...alert }, `SECURITY ALERT [${severity}]: ${type}`); }
   else { logger.warn({ alertType: type, ...alert }, `SECURITY ALERT [${severity}]: ${type}`); }
-  if (process.env.SECURITY_ALERT_WEBHOOK_URL) {
-    fetch(process.env.SECURITY_ALERT_WEBHOOK_URL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(alert),
-    }).catch(e => logger.error({ e }, 'Alert webhook delivery failed'));
+  if (env.SLACK_WEBHOOK_URL) {
+    const urlCheck = isAllowedFetchUrl(env.SLACK_WEBHOOK_URL);
+    if (!urlCheck.ok) {
+      logger.error({ reason: urlCheck.error }, 'SLACK_WEBHOOK_URL failed SSRF validation — alert not dispatched');
+    } else {
+      fetch(env.SLACK_WEBHOOK_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(alert),
+      }).catch(e => logger.error({ e }, 'Alert webhook delivery failed'));
+    }
   }
 }
 
@@ -256,7 +263,7 @@ router.post('/create-subscription', requireAuth, createSubLimiter, async (req, r
     // ── 6. Return only what frontend needs — NO secrets ───────────────────
     return res.status(201).json({
       subscriptionId: rzpSub.id,
-      keyId:          process.env.RAZORPAY_KEY_ID,
+      keyId:          env.RAZORPAY_KEY_ID,
       planType,
       billingCycle,
       amountPaise,
@@ -308,7 +315,7 @@ router.post('/verify-payment', requireAuth, async (req, res) => {
     // ── 3. HMAC verification using KEY SECRET (not webhook secret) ────────
     const body        = `${razorpay_payment_id}|${razorpay_subscription_id}`;
     const expectedSig = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .createHmac('sha256', env.RAZORPAY_KEY_SECRET)
       .update(body)
       .digest('hex');
 
@@ -346,7 +353,7 @@ router.post(
   '/webhook',
   express.raw({ type: 'application/json' }),
   async (req, res) => {
-    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const webhookSecret = env.RAZORPAY_WEBHOOK_SECRET;
 
     // ── Guard: secret must be configured ─────────────────────────────────
     if (!webhookSecret) {
@@ -941,5 +948,56 @@ router.get('/invoices', requireAuth, async (req, res) => {
   }
 });
 
+// GET /my-subscription — Full subscription info for the authenticated user's dashboard
+router.get('/my-subscription', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const [user, subscription] = await Promise.all([
+      User.findById(userId)
+        .select('subscriptionPlan planStartDate planEndDate isCouponActive couponCodeUsed activeSubscriptionId')
+        .lean(),
+      Subscription.findOne({ userId, status: { $in: ['active', 'created', 'halted'] } })
+        .sort({ createdAt: -1 })
+        .lean(),
+    ]);
+
+    if (!user) { return res.status(404).json({ error: 'USER_NOT_FOUND' }); }
+
+    const { getEffectivePlan } = await import('../config/planFeatures.js');
+    const effectivePlan = getEffectivePlan(user);
+    const expired = user.planEndDate && new Date(user.planEndDate) < new Date();
+
+    return res.json({
+      ok: true,
+      plan: {
+        current:       effectivePlan,
+        raw:           user.subscriptionPlan || 'free',
+        startDate:     user.planStartDate  ?? null,
+        endDate:       user.planEndDate    ?? null,
+        expired:       !!expired,
+        isCouponActive: user.isCouponActive ?? false,
+        couponUsed:    user.couponCodeUsed  ?? null,
+      },
+      subscription: subscription ? {
+        subscriptionId:     subscription._id,
+        planType:           subscription.planType,
+        billingCycle:       subscription.billingCycle,
+        status:             subscription.status,
+        periodStart:        subscription.currentPeriodStart ?? null,
+        periodEnd:          subscription.currentPeriodEnd   ?? null,
+        refunded:           subscription.refunded ?? false,
+        cancelRequested:    subscription.cancelAtCycleEnd  ?? false,
+        cancelRequestedAt:  subscription.cancelRequestedAt ?? null,
+        createdAt:          subscription.createdAt,
+      } : null,
+    });
+  } catch (err) {
+    logger.error({ err }, 'GET /my-subscription error');
+    return res.status(500).json({ error: 'Failed to fetch subscription details' });
+  }
+});
+
 export default router;
+
 

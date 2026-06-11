@@ -2,6 +2,8 @@
  * API utility functions for making requests to the backend
  */
 
+import { logger } from './logger';
+
 /**
  * Get the API base URL for fetch() calls.
  *
@@ -149,7 +151,7 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
       const clonedRes = response.clone();
       const errBody = await clonedRes.json().catch(() => ({}));
       if (errBody.error === 'CSRF validation failed' || errBody.message?.includes('CSRF')) {
-        console.warn('API 403 CSRF validation failed. Clearing stale token cache and retrying...');
+        logger.warn('API 403 CSRF validation failed. Clearing stale token cache and retrying...');
         
         // 1. Clear the stale frontend cookie
         document.cookie = 'csrf-token=; path=/; max-age=0; samesite=strict';
@@ -174,16 +176,11 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
         }
       }
     } catch (_csrfErr) {
-      console.error('Failed to auto-recover from CSRF error.', _csrfErr);
+      logger.error('Failed to auto-recover from CSRF error.', _csrfErr);
     }
   }
 
-  const resRequestId = response.headers.get("x-request-id");
-  // Only log request IDs in dev, and skip noisy auth-check endpoints (401s there are expected)
-  const isAuthCheckEndpoint = url.includes('/auth/me') || url.includes('/auth/refresh') || url.includes('/auth/validate');
-  if ((import.meta.env.DEV || process.env.NODE_ENV === "development") && !isAuthCheckEndpoint) {
-    console.warn("Request ID:", resRequestId);
-  }
+
 
   // 401 Handling: Automatically attempt token refresh on 401 from non-auth endpoints
   const isAuthEndpoint = url.includes('/api/v1/auth/') || url.includes('/api/auth/');
@@ -194,16 +191,16 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
     const lastFailStr = sessionStorage.getItem('__refreshFailTs');
     const lastRefreshFail = lastFailStr ? parseInt(lastFailStr, 10) : 0;
     if (lastRefreshFail && Date.now() - lastRefreshFail < 10_000) {
-      console.warn('API 401: refresh circuit breaker active — skipping retry.', { url });
+      logger.warn('API 401: refresh circuit breaker active — skipping retry.', { url });
       return response;
     }
 
     if (sessionStorage.getItem('__isRefreshing') === '1') {
-      console.warn('API 401: refresh already in-flight — skipping duplicate.', { url });
+      logger.warn('API 401: refresh already in-flight — skipping duplicate.', { url });
       return response;
     }
 
-    console.warn('API 401 Unauthorized encountered. Attempting token refresh...', { url, method });
+    logger.warn('API 401 Unauthorized encountered. Attempting token refresh...', { url, method });
     sessionStorage.setItem('__isRefreshing', '1');
 
     try {
@@ -216,7 +213,7 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
       });
 
       if (refreshRes.ok) {
-        console.warn('Token refreshed successfully. Retrying original request.');
+        logger.warn('Token refreshed successfully. Retrying original request.');
         sessionStorage.removeItem('__refreshFailTs');
         const retryResponse = await fetchWithTimeout(url, {
           ...options,
@@ -226,12 +223,12 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
         return retryResponse;
       } else {
         sessionStorage.setItem('__refreshFailTs', String(Date.now()));
-        console.error('Token refresh failed. Dispatching auth:unauthorized.');
+        logger.error('Token refresh failed. Dispatching auth:unauthorized.');
         window.dispatchEvent(new CustomEvent('auth:unauthorized'));
       }
     } catch (refreshError) {
       sessionStorage.setItem('__refreshFailTs', String(Date.now()));
-      console.error('Error during token refresh:', refreshError);
+      logger.error('Error during token refresh:', refreshError);
       window.dispatchEvent(new CustomEvent('auth:unauthorized'));
     } finally {
       sessionStorage.removeItem('__isRefreshing');

@@ -8,7 +8,8 @@ import { LegalDataProvider } from "./contexts/LegalDataContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { FormattingProvider } from "./contexts/FormattingContext";
 import { PlanProvider } from "./contexts/PlanContext";
-import React, { Suspense } from "react";
+import { CommunityProvider } from "./modules/community/contexts/CommunityContext";
+import React, { Suspense, useEffect } from "react";
 import RequireAuth from "./components/auth/RequireAuth";
 import PublicOnlyRoute from "./components/auth/PublicOnlyRoute";
 
@@ -26,7 +27,6 @@ const Cases = React.lazy(() => import("./pages/Cases"));
 const Calendar = React.lazy(() => import("./pages/Calendar"));
 const Clients = React.lazy(() => import("./pages/Clients"));
 const LegalResearch = React.lazy(() => import("./pages/LegalResearch"));
-const Billing = React.lazy(() => import("./pages/Billing"));
 const Documents = React.lazy(() => import("./pages/Documents"));
 const Settings = React.lazy(() => import("./pages/Settings"));
 const News = React.lazy(() => import("./pages/News"));
@@ -53,6 +53,11 @@ const SubscriptionDashboard = React.lazy(() => import("./pages/SubscriptionDashb
 const PaymentSuccess = React.lazy(() => import("./pages/PaymentSuccess"));
 const PaymentFailed = React.lazy(() => import("./pages/PaymentFailed"));
 const SubscriptionExpired = React.lazy(() => import("./pages/SubscriptionExpired"));
+const CommunityPage = React.lazy(() => import("./modules/community/pages/CommunityPage"));
+const SupportPage = React.lazy(() => import("./modules/community/pages/SupportPage"));
+const FeedbackPage = React.lazy(() => import("./modules/community/pages/FeedbackPage"));
+const AdminCommunityPage = React.lazy(() => import("./modules/community/pages/AdminCommunityPage"));
+
 
 // Import Layout (not lazy — needed immediately for dashboard shell)
 import DashboardLayout from "./components/layout/DashboardLayout";
@@ -83,8 +88,8 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      refetchOnWindowFocus: true,
-      staleTime: 1000,
+      refetchOnWindowFocus: false,
+      staleTime: 30000,
       gcTime: 5 * 60 * 1000,
     },
   },
@@ -93,15 +98,23 @@ const queryClient = new QueryClient({
 
 
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="system" storageKey="legal-pro-theme">
-      <AuthProvider>
-        <PlanProvider>
-          <FormattingProvider>
-            <LegalDataProvider>
-            <TooltipProvider>
-              <Toaster />
+const App = () => {
+  useEffect(() => {
+    const loader = document.querySelector('.initial-loader');
+    if (loader) {
+      loader.remove();
+    }
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="system" storageKey="legal-pro-theme">
+        <AuthProvider>
+          <PlanProvider>
+            <FormattingProvider>
+              <LegalDataProvider>
+              <TooltipProvider>
+                <Toaster />
               <Sonner />
               <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                 <ScrollToHash />
@@ -135,7 +148,9 @@ const App = () => (
                       path="/dashboard"
                       element={
                         <RequireAuth>
-                          <DashboardLayout />
+                          <CommunityProvider>
+                            <DashboardLayout />
+                          </CommunityProvider>
                         </RequireAuth>
                       }
                     >
@@ -144,13 +159,16 @@ const App = () => (
                       <Route path="calendar" element={<Calendar />} />
                       <Route path="clients" element={<Clients />} />
                       <Route path="legal-research" element={<FeatureGate feature="legal-research"><LegalResearch /></FeatureGate>} />
-                      <Route path="billing" element={<FeatureGate feature="billing"><Billing /></FeatureGate>} />
                       <Route path="documents" element={<FeatureGate feature="documents"><Documents /></FeatureGate>} />
                       <Route path="settings" element={<Settings />} />
                       <Route path="news" element={<FeatureGate feature="news"><News /></FeatureGate>} />
                       <Route path="notes" element={<FeatureGate feature="notes"><Notes /></FeatureGate>} />
                       <Route path="templates" element={<FeatureGate feature="templates"><TemplatesDashboard /></FeatureGate>} />
                       <Route path="templates/:id" element={<FeatureGate feature="templates"><TemplateWorkspace /></FeatureGate>} />
+                      <Route path="community" element={<CommunityPage />} />
+                      <Route path="support" element={<SupportPage />} />
+                      <Route path="feedback" element={<FeedbackPage />} />
+                      <Route path="admin/community" element={<AdminCommunityPage />} />
                       <Route path="pricing" element={<Pricing />} />
                       <Route path="subscription" element={<SubscriptionDashboard />} />
                     </Route>
@@ -172,6 +190,7 @@ const App = () => (
       </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;

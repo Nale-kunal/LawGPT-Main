@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { useState } from 'react';
 import { usePlan, type Plan } from '@/contexts/PlanContext';
 import { getApiUrl, apiFetch } from '@/lib/api';
@@ -167,22 +168,22 @@ export default function Pricing() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       new (window as any).Razorpay(options).open();
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       alert('Payment initialization failed.');
       setPaymentStatus(prev => ({ ...prev, [plan]: 'idle' }));
     }
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6">
       {/* ── Page header ─────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-1.5">
             <Zap className="w-5 h-5 text-primary" />
             Subscription Plans
           </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-muted-foreground">
             Secure checkout via Razorpay · Cancel anytime
           </p>
         </div>
@@ -318,11 +319,11 @@ export default function Pricing() {
       {/* ── Coupon section ───────────────────────────────────────────── */}
       <Card className="card-gradient shadow-elevated border border-border">
         <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-sm">
+          <CardTitle className="flex items-center gap-1.5 text-sm">
             <Tag className="w-4 h-4 text-primary" />
             Coupon Code
           </CardTitle>
-          <CardDescription className="text-xs">
+          <CardDescription className="text-[10px]">
             Use{' '}
             <code className="font-mono font-bold text-foreground bg-muted px-1 py-0.5 rounded text-xs">
               WELCOMETOJURIQ

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useMemo, useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -420,7 +421,7 @@ const Calendar = () => {
         description: 'Hearing scheduled despite conflicts. Override reason recorded.'
       });
     } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-      console.error('Error overriding conflict:', error);
+      logger.error('Error overriding conflict:', error);
       toast({
         title: 'Failed to override',
         description: error.message || 'Unable to schedule hearing. Please try again.',

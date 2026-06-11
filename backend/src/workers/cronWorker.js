@@ -57,6 +57,14 @@ async function processCronJob(job) {
                     logger.error({ err }, 'Cron worker: ClientErrorLog cleanup failed');
                 }
                 break;
+            case 'subscription_reminders':
+                try {
+                    const { runSubscriptionReminders } = await import('../jobs/subscriptionReminders.js');
+                    await runSubscriptionReminders();
+                } catch (err) {
+                    logger.error({ err }, 'Cron worker: subscription_reminders failed');
+                }
+                break;
             default:
                 logger.warn({ name }, 'Cron worker: unknown job name');
         }
@@ -127,6 +135,11 @@ async function scheduleCronJobs(connection) {
         repeat: { pattern: '0 0 * * *' }, // midnight daily
         jobId: 'log_cleanup'
     });
-    
+
+    await cronQueue.add('subscription_reminders', {}, {
+        repeat: { pattern: '0 9 * * *' }, // 09:00 AM daily
+        jobId: 'subscription_reminders'
+    });
+
     logger.info('Cron jobs scheduled in BullMQ');
 }

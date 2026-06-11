@@ -25,7 +25,7 @@ const caseSchema = new mongoose.Schema({
   pipelineOrder: [{ type: String }],
   alerts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Alert' }],
   caseNotes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'CaseNote' }],
-  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true });
 
 // Indexes for efficient queries

@@ -11,7 +11,7 @@ import {
   updateDocument,
   queryDocuments,
   deleteManyDocuments,
-  MODELS
+  MODELS,
 } from '../services/mongodb.js';
 import logger from '../utils/logger.js';
 import { requireAuth } from '../middleware/auth-jwt.js';
@@ -29,7 +29,7 @@ import {
   reactivateSchema,
   importDataSchema,
   updateUserSchema,
-  updateSecuritySchema
+  updateSecuritySchema,
 } from '../schemas/authSchemas.js';
 import { blacklistToken, isTokenBlacklisted } from '../services/tokenService.js';
 import activityEmitter from '../utils/eventEmitter.js';
@@ -50,22 +50,23 @@ router.get('/csrf-token', setCsrfToken);
  */
 router.get('/validate', async (req, res) => {
   const token = req.cookies?.token;
-  if (!token) { return res.json({ authenticated: false }); }
+  if (!token) {
+    return res.json({ authenticated: false });
+  }
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    
+
     // Check if user still exists and is active (prevents /me 401 loop on deleted accounts)
     const user = await User.findById(decoded.userId).select('status deleted');
     if (!user || user.status === 'deleted' || user.deleted) {
       return res.json({ authenticated: false });
     }
-    
+
     return res.json({ authenticated: true });
   } catch (_err) {
     return res.json({ authenticated: false });
   }
 });
-
 
 // Helper constants
 // Validated at startup via env.js — guaranteed non-null, minimum 32 chars.
@@ -84,7 +85,7 @@ const defaultNotificationSettings = {
   pushNotifications: true,
   hearingReminders: true,
   clientUpdates: true,
-  weeklyReports: true
+  weeklyReports: true,
 };
 
 const defaultPreferenceSettings = {
@@ -92,13 +93,13 @@ const defaultPreferenceSettings = {
   language: 'en-IN',
   timezone: 'Asia/Kolkata',
   dateFormat: 'DD/MM/YYYY',
-  currency: 'INR'
+  currency: 'INR',
 };
 
 const defaultSecuritySettings = {
   twoFactorEnabled: false,
   sessionTimeout: '30',
-  loginNotifications: true
+  loginNotifications: true,
 };
 
 // Helper functions
@@ -108,7 +109,9 @@ function isValidEmail(email) {
 }
 
 function normalizeRole(role) {
-  if (!role) { return 'lawyer'; }
+  if (!role) {
+    return 'lawyer';
+  }
   const normalized = role.toString().toLowerCase();
   return ALLOWED_ROLES.includes(normalized) ? normalized : 'lawyer';
 }
@@ -125,11 +128,9 @@ function generateJWT(userId, email, role) {
 }
 
 function generateRefreshToken(userId) {
-  return jwt.sign(
-    { userId, type: 'refresh' },
-    JWT_REFRESH_SECRET,
-    { expiresIn: JWT_REFRESH_EXPIRES_IN }
-  );
+  return jwt.sign({ userId, type: 'refresh' }, JWT_REFRESH_SECRET, {
+    expiresIn: JWT_REFRESH_EXPIRES_IN,
+  });
 }
 
 function setAuthCookie(res, token) {
@@ -139,7 +140,7 @@ function setAuthCookie(res, token) {
     sameSite: 'lax',
     maxAge: 15 * 60 * 1000, // 15 minutes
     path: '/',
-    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
+    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN }),
   });
   res.cookie('is_authenticated', 'true', {
     httpOnly: false, // Accessible by synchronous index.html JS
@@ -147,7 +148,7 @@ function setAuthCookie(res, token) {
     sameSite: 'lax',
     maxAge: 15 * 60 * 1000,
     path: '/',
-    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
+    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN }),
   });
 }
 
@@ -158,16 +159,19 @@ function setRefreshCookie(res, refreshToken) {
     sameSite: 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: '/', // Must be '/' so clearCookie('/', ...) reliably removes it on logout
-    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
+    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN }),
   });
 }
 
 function buildUserResponse(userId, profile) {
   // Auto-migrate existing users: if they have old fields populated, consider onboarding complete
   const hasLegacyData = profile.barNumber || profile.firm || profile.phone;
-  const onboardingCompleted = profile.onboardingCompleted !== undefined
-    ? profile.onboardingCompleted
-    : (hasLegacyData ? true : false);
+  const onboardingCompleted =
+    profile.onboardingCompleted !== undefined
+      ? profile.onboardingCompleted
+      : hasLegacyData
+        ? true
+        : false;
 
   return {
     id: userId,
@@ -180,6 +184,8 @@ function buildUserResponse(userId, profile) {
     role: profile.role || 'lawyer',
     emailVerified: profile.emailVerified || false,
     onboardingCompleted,
+    onboardingCompletedAt: profile.onboardingCompletedAt || null,
+    onboardingVersion: profile.onboardingVersion || 0,
     immutableFieldsLocked: profile.immutableFieldsLocked || false,
     profile: {
       fullName: profile.profile?.fullName || null,
@@ -193,13 +199,13 @@ function buildUserResponse(userId, profile) {
       city: profile.profile?.city || null,
       state: profile.profile?.state || null,
       country: profile.profile?.country || null,
-      timezone: profile.profile?.timezone || profile.preferences?.timezone || null
+      timezone: profile.profile?.timezone || profile.preferences?.timezone || null,
     },
     notifications: profile.notifications || defaultNotificationSettings,
     preferences: profile.preferences || defaultPreferenceSettings,
     security: profile.security || defaultSecuritySettings,
     createdAt: profile.createdAt,
-    updatedAt: profile.updatedAt
+    updatedAt: profile.updatedAt,
   };
 }
 
@@ -235,15 +241,15 @@ router.post('/register', validate({ body: registerSchema }), async (req, res) =>
 
     // Check if user already exists (including deleted users) in either email or recoveryEmail
     const existingUser = await User.findOne({
-      $or: [
-        { email: normalizedEmail },
-        { recoveryEmail: normalizedEmail }
-      ]
+      $or: [{ email: normalizedEmail }, { recoveryEmail: normalizedEmail }],
     }).select('+passwordHash +status +deleted +deletedAt'); // Ensure all flags are loaded
 
     if (existingUser) {
       // Check if user was deleted
-      const isDeleted = existingUser.status === 'deleted' || existingUser.deleted === true || existingUser.deletedAt;
+      const isDeleted =
+        existingUser.status === 'deleted' ||
+        existingUser.deleted === true ||
+        existingUser.deletedAt;
 
       if (isDeleted) {
         // If the account was previously soft-deleted, we finish the job by hard-deleting it now.
@@ -259,14 +265,17 @@ router.post('/register', validate({ body: registerSchema }), async (req, res) =>
       // to trigger the "Account Previously Deleted" warning as requested by the user.
       const hardDeletionLog = await AdminAuditLog.findOne({
         action: 'user_delete_hard',
-        'details.email': normalizedEmail
+        'details.email': normalizedEmail,
       }).sort({ timestamp: -1 });
 
       if (hardDeletionLog) {
-        logger.warn('⚠️ Hard-deleted account signup attempt: %s. Triggering warning popup.', normalizedEmail);
+        logger.warn(
+          '⚠️ Hard-deleted account signup attempt: %s. Triggering warning popup.',
+          normalizedEmail
+        );
         return res.status(409).json({
           errorCode: 'ACCOUNT_DELETED',
-          error: 'This email belongs to a previously deleted account.'
+          error: 'This email belongs to a previously deleted account.',
         });
       }
     }
@@ -288,7 +297,7 @@ router.post('/register', validate({ body: registerSchema }), async (req, res) =>
       deleted: false, // Explicitly set to false
       notifications: defaultNotificationSettings,
       preferences: defaultPreferenceSettings,
-      security: defaultSecuritySettings
+      security: defaultSecuritySettings,
     };
 
     const user = await createDocument(MODELS.USERS, userData);
@@ -308,7 +317,7 @@ router.post('/register', validate({ body: registerSchema }), async (req, res) =>
     // Return user data
     return res.status(201).json({
       user: buildUserResponse(user.id, user),
-      token
+      token,
     });
   } catch (error) {
     logger.error({ error: error.message }, '❌ Registration error');
@@ -317,7 +326,7 @@ router.post('/register', validate({ body: registerSchema }), async (req, res) =>
     }
     return res.status(500).json({
       error: 'Registration failed. Please try again.',
-      ...(process.env.NODE_ENV === 'development' && { details: error.message })
+      ...(process.env.NODE_ENV === 'development' && { details: error.message }),
     });
   }
 });
@@ -340,7 +349,10 @@ router.post('/reactivate', validate({ body: reactivateSchema }), async (req, res
     // If account not found, it means it was already hard-deleted.
     // If found but soft-deleted, we purge it now.
     if (existingUser) {
-      const isDeleted = existingUser.status === 'deleted' || existingUser.deleted === true || existingUser.deletedAt;
+      const isDeleted =
+        existingUser.status === 'deleted' ||
+        existingUser.deleted === true ||
+        existingUser.deletedAt;
       if (isDeleted) {
         logger.info('♻️ Purging old deleted account during reactivation: %s', normalizedEmail);
         await userDeletionService.deleteUserAccount(existingUser._id.toString());
@@ -362,7 +374,7 @@ router.post('/reactivate', validate({ body: reactivateSchema }), async (req, res
       deleted: false,
       notifications: defaultNotificationSettings,
       preferences: defaultPreferenceSettings,
-      security: defaultSecuritySettings
+      security: defaultSecuritySettings,
     };
 
     const user = await createDocument(MODELS.USERS, userData);
@@ -374,7 +386,7 @@ router.post('/reactivate', validate({ body: reactivateSchema }), async (req, res
     return res.status(200).json({
       user: buildUserResponse(user.id, user),
       token,
-      message: 'Account reactivated successfully (fresh start)'
+      message: 'Account reactivated successfully (fresh start)',
     });
   } catch (error) {
     logger.error({ error }, 'Reactivation error');
@@ -410,10 +422,7 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
     let matchedUsers;
     try {
       matchedUsers = await User.find({
-        $or: [
-          { email: normalizedEmail },
-          { recoveryEmail: normalizedEmail }
-        ]
+        $or: [{ email: normalizedEmail }, { recoveryEmail: normalizedEmail }],
       });
       if (process.env.NODE_ENV === 'development') {
         logger.debug('👤 Found %d user match(es)', matchedUsers.length);
@@ -425,7 +434,7 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
       }
       return res.status(500).json({
         error: 'Database error. Please try again.',
-        ...(process.env.NODE_ENV === 'development' && { details: dbError.message })
+        ...(process.env.NODE_ENV === 'development' && { details: dbError.message }),
       });
     }
 
@@ -437,14 +446,17 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
       // NO ACTIVE USER FOUND - Check if it was previously hard-deleted
       const hardDeletionLog = await AdminAuditLog.findOne({
         action: 'user_delete_hard',
-        'details.email': normalizedEmail
+        'details.email': normalizedEmail,
       }).sort({ timestamp: -1 });
 
       if (hardDeletionLog) {
-        logger.warn('⚠️ Hard-deleted account login attempt: %s. Triggering warning popup.', normalizedEmail);
+        logger.warn(
+          '⚠️ Hard-deleted account login attempt: %s. Triggering warning popup.',
+          normalizedEmail
+        );
         return res.status(403).json({
           errorCode: 'ACCOUNT_DELETED',
-          error: 'This account was deleted previously.'
+          error: 'This account was deleted previously.',
         });
       }
 
@@ -452,9 +464,11 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
         userId: null,
         eventType: 'login_failure',
         req,
-        metadata: { reason: 'user_not_found', email: normalizedEmail }
+        metadata: { reason: 'user_not_found', email: normalizedEmail },
       });
-      return res.status(401).json({ error: 'No account exists linked with this mail. Try with another mail.' });
+      return res
+        .status(401)
+        .json({ error: 'No account exists linked with this mail. Try with another mail.' });
     }
 
     let userDoc = null;
@@ -462,13 +476,18 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
     // ── Google-only account guard (additive check — does not touch loop below) ──
     // If ALL active matched accounts are Google-only (no passwordHash),
     // return a specific error so the user knows to use Google login.
-    const activeMatches = matchedUsers.filter(doc => !(doc.status === 'deleted' || doc.deleted === true || doc.deletedAt));
-    if (activeMatches.length > 0 && activeMatches.every(doc => !doc.authProviders || !doc.authProviders.includes('email'))) {
+    const activeMatches = matchedUsers.filter(
+      (doc) => !(doc.status === 'deleted' || doc.deleted === true || doc.deletedAt)
+    );
+    if (
+      activeMatches.length > 0 &&
+      activeMatches.every((doc) => !doc.authProviders || !doc.authProviders.includes('email'))
+    ) {
       await activityEmitter.emit({
         userId: activeMatches[0]._id.toString(),
         eventType: 'login_failure',
         req,
-        metadata: { reason: 'google_account_password_attempt', email: normalizedEmail }
+        metadata: { reason: 'google_account_password_attempt', email: normalizedEmail },
       });
       return res.status(401).json({
         success: false,
@@ -498,7 +517,9 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
 
     if (!userDoc) {
       // Verify if ALL candidate users were soft-deleted
-      const allDeleted = matchedUsers.every(doc => doc.status === 'deleted' || doc.deleted === true || doc.deletedAt);
+      const allDeleted = matchedUsers.every(
+        (doc) => doc.status === 'deleted' || doc.deleted === true || doc.deletedAt
+      );
 
       if (allDeleted) {
         if (process.env.NODE_ENV === 'development') {
@@ -507,7 +528,7 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
         return res.status(403).json({
           success: false,
           errorCode: 'ACCOUNT_DELETED',
-          message: 'This account was deleted previously.'
+          message: 'This account was deleted previously.',
         });
       }
 
@@ -517,7 +538,9 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
       }
 
       // Record abuse signal against the first non-deleted candidate as best-effort tracking
-      const attemptTarget = matchedUsers.find(doc => !(doc.status === 'deleted' || doc.deleted === true || doc.deletedAt));
+      const attemptTarget = matchedUsers.find(
+        (doc) => !(doc.status === 'deleted' || doc.deleted === true || doc.deletedAt)
+      );
       if (attemptTarget) {
         const { recordAbuseSignal } = await import('../middleware/abuseDetection.js');
         await recordAbuseSignal(attemptTarget, 'failed_login', {}, req);
@@ -526,7 +549,7 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
           userId: attemptTarget._id.toString(),
           eventType: 'login_failure',
           req,
-          metadata: { reason: 'invalid_password' }
+          metadata: { reason: 'invalid_password' },
         });
       }
 
@@ -551,19 +574,19 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
 
     // Update lastLoginAt
     await updateDocument(MODELS.USERS, user.id, {
-      'accountStatus.lastLoginAt': new Date()
-    }).catch(err => logger.error({ err }, 'Failed to update lastLoginAt'));
+      'accountStatus.lastLoginAt': new Date(),
+    }).catch((err) => logger.error({ err }, 'Failed to update lastLoginAt'));
 
     await activityEmitter.emit({
       userId: user.id,
       eventType: 'login_success',
-      req
+      req,
     });
 
     // Return user data
     return res.json({
       user: buildUserResponse(user.id, user),
-      token
+      token,
     });
   } catch (error) {
     logger.error({ err: error.message }, '❌ Login error');
@@ -575,8 +598,8 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
       error: 'Login failed. Please try again.',
       ...(process.env.NODE_ENV === 'development' && {
         details: error.message,
-        stack: error.stack
-      })
+        stack: error.stack,
+      }),
     });
   }
 });
@@ -587,7 +610,7 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
  */
 router.post('/logout', async (req, res) => {
   const token = req.cookies?.token || (req.headers.authorization || '').replace('Bearer ', '');
-  const refreshToken = (req.cookies?.refreshToken);
+  const refreshToken = req.cookies?.refreshToken;
 
   // Blacklist tokens in Redis for immediate revocation across all instances
   if (token) {
@@ -603,7 +626,7 @@ router.post('/logout', async (req, res) => {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
     sameSite: env.NODE_ENV === 'production' ? 'lax' : 'lax',
-    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
+    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN }),
   };
   // Clear access token (set at path '/')
   res.clearCookie('token', { ...base, path: '/' });
@@ -613,7 +636,7 @@ router.post('/logout', async (req, res) => {
     secure: env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN })
+    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN }),
   });
   // Clear refresh token — use same path it is set with ('/')
   res.clearCookie('refreshToken', { ...base, path: '/' });
@@ -625,7 +648,7 @@ router.post('/logout', async (req, res) => {
     httpOnly: false,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    path: '/'
+    path: '/',
   });
 
   res.json({ message: 'Logged out successfully' });
@@ -634,7 +657,7 @@ router.post('/logout', async (req, res) => {
     await activityEmitter.emit({
       userId: req.user.userId,
       eventType: 'session_revoked',
-      req
+      req,
     });
   }
 });
@@ -670,7 +693,9 @@ router.post('/refresh', async (req, res) => {
     }
 
     // Verify user still exists and is active
-    const user = await User.findById(decoded.userId).select('-passwordHash -resetPasswordToken -verificationToken');
+    const user = await User.findById(decoded.userId).select(
+      '-passwordHash -resetPasswordToken -verificationToken'
+    );
     if (!user || user.status === 'deleted' || user.deleted) {
       res.clearCookie('refreshToken', { httpOnly: true, path: '/' });
       return res.status(401).json({ error: 'User not found or account is inactive' });
@@ -767,11 +792,11 @@ router.patch('/settings/notifications', requireAuth, async (req, res) => {
     const updatedNotifications = {
       ...defaultNotificationSettings,
       ...(user.notifications || {}),
-      ...bodyUpdates
+      ...bodyUpdates,
     };
 
     const updatedUser = await updateDocument(MODELS.USERS, req.user.userId, {
-      notifications: updatedNotifications
+      notifications: updatedNotifications,
     });
 
     return res.json({ user: buildUserResponse(updatedUser.id, updatedUser) });
@@ -799,7 +824,9 @@ router.patch('/settings/preferences', requireAuth, async (req, res) => {
           return res.status(400).json({ error: `Field '${key}' must be a string` });
         }
         if (val.length > 100) {
-          return res.status(400).json({ error: `Field '${key}' exceeds maximum length of 100 characters` });
+          return res
+            .status(400)
+            .json({ error: `Field '${key}' exceeds maximum length of 100 characters` });
         }
         bodyUpdates[key] = val.trim();
       }
@@ -808,11 +835,11 @@ router.patch('/settings/preferences', requireAuth, async (req, res) => {
     const updatedPreferences = {
       ...defaultPreferenceSettings,
       ...(user.preferences || {}),
-      ...bodyUpdates
+      ...bodyUpdates,
     };
 
     const updatedUser = await updateDocument(MODELS.USERS, req.user.userId, {
-      preferences: updatedPreferences
+      preferences: updatedPreferences,
     });
 
     return res.json({ user: buildUserResponse(updatedUser.id, updatedUser) });
@@ -826,129 +853,134 @@ router.patch('/settings/preferences', requireAuth, async (req, res) => {
  * POST /api/auth/forgot-password
  * Request password reset
  */
-router.post('/_deprecated-forgot-password', validate({ body: forgotPasswordSchema }), async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
-    }
-
-    const normalizedEmail = email.toLowerCase().trim();
-
-    // Find user by primary email or recovery email
-    const user = await User.findOne({
-      $or: [
-        { email: normalizedEmail },
-        { recoveryEmail: normalizedEmail }
-      ]
-    }).lean();
-
-    // Always return success even if user doesn't exist (security best practice)
-    if (!user) {
-      return res.json({ message: 'If that email exists, a password reset link has been sent' });
-    }
-
-    // Set id for consistency
-    user.id = user._id.toString();
-
-    // Generate reset token
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
-    const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRY_MS);
-
-    // Store reset token in database
-    await createDocument(MODELS.PASSWORD_RESETS, {
-      userId: user.id,
-      email: normalizedEmail,
-      tokenHash,
-      expiresAt
-    });
-
-    // Send email to the PRIMARY email ALWAYS (never to recovery email)
-    const resetUrl = `${process.env.RESET_PASSWORD_BASE_URL || 'https://juriq.in'}/reset-password/${resetToken}`;
-
+router.post(
+  '/_deprecated-forgot-password',
+  validate({ body: forgotPasswordSchema }),
+  async (req, res) => {
     try {
-      await sendPasswordResetEmail({ to: user.email, resetUrl });
-    } catch (emailError) {
-      logger.error({ emailError }, 'Failed to send password reset email');
-      // Continue anyway - token is stored
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+
+      const normalizedEmail = email.toLowerCase().trim();
+
+      // Find user by primary email or recovery email
+      const user = await User.findOne({
+        $or: [{ email: normalizedEmail }, { recoveryEmail: normalizedEmail }],
+      }).lean();
+
+      // Always return success even if user doesn't exist (security best practice)
+      if (!user) {
+        return res.json({ message: 'If that email exists, a password reset link has been sent' });
+      }
+
+      // Set id for consistency
+      user.id = user._id.toString();
+
+      // Generate reset token
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+      const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRY_MS);
+
+      // Store reset token in database
+      await createDocument(MODELS.PASSWORD_RESETS, {
+        userId: user.id,
+        email: normalizedEmail,
+        tokenHash,
+        expiresAt,
+      });
+
+      // Send email to the PRIMARY email ALWAYS (never to recovery email)
+      const resetUrl = `${process.env.RESET_PASSWORD_BASE_URL || 'https://juriq.in'}/reset-password/${resetToken}`;
+
+      try {
+        await sendPasswordResetEmail({ to: user.email, resetUrl });
+      } catch (emailError) {
+        logger.error({ emailError }, 'Failed to send password reset email');
+        // Continue anyway - token is stored
+      }
+
+      await activityEmitter.emit({
+        userId: user.id,
+        eventType: 'password_reset_request',
+        req,
+      });
+
+      return res.json({ message: 'If that email exists, a password reset link has been sent' });
+    } catch (error) {
+      logger.error({ error }, 'Forgot password error');
+      return res.status(500).json({ error: 'Failed to process password reset request' });
     }
-
-    await activityEmitter.emit({
-      userId: user.id,
-      eventType: 'password_reset_request',
-      req
-    });
-
-    return res.json({ message: 'If that email exists, a password reset link has been sent' });
-  } catch (error) {
-    logger.error({ error }, 'Forgot password error');
-    return res.status(500).json({ error: 'Failed to process password reset request' });
   }
-});
+);
 
 /**
  * POST /api/auth/reset-password
  * Reset password with token
  */
-router.post('/_deprecated-reset-password', validate({ body: resetPasswordSchema }), async (req, res) => {
-  try {
-    const { token, newPassword } = req.body;
+router.post(
+  '/_deprecated-reset-password',
+  validate({ body: resetPasswordSchema }),
+  async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
 
-    if (!token || !newPassword) {
-      return res.status(400).json({ error: 'Token and new password are required' });
+      if (!token || !newPassword) {
+        return res.status(400).json({ error: 'Token and new password are required' });
+      }
+
+      // Hash the provided token
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+      // Find valid reset token
+      const resetRequests = await queryDocuments(MODELS.PASSWORD_RESETS, [
+        { field: 'tokenHash', operator: '==', value: tokenHash },
+      ]);
+
+      if (resetRequests.length === 0) {
+        return res.status(400).json({ error: 'Invalid or expired reset token' });
+      }
+
+      const resetRequest = resetRequests[0];
+
+      // Check if token is expired
+      if (new Date(resetRequest.expiresAt) < new Date()) {
+        return res.status(400).json({ error: 'Reset token has expired' });
+      }
+
+      // Hash new password
+      const passwordHash = await User.hashPassword(newPassword);
+
+      // Update user password and session version
+      await User.findByIdAndUpdate(resetRequest.userId, {
+        $set: { passwordHash, sessionVersionAt: new Date() },
+        $inc: { sessionVersion: 1 },
+      });
+
+      // Invalidate Redis cache
+      await invalidateUserCache(resetRequest.userId);
+
+      // Disconnect active sockets
+      disconnectUserSockets(resetRequest.userId, 'SESSION_REVOKED');
+
+      // Delete used reset token
+      await PasswordReset.deleteMany({ userId: resetRequest.userId });
+
+      await activityEmitter.emit({
+        userId: resetRequest.userId,
+        eventType: 'password_reset_success',
+        req,
+      });
+
+      return res.json({ message: 'Password reset successfully' });
+    } catch (error) {
+      logger.error({ error }, 'Reset password error');
+      return res.status(500).json({ error: 'Failed to reset password' });
     }
-
-    // Hash the provided token
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-
-    // Find valid reset token
-    const resetRequests = await queryDocuments(MODELS.PASSWORD_RESETS, [
-      { field: 'tokenHash', operator: '==', value: tokenHash }
-    ]);
-
-    if (resetRequests.length === 0) {
-      return res.status(400).json({ error: 'Invalid or expired reset token' });
-    }
-
-    const resetRequest = resetRequests[0];
-
-    // Check if token is expired
-    if (new Date(resetRequest.expiresAt) < new Date()) {
-      return res.status(400).json({ error: 'Reset token has expired' });
-    }
-
-    // Hash new password
-    const passwordHash = await User.hashPassword(newPassword);
-
-    // Update user password and session version
-    await User.findByIdAndUpdate(resetRequest.userId, {
-      $set: { passwordHash, sessionVersionAt: new Date() },
-      $inc: { sessionVersion: 1 }
-    });
-
-    // Invalidate Redis cache
-    await invalidateUserCache(resetRequest.userId);
-
-    // Disconnect active sockets
-    disconnectUserSockets(resetRequest.userId, 'SESSION_REVOKED');
-
-    // Delete used reset token
-    await PasswordReset.deleteMany({ userId: resetRequest.userId });
-
-    await activityEmitter.emit({
-      userId: resetRequest.userId,
-      eventType: 'password_reset_success',
-      req
-    });
-
-    return res.json({ message: 'Password reset successfully' });
-  } catch (error) {
-    logger.error({ error }, 'Reset password error');
-    return res.status(500).json({ error: 'Failed to reset password' });
   }
-});
+);
 
 /**
  * PUT /api/auth/me
@@ -984,24 +1016,20 @@ router.put('/me', requireAuth, validate({ body: updateUserSchema }), async (req,
         normalizedRecoveryEmail = recoveryEmail.toLowerCase().trim();
 
         if (normalizedRecoveryEmail === user.email.toLowerCase()) {
-          return res.status(400).json({ error: 'Recovery email cannot be the same as your primary email' });
+          return res
+            .status(400)
+            .json({ error: 'Recovery email cannot be the same as your primary email' });
         }
 
         const existingEmailConflict = await User.findOne({
-          $or: [
-            { email: normalizedRecoveryEmail },
-            { recoveryEmail: normalizedRecoveryEmail }
-          ],
-          $and: [
-            { status: { $ne: 'deleted' } },
-            { deleted: { $ne: true } }
-          ]
+          $or: [{ email: normalizedRecoveryEmail }, { recoveryEmail: normalizedRecoveryEmail }],
+          $and: [{ status: { $ne: 'deleted' } }, { deleted: { $ne: true } }],
         });
 
         if (existingEmailConflict && existingEmailConflict._id.toString() !== req.user.userId) {
           return res.status(409).json({
             errorCode: 'EMAIL_EXISTS',
-            error: 'This recovery email is already in use by another account.'
+            error: 'This recovery email is already in use by another account.',
           });
         }
       }
@@ -1021,40 +1049,69 @@ router.put('/me', requireAuth, validate({ body: updateUserSchema }), async (req,
 
     // Update editable profile fields (NOT immutable: fullName, barCouncilNumber, currency)
     if (profile) {
-      if (profile.lawFirmName !== undefined) { updateQuery.$set['profile.lawFirmName'] = profile.lawFirmName?.trim() || null; }
-      if (profile.practiceAreas !== undefined) { updateQuery.$set['profile.practiceAreas'] = profile.practiceAreas || []; }
-      if (profile.courtLevels !== undefined) { updateQuery.$set['profile.courtLevels'] = profile.courtLevels || []; }
-      if (profile.phoneNumber !== undefined) { updateQuery.$set['profile.phoneNumber'] = profile.phoneNumber?.trim() || null; }
-      if (profile.address !== undefined) { updateQuery.$set['profile.address'] = profile.address?.trim() || null; }
-      if (profile.city !== undefined) { updateQuery.$set['profile.city'] = profile.city?.trim() || null; }
-      if (profile.state !== undefined) { updateQuery.$set['profile.state'] = profile.state?.trim() || null; }
-      if (profile.country !== undefined) { updateQuery.$set['profile.country'] = profile.country?.trim() || null; }
-      if (profile.timezone !== undefined) { updateQuery.$set['profile.timezone'] = profile.timezone || 'Asia/Kolkata'; }
+      if (profile.lawFirmName !== undefined) {
+        updateQuery.$set['profile.lawFirmName'] = profile.lawFirmName?.trim() || null;
+      }
+      if (profile.practiceAreas !== undefined) {
+        updateQuery.$set['profile.practiceAreas'] = profile.practiceAreas || [];
+      }
+      if (profile.courtLevels !== undefined) {
+        updateQuery.$set['profile.courtLevels'] = profile.courtLevels || [];
+      }
+      if (profile.phoneNumber !== undefined) {
+        updateQuery.$set['profile.phoneNumber'] = profile.phoneNumber?.trim() || null;
+      }
+      if (profile.address !== undefined) {
+        updateQuery.$set['profile.address'] = profile.address?.trim() || null;
+      }
+      if (profile.city !== undefined) {
+        updateQuery.$set['profile.city'] = profile.city?.trim() || null;
+      }
+      if (profile.state !== undefined) {
+        updateQuery.$set['profile.state'] = profile.state?.trim() || null;
+      }
+      if (profile.country !== undefined) {
+        updateQuery.$set['profile.country'] = profile.country?.trim() || null;
+      }
+      if (profile.timezone !== undefined) {
+        updateQuery.$set['profile.timezone'] = profile.timezone || 'Asia/Kolkata';
+      }
     }
 
     // Update notification settings
     if (notifications) {
-      updateQuery.$set.notifications = { ...(user.notifications?.toObject?.() || user.notifications || {}), ...notifications };
+      updateQuery.$set.notifications = {
+        ...(user.notifications?.toObject?.() || user.notifications || {}),
+        ...notifications,
+      };
     }
 
     // Update preferences
     if (preferences) {
-      updateQuery.$set.preferences = { ...(user.preferences?.toObject?.() || user.preferences || {}), ...preferences };
+      updateQuery.$set.preferences = {
+        ...(user.preferences?.toObject?.() || user.preferences || {}),
+        ...preferences,
+      };
     }
 
     // Update security settings
     if (security) {
-      updateQuery.$set.security = { ...(user.security?.toObject?.() || user.security || {}), ...security };
+      updateQuery.$set.security = {
+        ...(user.security?.toObject?.() || user.security || {}),
+        ...security,
+      };
     }
 
-    logger.info({ userId: req.user.userId, updateKeys: Object.keys(updateQuery.$set || {}) }, '💾 Saving update fields');
+    logger.info(
+      { userId: req.user.userId, updateKeys: Object.keys(updateQuery.$set || {}) },
+      '💾 Saving update fields'
+    );
 
     // Perform update
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user.userId,
-      updateQuery,
-      { new: true, runValidators: true }
-    );
+    const updatedUser = await User.findByIdAndUpdate(req.user.userId, updateQuery, {
+      new: true,
+      runValidators: true,
+    });
 
     if (!updatedUser) {
       return res.status(404).json({ error: 'User not found' });
@@ -1072,14 +1129,14 @@ router.put('/me', requireAuth, validate({ body: updateUserSchema }), async (req,
         metadata: {
           action: 'recovery_email_changed',
           oldValue: user.recoveryEmail || null,
-          newValue: updateQuery.$set.recoveryEmail || null
-        }
+          newValue: updateQuery.$set.recoveryEmail || null,
+        },
       });
     }
 
     return res.json({
       user: response,
-      message: 'Profile updated successfully'
+      message: 'Profile updated successfully',
     });
   } catch (error) {
     logger.error({ error }, 'Update user error');
@@ -1091,105 +1148,117 @@ router.put('/me', requireAuth, validate({ body: updateUserSchema }), async (req,
  * PATCH /api/auth/settings/security
  * Update security settings
  */
-router.patch('/settings/security', requireAuth, validate({ body: updateSecuritySchema }), async (req, res) => {
-  try {
-    const user = await getDocumentById(MODELS.USERS, req.user.userId);
+router.patch(
+  '/settings/security',
+  requireAuth,
+  validate({ body: updateSecuritySchema }),
+  async (req, res) => {
+    try {
+      const user = await getDocumentById(MODELS.USERS, req.user.userId);
 
-    const updatedSecurity = {
-      ...defaultSecuritySettings,
-      ...(user.security || {}),
-      ...req.body
-    };
+      const updatedSecurity = {
+        ...defaultSecuritySettings,
+        ...(user.security || {}),
+        ...req.body,
+      };
 
-    const updatedUser = await updateDocument(MODELS.USERS, req.user.userId, {
-      security: updatedSecurity
-    });
+      const updatedUser = await updateDocument(MODELS.USERS, req.user.userId, {
+        security: updatedSecurity,
+      });
 
-    return res.json({ user: buildUserResponse(updatedUser.id, updatedUser) });
-  } catch (error) {
-    logger.error({ error }, 'Update security settings error');
-    return res.status(500).json({ error: 'Failed to update security settings' });
+      return res.json({ user: buildUserResponse(updatedUser.id, updatedUser) });
+    } catch (error) {
+      logger.error({ error }, 'Update security settings error');
+      return res.status(500).json({ error: 'Failed to update security settings' });
+    }
   }
-});
+);
 
 /**
  * POST /api/auth/change-password
  * Change password (requires authentication)
  */
-router.post('/change-password', requireAuth, validate({ body: changePasswordSchema }), async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
+router.post(
+  '/change-password',
+  requireAuth,
+  validate({ body: changePasswordSchema }),
+  async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
 
-    // Get user with password
-    const userDoc = await User.findById(req.user.userId);
+      // Get user with password
+      const userDoc = await User.findById(req.user.userId);
 
-    if (!userDoc) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Verify current password, but ONLY if they actually have one (e.g., they didn't sign up via Google-only)
-    if (userDoc.passwordHash) {
-      if (!currentPassword) {
-        return res.status(400).json({ error: 'Current password is required' });
+      if (!userDoc) {
+        return res.status(404).json({ error: 'User not found' });
       }
-      
-      const isPasswordValid = await userDoc.verifyPassword(currentPassword);
-      if (!isPasswordValid) {
-        return res.status(401).json({ error: 'Current password is incorrect' });
+
+      // Verify current password, but ONLY if they actually have one (e.g., they didn't sign up via Google-only)
+      if (userDoc.passwordHash) {
+        if (!currentPassword) {
+          return res.status(400).json({ error: 'Current password is required' });
+        }
+
+        const isPasswordValid = await userDoc.verifyPassword(currentPassword);
+        if (!isPasswordValid) {
+          return res.status(401).json({ error: 'Current password is incorrect' });
+        }
       }
-    }
 
-    if (!newPassword) {
-       return res.status(400).json({ error: 'New password is required' });
-    }
-
-    // Validate new password strength
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters long' });
-    }
-
-    // Hash and update new password
-    const passwordHash = await User.hashPassword(newPassword);
-    
-    // If they previously didn't have a password (Google user), ensure 'email' is in authProviders
-    const updatePayload = { passwordHash };
-    if (!userDoc.authProviders || !userDoc.authProviders.includes('email')) {
-      updatePayload.authProviders = [...(userDoc.authProviders || []), 'email'];
-      if (userDoc.authProvider === 'google') {
-        updatePayload.authProvider = 'hybrid';
+      if (!newPassword) {
+        return res.status(400).json({ error: 'New password is required' });
       }
+
+      // Validate new password strength
+      if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters long' });
+      }
+
+      // Hash and update new password
+      const passwordHash = await User.hashPassword(newPassword);
+
+      // If they previously didn't have a password (Google user), ensure 'email' is in authProviders
+      const updatePayload = { passwordHash };
+      if (!userDoc.authProviders || !userDoc.authProviders.includes('email')) {
+        updatePayload.authProviders = [...(userDoc.authProviders || []), 'email'];
+        if (userDoc.authProvider === 'google') {
+          updatePayload.authProvider = 'hybrid';
+        }
+      }
+
+      await updateDocument(MODELS.USERS, req.user.userId, updatePayload);
+
+      // Security: Increment session version to invalidate ALL active sessions/tokens
+      // (forces all devices to re-authenticate after a password change)
+      await User.findByIdAndUpdate(req.user.userId, {
+        $inc: { sessionVersion: 1 },
+        $set: { sessionVersionAt: new Date() },
+      });
+
+      // Invalidate user cache immediately
+      await invalidateUserCache(req.user.userId);
+
+      // Disconnect user's active sockets immediately
+      disconnectUserSockets(req.user.userId, 'SESSION_REVOKED');
+
+      // Blacklist the current token so this session is immediately terminated
+      const currentToken =
+        req.cookies?.token || (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+      if (currentToken) {
+        await blacklistToken(currentToken).catch((err) =>
+          logger.warn({ err }, 'change-password: failed to blacklist current token (non-fatal)')
+        );
+      }
+
+      return res.json({
+        message: 'Password changed successfully. Please log in again on all devices.',
+      });
+    } catch (error) {
+      logger.error({ error }, 'Change password error');
+      return res.status(500).json({ error: 'Failed to change password' });
     }
-
-    await updateDocument(MODELS.USERS, req.user.userId, updatePayload);
-
-    // Security: Increment session version to invalidate ALL active sessions/tokens
-    // (forces all devices to re-authenticate after a password change)
-    await User.findByIdAndUpdate(req.user.userId, {
-      $inc: { sessionVersion: 1 },
-      $set:  { sessionVersionAt: new Date() }
-    });
-
-    // Invalidate user cache immediately
-    await invalidateUserCache(req.user.userId);
-
-    // Disconnect user's active sockets immediately
-    disconnectUserSockets(req.user.userId, 'SESSION_REVOKED');
-
-    // Blacklist the current token so this session is immediately terminated
-    const currentToken = req.cookies?.token ||
-      (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
-    if (currentToken) {
-      await blacklistToken(currentToken).catch(err =>
-        logger.warn({ err }, 'change-password: failed to blacklist current token (non-fatal)')
-      );
-    }
-
-    return res.json({ message: 'Password changed successfully. Please log in again on all devices.' });
-  } catch (error) {
-    logger.error({ error }, 'Change password error');
-    return res.status(500).json({ error: 'Failed to change password' });
   }
-});
+);
 
 /**
  * GET /api/auth/export-data
@@ -1205,19 +1274,19 @@ router.get('/export-data', requireAuth, async (req, res) => {
 
     // Fetch all user-related data
     const cases = await queryDocuments(MODELS.CASES, [
-      { field: 'userId', operator: '==', value: req.user.userId }
+      { field: 'userId', operator: '==', value: req.user.userId },
     ]);
 
     const clients = await queryDocuments(MODELS.CLIENTS, [
-      { field: 'userId', operator: '==', value: req.user.userId }
+      { field: 'userId', operator: '==', value: req.user.userId },
     ]);
 
     const documents = await queryDocuments(MODELS.DOCUMENTS, [
-      { field: 'userId', operator: '==', value: req.user.userId }
+      { field: 'userId', operator: '==', value: req.user.userId },
     ]);
 
     const hearings = await queryDocuments(MODELS.HEARINGS, [
-      { field: 'userId', operator: '==', value: req.user.userId }
+      { field: 'userId', operator: '==', value: req.user.userId },
     ]);
 
     // Compile export data
@@ -1228,19 +1297,22 @@ router.get('/export-data', requireAuth, async (req, res) => {
         cases,
         clients,
         documents,
-        hearings
+        hearings,
       },
       statistics: {
         totalCases: cases.length,
         totalClients: clients.length,
         totalDocuments: documents.length,
-        totalHearings: hearings.length
-      }
+        totalHearings: hearings.length,
+      },
     };
 
     // Set headers for file download
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename="juriq-data-export-${Date.now()}.json"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="juriq-data-export-${Date.now()}.json"`
+    );
 
     return res.json(exportData);
   } catch (error) {
@@ -1264,11 +1336,21 @@ router.post('/import-data', requireAuth, validate({ body: importDataSchema }), a
 
     // 1. Restore User Profile & Settings
     const updateQuery = {};
-    if (importedUser.name) { updateQuery.name = importedUser.name; }
-    if (importedUser.profile) { updateQuery.profile = importedUser.profile; }
-    if (importedUser.notifications) { updateQuery.notifications = importedUser.notifications; }
-    if (importedUser.preferences) { updateQuery.preferences = importedUser.preferences; }
-    if (importedUser.security) { updateQuery.security = importedUser.security; }
+    if (importedUser.name) {
+      updateQuery.name = importedUser.name;
+    }
+    if (importedUser.profile) {
+      updateQuery.profile = importedUser.profile;
+    }
+    if (importedUser.notifications) {
+      updateQuery.notifications = importedUser.notifications;
+    }
+    if (importedUser.preferences) {
+      updateQuery.preferences = importedUser.preferences;
+    }
+    if (importedUser.security) {
+      updateQuery.security = importedUser.security;
+    }
 
     if (Object.keys(updateQuery).length > 0) {
       await User.findByIdAndUpdate(req.user.userId, { $set: updateQuery });
@@ -1277,24 +1359,24 @@ router.post('/import-data', requireAuth, validate({ body: importDataSchema }), a
     // 2. Destructive Restoration of Business Data
     // We clear existing data to ensure the state exactly matches the backup
     const userIdFilter = { userId: req.user.userId };
-    
+
     const collectionsToRestore = [
       { key: 'cases', collection: MODELS.CASES },
       { key: 'clients', collection: MODELS.CLIENTS },
       { key: 'documents', collection: MODELS.DOCUMENTS },
-      { key: 'hearings', collection: MODELS.HEARINGS }
+      { key: 'hearings', collection: MODELS.HEARINGS },
     ];
 
     for (const item of collectionsToRestore) {
       // Clear existing
       await deleteManyDocuments(item.collection, userIdFilter);
-      
+
       // Insert new if available
       const dataToInsert = importedData[item.key];
       if (Array.isArray(dataToInsert) && dataToInsert.length > 0) {
         // Sanitize: ensure all records point to the CURRENT userId
         // (This prevents cases where a backup from User A is imported into User B's account)
-        const sanitizedData = dataToInsert.map(record => {
+        const sanitizedData = dataToInsert.map((record) => {
           const { id: _id_orig, _id: _id_mongo, createdAt: _ca, updatedAt: _ua, ...rest } = record; // eslint-disable-line no-unused-vars
           return {
             ...rest,
@@ -1311,24 +1393,26 @@ router.post('/import-data', requireAuth, validate({ body: importDataSchema }), a
     }
 
     logger.info('✅ DATA IMPORT COMPLETED for user: %s', req.user.userId);
-    
+
     // Emit activity event
     await activityEmitter.emit({
       userId: req.user.userId,
       eventType: 'data_import',
       req,
       metadata: {
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     });
 
-    return res.json({ 
-      success: true, 
-      message: 'Data restored successfully. Refreshing application...' 
+    return res.json({
+      success: true,
+      message: 'Data restored successfully. Refreshing application...',
     });
   } catch (error) {
     logger.error({ error }, 'Import data error');
-    return res.status(500).json({ error: 'Failed to import data. Please ensure the file is a valid Juriq backup.' });
+    return res
+      .status(500)
+      .json({ error: 'Failed to import data. Please ensure the file is a valid Juriq backup.' });
   }
 });
 
@@ -1357,7 +1441,7 @@ router.delete('/delete-account', requireAuth, async (req, res) => {
       if (!password) {
         return res.status(400).json({ error: 'Password is required to delete account' });
       }
-      
+
       const isPasswordValid = await userDoc.verifyPassword(password);
       if (!isPasswordValid) {
         return res.status(401).json({ error: 'Incorrect password' });
@@ -1376,15 +1460,59 @@ router.delete('/delete-account', requireAuth, async (req, res) => {
       throw new Error('Critical: User record persists after deletion attempt');
     }
 
-    logger.info('✅ User account and all associated data permanently deleted: %s (%s)', req.user.userId, deletionResult.email);
+    logger.info(
+      '✅ User account and all associated data permanently deleted: %s (%s)',
+      req.user.userId,
+      deletionResult.email
+    );
 
-    // Clear auth cookie
-    res.clearCookie('token', {
+    // ── Post-deletion token revocation ────────────────────────────────────────
+    // SECURITY: Blacklist the active JWT immediately so any in-flight or
+    // subsequent requests from the same browser are rejected at the blacklist
+    // check (step 2 of requireAuth) before they touch the database.
+    // Without this, a valid JWT for a deleted user passes JWT verification,
+    // then hits getDocumentById() which throws — a potential crash vector.
+    const activeToken =
+      req.cookies?.token || (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+    const activeRefreshToken = req.cookies?.refreshToken;
+
+    if (activeToken) {
+      // Access tokens expire in 15m — blacklist for 20m to cover clock skew
+      await blacklistToken(activeToken, 20 * 60).catch((err) =>
+        logger.error(
+          { err, userId: req.user.userId },
+          'Failed to blacklist access token after deletion'
+        )
+      );
+    }
+    if (activeRefreshToken) {
+      // Refresh tokens expire in 7d — blacklist for 7d
+      await blacklistToken(activeRefreshToken, 7 * 24 * 60 * 60).catch((err) =>
+        logger.error(
+          { err, userId: req.user.userId },
+          'Failed to blacklist refresh token after deletion'
+        )
+      );
+    }
+
+    // Evict the deleted user from the Redis profile cache so requireAuth
+    // cannot serve a stale profile for a deleted account
+    await invalidateUserCache(req.user.userId).catch((err) =>
+      logger.error({ err, userId: req.user.userId }, 'Failed to evict user cache after deletion')
+    );
+
+    // Disconnect any active websocket sessions for this user
+    disconnectUserSockets(req.user.userId, 'ACCOUNT_DELETED');
+
+    // Clear auth cookies (both access and refresh)
+    const cookieBase = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      path: '/'
-    });
+    };
+    res.clearCookie('token', { ...cookieBase, path: '/' });
+    res.clearCookie('refreshToken', { ...cookieBase, path: '/api/v1/auth/refresh' });
+    res.clearCookie('is_authenticated', { httpOnly: false, path: '/' });
 
     return res.json({ message: 'Account deleted successfully' });
   } catch (error) {
@@ -1417,7 +1545,7 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
       country,
       timezone,
       securityQuestion,
-      securityAnswer
+      securityAnswer,
     } = req.body;
 
     // Get current user
@@ -1427,7 +1555,7 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
     if (user.onboardingCompleted) {
       return res.status(400).json({
         errorCode: 'ONBOARDING_ALREADY_COMPLETED',
-        error: 'Onboarding already completed'
+        error: 'Onboarding already completed',
       });
     }
 
@@ -1450,14 +1578,14 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
     // CRITICAL: Check Bar Council Number uniqueness across ACTIVE users only
     const existingBar = await User.findOne({
       'profile.barCouncilNumber': barCouncilNumber.trim(),
-      status: 'active'
+      status: 'active',
     });
 
     if (existingBar && existingBar._id.toString() !== req.user.userId) {
       return res.status(409).json({
         errorCode: 'BAR_COUNCIL_EXISTS',
         message: 'This Bar Council Number is already registered.',
-        error: 'This Bar Council Number is already registered.'
+        error: 'This Bar Council Number is already registered.',
       });
     }
 
@@ -1468,25 +1596,21 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
 
       // Must not match user's own primary email
       if (normalizedRecoveryEmail === user.email.toLowerCase()) {
-        return res.status(400).json({ error: 'Recovery email cannot be the same as your primary email' });
+        return res
+          .status(400)
+          .json({ error: 'Recovery email cannot be the same as your primary email' });
       }
 
       // Must be unique across active users (either in email or recoveryEmail fields)
       const existingEmailConflict = await User.findOne({
-        $or: [
-          { email: normalizedRecoveryEmail },
-          { recoveryEmail: normalizedRecoveryEmail }
-        ],
-        $and: [
-          { status: { $ne: 'deleted' } },
-          { deleted: { $ne: true } }
-        ]
+        $or: [{ email: normalizedRecoveryEmail }, { recoveryEmail: normalizedRecoveryEmail }],
+        $and: [{ status: { $ne: 'deleted' } }, { deleted: { $ne: true } }],
       });
 
       if (existingEmailConflict && existingEmailConflict._id.toString() !== req.user.userId) {
         return res.status(409).json({
           errorCode: 'EMAIL_EXISTS',
-          error: 'This email is already in use by another account.'
+          error: 'This email is already in use by another account.',
         });
       }
     }
@@ -1503,7 +1627,7 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
     if (!validCurrencies.includes(currency)) {
       return res.status(400).json({ error: 'Invalid currency selection' });
     }
-    
+
     // Validate Security Question & Answer
     if (!securityQuestion || !securityQuestion.trim()) {
       return res.status(400).json({ error: 'Security question is required' });
@@ -1515,10 +1639,10 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
     // Fix: Use exact strings for questions as per list
     const validQuestions = [
       "What is your mother's maiden name?",
-      "What was the name of your first pet?",
-      "What is your birthplace?",
-      "What was your first school name?",
-      "Who is your favorite sports player?"
+      'What was the name of your first pet?',
+      'What is your birthplace?',
+      'What was your first school name?',
+      'Who is your favorite sports player?',
     ];
 
     if (!validQuestions.includes(securityQuestion)) {
@@ -1545,16 +1669,28 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
       auditEntries.push({ fieldName: 'phoneNumber', value: phoneNumber.trim(), enteredAt: now });
     }
     if (normalizedRecoveryEmail) {
-      auditEntries.push({ fieldName: 'recoveryEmail', value: normalizedRecoveryEmail, enteredAt: now });
+      auditEntries.push({
+        fieldName: 'recoveryEmail',
+        value: normalizedRecoveryEmail,
+        enteredAt: now,
+      });
     }
     if (lawFirmName?.trim()) {
       auditEntries.push({ fieldName: 'lawFirmName', value: lawFirmName.trim(), enteredAt: now });
     }
     if (practiceAreas && practiceAreas.length > 0) {
-      auditEntries.push({ fieldName: 'practiceAreas', value: practiceAreas.join(', '), enteredAt: now });
+      auditEntries.push({
+        fieldName: 'practiceAreas',
+        value: practiceAreas.join(', '),
+        enteredAt: now,
+      });
     }
     if (courtLevels && courtLevels.length > 0) {
-      auditEntries.push({ fieldName: 'courtLevels', value: courtLevels.join(', '), enteredAt: now });
+      auditEntries.push({
+        fieldName: 'courtLevels',
+        value: courtLevels.join(', '),
+        enteredAt: now,
+      });
     }
     if (address?.trim()) {
       auditEntries.push({ fieldName: 'address', value: address.trim(), enteredAt: now });
@@ -1571,13 +1707,17 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
     if (timezone) {
       auditEntries.push({ fieldName: 'timezone', value: timezone, enteredAt: now });
     }
-    
+
     // Audit security question (we do NOT audit the hash or answer for security)
     auditEntries.push({ fieldName: 'securityQuestion', value: securityQuestion, enteredAt: now });
+
+    const completedAt = new Date();
 
     const updateQuery = {
       $set: {
         onboardingCompleted: true,
+        onboardingCompletedAt: completedAt,
+        onboardingVersion: 1,
         immutableFieldsLocked: true,
         'profile.fullName': fullName.trim(),
         'profile.barCouncilNumber': barCouncilNumber.trim(),
@@ -1597,8 +1737,8 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
         securityAnswerHash: securityAnswerHash,
       },
       $push: {
-        onboardingDataAudit: { $each: auditEntries }
-      }
+        onboardingDataAudit: { $each: auditEntries },
+      },
     };
 
     if (normalizedRecoveryEmail) {
@@ -1608,11 +1748,10 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
     }
 
     // Perform atomic update using Mongoose directly for better control
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user.userId,
-      updateQuery,
-      { new: true, runValidators: true }
-    );
+    const updatedUser = await User.findByIdAndUpdate(req.user.userId, updateQuery, {
+      new: true,
+      runValidators: true,
+    });
 
     if (!updatedUser) {
       return res.status(404).json({ error: 'User not found' });
@@ -1623,7 +1762,7 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
 
     return res.json({
       user: buildUserResponse(updatedUser.id, updatedUser),
-      message: 'Onboarding completed successfully'
+      message: 'Onboarding completed successfully',
     });
   } catch (error) {
     logger.error({ error }, 'Complete onboarding error');
@@ -1633,7 +1772,7 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
       return res.status(409).json({
         errorCode: 'BAR_COUNCIL_EXISTS',
         message: 'This Bar Council Number is already registered.',
-        error: 'This Bar Council Number is already registered.'
+        error: 'This Bar Council Number is already registered.',
       });
     }
 
@@ -1642,4 +1781,3 @@ router.post('/complete-onboarding', requireAuth, async (req, res) => {
 });
 
 export default router;
-

@@ -4,12 +4,11 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { useState, useEffect } from 'react';
-import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay';
 import JuriqLoader from '@/components/ui/JuriqLoader';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const DashboardLayout = () => {
-  const { user, isAuthenticated, isLoading, refreshUser } = useAuth();
+  const { isAuthenticated, isLoading, refreshUser } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Prevent browser from caching protected pages
@@ -73,11 +72,6 @@ const DashboardLayout = () => {
             </ErrorBoundary>
           </main>
         </div>
-
-        {/* Onboarding Overlay - appears when onboarding not completed */}
-        {user && user.onboardingCompleted === false && (
-          <OnboardingOverlay />
-        )}
       </div>
     </SidebarProvider>
   );

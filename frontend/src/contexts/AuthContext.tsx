@@ -1,4 +1,12 @@
-import React, { type ReactNode, createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, {
+  type ReactNode,
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from 'react';
 
 import { getApiUrl, apiFetch } from '@/lib/api';
 import JuriqLoader from '@/components/ui/JuriqLoader';
@@ -39,6 +47,8 @@ interface User {
   emailVerified?: boolean;
   hasPassword?: boolean;
   onboardingCompleted?: boolean;
+  onboardingCompletedAt?: string | null;
+  onboardingVersion?: number;
   immutableFieldsLocked?: boolean;
   profile?: {
     fullName?: string | null;
@@ -57,16 +67,27 @@ interface User {
   notifications?: NotificationSettings;
   preferences?: PreferenceSettings;
   security?: SecuritySettings;
+  /** ISO 8601 timestamp — when the user account was created (from DB) */
+  createdAt?: string;
+  /** ISO 8601 timestamp — last time the user record was updated (from DB) */
+  updatedAt?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; errorCode?: string }>;
-  register: (userData: RegisterData) => Promise<{ success: boolean; error?: string; errorCode?: string }>;
+  login: (
+    email: string,
+    password: string
+  ) => Promise<{ success: boolean; error?: string; errorCode?: string }>;
+  register: (
+    userData: RegisterData
+  ) => Promise<{ success: boolean; error?: string; errorCode?: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   verifyEmail: (token: string) => Promise<{ success: boolean; message?: string; error?: string }>;
-  resendVerificationEmail: (email: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+  resendVerificationEmail: (
+    email: string
+  ) => Promise<{ success: boolean; message?: string; error?: string }>;
   isLoading: boolean;
   isAuthenticated: boolean;
 }
@@ -100,21 +121,26 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [authState, setAuthState] = useState<"loading" | "authenticated" | "unauthenticated" | "unknown">("loading");
+  const [authState, setAuthState] = useState<
+    'loading' | 'authenticated' | 'unauthenticated' | 'unknown'
+  >('loading');
   // Guard: prevents refreshUser() from re-authenticating while logout is in progress
   const isLoggingOut = useRef(false);
 
   const persistUser = useCallback((userData: User | null, shouldClearCookies = false) => {
     if (userData) {
       setUser(userData);
-      setAuthState("authenticated");
+      setAuthState('authenticated');
     } else {
       setUser(null);
-      setAuthState("unauthenticated");
-      
+      setAuthState('unauthenticated');
+
       if (shouldClearCookies) {
         // Clear cookies generically from frontend just in case backend fails
-        document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + window.location.hostname + ';';
+        document.cookie =
+          'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' +
+          window.location.hostname +
+          ';';
         document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
         document.cookie = 'is_authenticated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
       }
@@ -128,15 +154,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
       });
 
       if (res.status === 401) {
         // user not logged in → expected
         // Skip refresh entirely if logout is in progress to prevent re-login after logout
-        if (isLoggingOut.current) { persistUser(null); return; }
+        if (isLoggingOut.current) {
+          persistUser(null);
+          return;
+        }
         try {
           const refreshRes = await apiFetch(getApiUrl('/api/v1/auth/refresh'), {
             method: 'POST',
@@ -152,9 +181,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             credentials: 'include',
             cache: 'no-store',
           });
-          if (!retryRes.ok) { persistUser(null); return; }
+          if (!retryRes.ok) {
+            persistUser(null);
+            return;
+          }
           const retryData = await retryRes.json();
-          persistUser(retryData.user ? retryData.user as User : null);
+          persistUser(retryData.user ? (retryData.user as User) : null);
           return;
         } catch {
           persistUser(null);
@@ -162,9 +194,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
 
-      if (!res.ok) { persistUser(null); return; }
+      if (!res.ok) {
+        persistUser(null);
+        return;
+      }
       const data = await res.json();
-      persistUser(data.user ? data.user as User : null);
+      persistUser(data.user ? (data.user as User) : null);
     } catch (error: unknown) {
       if ((error as any).name !== 'AbortError') persistUser(null); // eslint-disable-line @typescript-eslint/no-explicit-any
     }
@@ -175,17 +210,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const runGlobalAuthGuard = async () => {
       try {
-        setAuthState("loading");
-        
+        setAuthState('loading');
+
         // 1. Core verification against new /validate endpoint
         const valRes = await apiFetch(getApiUrl('/api/v1/auth/validate'), {
           credentials: 'include',
           cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache' }
+          headers: { 'Cache-Control': 'no-cache' },
         });
-        
+
         const valData = await valRes.json();
-        
+
         if (!valData.authenticated) {
           if (mounted) {
             persistUser(null);
@@ -197,24 +232,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // 3. GLOBAL AUTH GUARD (IF AUTHENTICATED -> NO RENDER OF LOGIN/LANDING)
         const p = window.location.pathname;
         if (['/login', '/signup', '/forgot-password', '/reset-password', '/'].includes(p)) {
-           // 4. HARD REDIRECT
-           window.location.replace('/dashboard');
-           return;
+          // 4. HARD REDIRECT
+          window.location.replace('/dashboard');
+          return;
         }
 
         // 2. We are validated. Fetch context profile memory.
         const res = await apiFetch(getApiUrl('/api/v1/auth/me'), {
           credentials: 'include',
-          cache: 'no-store'
+          cache: 'no-store',
         });
-        
+
         if (!res.ok) {
-           // if /me fails but /validate succeeds, try full refresh
-           await refreshUser();
-           if (mounted) setIsLoading(false);
-           return;
+          // if /me fails but /validate succeeds, try full refresh
+          await refreshUser();
+          if (mounted) setIsLoading(false);
+          return;
         }
-        
+
         const data = await res.json();
         if (mounted) {
           // Clear stale circuit-breaker so plan fetches work after Google OAuth login
@@ -239,8 +274,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // BFCache restored detected. Force aggressive revalidation.
         try {
           const res = await apiFetch(getApiUrl('/api/v1/auth/validate'), {
-             credentials: 'include',
-             cache: 'no-store'
+            credentials: 'include',
+            cache: 'no-store',
           });
           const data = await res.json();
           if (data.authenticated) {
@@ -259,21 +294,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // 7. GLOBAL 401 UNAUTHORIZED LISTENER
     // Triggered by apiFetch when a token refresh fails
-    const PUBLIC_PATHS = ['/', '/product', '/experience', '/security', '/about', '/pricing',
-      '/privacy', '/terms', '/data-processing', '/cookie-policy', '/client-portal', '/legal-notes'];
+    const PUBLIC_PATHS = [
+      '/',
+      '/product',
+      '/experience',
+      '/security',
+      '/about',
+      '/pricing',
+      '/privacy',
+      '/terms',
+      '/data-processing',
+      '/cookie-policy',
+      '/client-portal',
+      '/legal-notes',
+    ];
     const handleUnauthorized = () => {
       logger.warn('Handling global auth:unauthorized event');
       // NOTE: Do NOT clear __refreshFailTs here — the circuit breaker must stay
       // active across the redirect so it suppresses the next cycle's retry.
       sessionStorage.removeItem('__isRefreshing');
       // Wipe plan cache so next user login never inherits this session's plan.
-      import('@/contexts/PlanContext').then(({ clearAllPlanCaches }) => clearAllPlanCaches()).catch(() => {});
+      import('@/contexts/PlanContext')
+        .then(({ clearAllPlanCaches }) => clearAllPlanCaches())
+        .catch(() => {});
       persistUser(null, true);
       // Do NOT redirect to /login if the user is already on a public page.
       // This prevents unauthenticated visitors from being kicked to login
       // just because a background API call (e.g. PlanContext) got a 401.
       const currentPath = window.location.pathname;
-      const isPublicPage = PUBLIC_PATHS.some(p => currentPath === p || currentPath.startsWith(p + '/'));
+      const isPublicPage = PUBLIC_PATHS.some(
+        (p) => currentPath === p || currentPath.startsWith(p + '/')
+      );
       if (!isLoggingOut.current && !isPublicPage) {
         window.location.replace('/login');
       }
@@ -288,9 +339,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, [refreshUser, persistUser]);
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; errorCode?: string }> => {
+  const login = async (
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; error?: string; errorCode?: string }> => {
     setIsLoading(true);
-    setAuthState("loading");
+    setAuthState('loading');
     try {
       // Clear any existing auth state before login
       persistUser(null);
@@ -312,7 +366,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return {
           success: false,
           error: data.error || data.message || 'Login failed',
-          errorCode: data.errorCode // Pass through errorCode for deleted account detection
+          errorCode: data.errorCode, // Pass through errorCode for deleted account detection
         };
       }
 
@@ -326,18 +380,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else {
         persistUser(null);
         setIsLoading(false);
-        setAuthState("unauthenticated");
+        setAuthState('unauthenticated');
         return { success: false, error: 'Invalid response from server' };
       }
     } catch {
       persistUser(null);
       setIsLoading(false);
-      setAuthState("unauthenticated");
+      setAuthState('unauthenticated');
       return { success: false, error: 'Network error occurred' };
     }
   };
 
-  const register = async (userData: RegisterData): Promise<{ success: boolean; error?: string; errorCode?: string }> => {
+  const register = async (
+    userData: RegisterData
+  ): Promise<{ success: boolean; error?: string; errorCode?: string }> => {
     setIsLoading(true);
     try {
       const res = await apiFetch(getApiUrl('/api/v1/auth/register'), {
@@ -353,18 +409,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (!res.ok) {
         persistUser(null);
         setIsLoading(false);
-        setAuthState("unauthenticated");
-        return { success: false, error: data.error || 'Registration failed', errorCode: data.errorCode };
+        setAuthState('unauthenticated');
+        return {
+          success: false,
+          error: data.error || 'Registration failed',
+          errorCode: data.errorCode,
+        };
       }
 
       persistUser(data.user as User);
       setIsLoading(false);
-      setAuthState("authenticated");
+      setAuthState('authenticated');
       return { success: true };
     } catch {
       persistUser(null);
       setIsLoading(false);
-      setAuthState("unauthenticated");
+      setAuthState('unauthenticated');
       return { success: false, error: 'Network error occurred' };
     }
   };
@@ -384,7 +444,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         const { clearAllPlanCaches } = await import('@/contexts/PlanContext');
         clearAllPlanCaches();
-      } catch { /* non-fatal */ }
+      } catch {
+        /* non-fatal */
+      }
 
       // This call handles clearing memory (setUser(null)), authState,
       // localStorage (SESSION_FLAG), and all cookie variants.
@@ -398,7 +460,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const verifyEmail = async (token: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+  const verifyEmail = async (
+    token: string
+  ): Promise<{ success: boolean; message?: string; error?: string }> => {
     try {
       const res = await apiFetch(getApiUrl('/api/v1/auth/verify-email'), {
         method: 'POST',
@@ -418,7 +482,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const resendVerificationEmail = async (email: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+  const resendVerificationEmail = async (
+    email: string
+  ): Promise<{ success: boolean; message?: string; error?: string }> => {
     try {
       const res = await apiFetch(getApiUrl('/api/v1/auth/resend-verification'), {
         method: 'POST',
@@ -447,7 +513,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     verifyEmail,
     resendVerificationEmail,
     isLoading,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
   };
 
   /**
@@ -467,25 +533,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    *    after validation completes (~200-400ms after first paint)
    */
   const PUBLIC_RENDER_PATHS = [
-    '/', '/product', '/experience', '/security', '/about',
-    '/pricing', '/privacy', '/terms', '/data-processing',
-    '/cookie-policy', '/client-portal', '/legal-notes',
-    '/login', '/signup', '/forgot-password', '/reset-password',
-    '/verify-email', '/verification-pending',
+    '/',
+    '/product',
+    '/experience',
+    '/security',
+    '/about',
+    '/pricing',
+    '/privacy',
+    '/terms',
+    '/data-processing',
+    '/cookie-policy',
+    '/client-portal',
+    '/legal-notes',
+    '/login',
+    '/signup',
+    '/forgot-password',
+    '/reset-password',
+    '/verify-email',
+    '/verification-pending',
   ];
   const isPublicRenderPath = PUBLIC_RENDER_PATHS.some(
     (p) => window.location.pathname === p || window.location.pathname.startsWith(p + '/')
   );
 
-  if (authState === "loading" && !isPublicRenderPath) {
-    return (
-      <JuriqLoader size="full" text="Checking session..." />
-    );
+  if (authState === 'loading' && !isPublicRenderPath) {
+    return <JuriqLoader size="full" text="Checking session..." />;
   }
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

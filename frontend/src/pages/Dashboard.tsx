@@ -1,19 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  FileText,
-  Users,
-  Calendar,
-  AlertTriangle,
-  Plus,
-  TrendingUp,
-} from 'lucide-react';
+import { FileText, Users, Calendar, AlertTriangle, Plus, TrendingUp } from 'lucide-react';
 import { useLegalData } from '@/contexts/LegalDataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getApiUrl, apiFetch } from '@/lib/api';
 import MiniCalendar from '@/components/MiniCalendar';
+import OnboardingBanner from '@/components/onboarding/OnboardingBanner';
 
 interface DashboardStats {
   totalCases: number;
@@ -45,7 +39,9 @@ const Dashboard = () => {
       try {
         setLoading(true);
 
-        const statsRes = await apiFetch(getApiUrl('/api/dashboard/stats'), { credentials: 'include' });
+        const statsRes = await apiFetch(getApiUrl('/api/dashboard/stats'), {
+          credentials: 'include',
+        });
 
         if (statsRes.ok) {
           const stats = await statsRes.json();
@@ -65,50 +61,59 @@ const Dashboard = () => {
     };
   }, []);
 
-  const todaysCases = cases.filter(c => {
+  const todaysCases = cases.filter((c) => {
     const today = new Date();
     const caseDate = new Date(c.hearingDate);
     return caseDate.toDateString() === today.toDateString();
   });
 
-  const urgentCases = cases.filter(c => c.priority === 'urgent');
-  const activeCases = cases.filter(c => c.status === 'active');
+  const urgentCases = cases.filter((c) => c.priority === 'urgent');
+  const activeCases = cases.filter((c) => c.status === 'active');
 
   // formatCurrency is provided by useFormatting hook
 
   const stats = [
     {
-      title: "Total Cases",
+      title: 'Total Cases',
       value: dashboardStats?.totalCases ?? cases.length,
       description: `${dashboardStats?.activeCases ?? activeCases.length} active`,
       icon: FileText,
-      trend: undefined
+      trend: undefined,
     },
     {
-      title: "Clients",
+      title: 'Clients',
       value: dashboardStats?.totalClients ?? clients.length,
-      description: "Total registered",
+      description: 'Total registered',
       icon: Users,
-      trend: undefined
+      trend: undefined,
     },
     {
       title: "Today's Hearings",
       value: dashboardStats?.todaysCases ?? todaysCases.length,
-      description: "Scheduled for today",
+      description: 'Scheduled for today',
       icon: Calendar,
-      trend: (dashboardStats?.urgentCases ?? urgentCases.length) > 0 ? `${dashboardStats?.urgentCases ?? urgentCases.length} urgent` : "No urgent cases"
+      trend:
+        (dashboardStats?.urgentCases ?? urgentCases.length) > 0
+          ? `${dashboardStats?.urgentCases ?? urgentCases.length} urgent`
+          : 'No urgent cases',
     },
     {
-      title: "Urgent Cases",
+      title: 'Urgent Cases',
       value: dashboardStats?.urgentCases ?? urgentCases.length,
-      description: (dashboardStats?.urgentCases ?? urgentCases.length) > 0 ? "Requires immediate attention" : "No urgent matters",
+      description:
+        (dashboardStats?.urgentCases ?? urgentCases.length) > 0
+          ? 'Requires immediate attention'
+          : 'No urgent matters',
       icon: AlertTriangle,
-      trend: undefined
-    }
+      trend: undefined,
+    },
   ];
 
   return (
     <div className="space-y-2 md:space-y-3">
+      {/* Onboarding reminder — non-blocking; session-dismissible; auto-hides when complete */}
+      <OnboardingBanner />
+
       {/* Welcome Section */}
       <div className="flex items-center justify-between">
         <div>

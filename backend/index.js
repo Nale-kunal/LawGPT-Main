@@ -66,10 +66,7 @@ Sentry.init({
   release: process.env.npm_package_version || '1.0.0',
   enabled: !!process.env.SENTRY_DSN,
   tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.2 : 1.0,
-  integrations: [
-    Sentry.httpIntegration(),
-    Sentry.expressIntegration(),
-  ],
+  integrations: [Sentry.httpIntegration(), Sentry.expressIntegration()],
 });
 
 // ─── Prometheus Metrics Setup ─────────────────────────────────────────────────
@@ -126,11 +123,11 @@ app.use(applySecurityHeaders);
 // Helmet still manages: HSTS, X-DNS-Prefetch-Control, X-Download-Options, etc.
 app.use(
   helmet({
-    contentSecurityPolicy: false,         // ← Handled by securityHeaders.js (nonce-based)
-    crossOriginEmbedderPolicy: false,     // ← Handled by securityHeaders.js
-    crossOriginOpenerPolicy: false,       // ← Handled by securityHeaders.js
-    crossOriginResourcePolicy: false,     // ← Handled by securityHeaders.js
-    referrerPolicy: false,                // ← Handled by securityHeaders.js
+    contentSecurityPolicy: false, // ← Handled by securityHeaders.js (nonce-based)
+    crossOriginEmbedderPolicy: false, // ← Handled by securityHeaders.js
+    crossOriginOpenerPolicy: false, // ← Handled by securityHeaders.js
+    crossOriginResourcePolicy: false, // ← Handled by securityHeaders.js
+    referrerPolicy: false, // ← Handled by securityHeaders.js
     permittedCrossDomainPolicies: false,
     hsts: isProduction
       ? { maxAge: 63072000, includeSubDomains: true, preload: true } // 2 years
@@ -143,25 +140,40 @@ app.use(
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 const allowedOrigins = (() => {
   const configured = (process.env.CORS_ORIGIN || 'http://localhost:5173')
-    .split(',').map(o => o.trim()).filter(Boolean);
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
   const devOrigins = isProduction ? [] : ['http://localhost:5173', 'http://localhost:8080'];
   return [...new Set([...configured, ...devOrigins])];
 })();
 
-app.use(cors({
-  origin(origin, callback) {
-    if (!origin) return callback(null, true); // server-to-server / curl
-    if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-      return callback(null, true);
-    }
-    logger.warn({ origin }, 'CORS blocked origin');
-    return callback(new Error(`CORS: origin ${origin} not allowed`));
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-CSRF-Token', 'X-Request-Id', 'Expires', 'Cache-Control', 'Pragma'],
-  exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
-}));
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) {
+        return callback(null, true);
+      } // server-to-server / curl
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        return callback(null, true);
+      }
+      logger.warn({ origin }, 'CORS blocked origin');
+      return callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'X-CSRF-Token',
+      'X-Request-Id',
+      'Expires',
+      'Cache-Control',
+      'Pragma',
+    ],
+    exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+  })
+);
 
 // ─── Body Parsing ─────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '1mb' }));
@@ -169,29 +181,30 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
 // ─── NoSQL Injection Protection ───────────────────────────────────────────────
-app.use(mongoSanitize({
-  replaceWith: '_',
-  onSanitizeError: (req) => {
-    logger.warn({ path: req.path }, 'MongoDB sanitize: blocked malicious input');
-  },
-}));
+app.use(
+  mongoSanitize({
+    replaceWith: '_',
+    onSanitizeError: (req) => {
+      logger.warn({ path: req.path }, 'MongoDB sanitize: blocked malicious input');
+    },
+  })
+);
 
 // ─── Compression ──────────────────────────────────────────────────────────────
 app.use(compression());
 
 // ─── Structured Logging (Pino) + Request ID Correlation ──────────────────────
-app.use(requestId);  // Sets req.requestId + X-Request-Id header
+app.use(requestId); // Sets req.requestId + X-Request-Id header
 app.use(pinoHttp({ logger, genReqId: (req) => req.requestId }));
 
 app.use((req, res, next) => {
   logger.info({
     requestId: req.requestId,
     route: req.url,
-    userId: req.user?.id
+    userId: req.user?.id,
   });
   next();
 });
-
 
 // ─── Prometheus Request Duration Tracking ────────────────────────────────────
 app.use((req, res, next) => {
@@ -217,11 +230,11 @@ app.use(csrfProtection);
 function buildRateLimiter({ windowMs, max, message, limiterName, skip }) {
   const storeOptions = redis.isAvailable()
     ? {
-      store: new RedisStore({
-        sendCommand: (...args) => redis.raw()?.call(...args),
-        prefix: `rl:${limiterName}:`,
-      }),
-    }
+        store: new RedisStore({
+          sendCommand: (...args) => redis.raw()?.call(...args),
+          prefix: `rl:${limiterName}:`,
+        }),
+      }
     : {};
 
   return rateLimit({
@@ -235,19 +248,21 @@ function buildRateLimiter({ windowMs, max, message, limiterName, skip }) {
       // Backend Tracking: Rate Limit Escalation
       const ip = req.ip;
       const key = `rl_hits:${ip}`;
-      
+
       try {
         if (redis.isAvailable()) {
-            const hits = await redis.incr(key);
-            if (hits === 1) await redis.expire(key, 600); // 10 min window to accumulate
-            
-            if (hits > 10) {
-                await redis.set(`block:${ip}`, 'blocked', 600); // block 10 mins
-                logger.warn({ ip, hits }, 'IP Blocked for 10 minutes');
-            } else if (hits > 5) {
-                await redis.set(`block:${ip}`, 'blocked', 60); // block 1 min
-                logger.warn({ ip, hits }, 'IP Blocked for 1 minute');
-            }
+          const hits = await redis.incr(key);
+          if (hits === 1) {
+            await redis.expire(key, 600);
+          } // 10 min window to accumulate
+
+          if (hits > 10) {
+            await redis.set(`block:${ip}`, 'blocked', 600); // block 10 mins
+            logger.warn({ ip, hits }, 'IP Blocked for 10 minutes');
+          } else if (hits > 5) {
+            await redis.set(`block:${ip}`, 'blocked', 60); // block 1 min
+            logger.warn({ ip, hits }, 'IP Blocked for 1 minute');
+          }
         }
       } catch (err) {
         logger.error({ err }, 'Rate limit escalation tracking failed');
@@ -258,23 +273,30 @@ function buildRateLimiter({ windowMs, max, message, limiterName, skip }) {
       logger.warn({ ip: req.ip, path: req.path, limiter: limiterName }, 'Rate limit triggered');
 
       // Diagnostic log (will show in node console)
-      logger.info({ 
-        msg: 'Rate limit triggered diagnostic', 
-        method: req.method, 
-        url: req.url, 
-        originalUrl: req.originalUrl, 
-        limiterName 
+      logger.info({
+        msg: 'Rate limit triggered diagnostic',
+        method: req.method,
+        url: req.url,
+        originalUrl: req.originalUrl,
+        limiterName,
       });
 
       // If it's a browser-initiated GET request to the OAuth limiter, redirect back to login
       // We check for 'google' or 'oauth' anywhere in the URL, case-insensitively.
-      const isOAuthPath = /google|oauth/i.test(req.originalUrl || '') || /google|oauth/i.test(req.url || '');
+      const isOAuthPath =
+        /google|oauth/i.test(req.originalUrl || '') || /google|oauth/i.test(req.url || '');
       const isBrowser = req.method === 'GET';
 
       if (isBrowser && (limiterName === 'oauth' || isOAuthPath)) {
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
-        logger.info({ msg: 'Rate limit: Redirecting to frontend', target: frontendUrl, path: req.originalUrl });
-        return res.redirect(`${frontendUrl}/login?oauth=error&reason=RATE_LIMIT_EXCEEDED&t=${Date.now()}`);
+        logger.info({
+          msg: 'Rate limit: Redirecting to frontend',
+          target: frontendUrl,
+          path: req.originalUrl,
+        });
+        return res.redirect(
+          `${frontendUrl}/login?oauth=error&reason=RATE_LIMIT_EXCEEDED&t=${Date.now()}`
+        );
       }
 
       res.status(options.statusCode).json(options.message);
@@ -319,7 +341,7 @@ const paymentLimiter = buildRateLimiter({
   max: 20,
   message: 'Too many payment requests. Please wait 15 minutes.',
   limiterName: 'payment',
-  skip: (req) => req.path === '/webhook',   // webhook has its own HMAC guard
+  skip: (req) => req.path === '/webhook', // webhook has its own HMAC guard
 });
 
 app.use(globalLimiter);
@@ -331,9 +353,13 @@ app.get('/sitemap.xml', (req, res) => {
   res.setHeader('Content-Type', 'application/xml');
   res.setHeader('Cache-Control', 'public, max-age=86400');
   const routes = ['/', '/login', '/signup', '/legal-research', '/news'];
-  const urlset = routes.map(route => `
-    <url><loc>https://juriq.app${route !== '/' ? route : ''}</loc></url>`).join('');
-  
+  const urlset = routes
+    .map(
+      (route) => `
+    <url><loc>https://juriq.app${route !== '/' ? route : ''}</loc></url>`
+    )
+    .join('');
+
   res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urlset}
 </urlset>`);
@@ -351,18 +377,17 @@ app.get('/', (_req, res) => {
 app.get('/health', async (req, res) => {
   try {
     const mongoose = (await import('mongoose')).default;
-    const dbStatus = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
 
     res.status(200).json({
-      status: "ok",
+      status: 'ok',
       uptime: process.uptime(),
       database: dbStatus,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
-
   } catch (err) {
     res.status(500).json({
-      status: "error"
+      status: 'error',
     });
   }
 });
@@ -385,7 +410,11 @@ app.get('/api/v1/health', async (req, res) => {
 
   const redisStatus = redis.isAvailable() ? 'connected' : 'fallback (in-memory)';
   let redisPing = 'N/A';
-  try { redisPing = await redis.ping(); } catch { /* ignore */ }
+  try {
+    redisPing = await redis.ping();
+  } catch {
+    /* ignore */
+  }
 
   res.json({
     ok: true,
@@ -399,26 +428,32 @@ app.get('/api/v1/health', async (req, res) => {
 
 // ─── Prometheus Metrics (Bearer-token protected — never expose publicly) ────────
 // Set METRICS_TOKEN in .env: node -e "require('crypto').randomBytes(32).toString('hex')"
-app.get('/api/v1/metrics', (req, res, next) => {
-  if (!METRICS_TOKEN) {
-    // If token not configured, block entirely in production
-    if (isProduction) return res.status(503).json({ error: 'Metrics not configured' });
-    return next(); // Allow in dev without token
+app.get(
+  '/api/v1/metrics',
+  (req, res, next) => {
+    if (!METRICS_TOKEN) {
+      // If token not configured, block entirely in production
+      if (isProduction) {
+        return res.status(503).json({ error: 'Metrics not configured' });
+      }
+      return next(); // Allow in dev without token
+    }
+    const authHeader = req.headers.authorization;
+    if (authHeader !== `Bearer ${METRICS_TOKEN}`) {
+      logger.warn({ ip: req.ip, path: req.path }, 'Unauthorized metrics access attempt');
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    next();
+  },
+  async (_req, res) => {
+    try {
+      res.set('Content-Type', metricsRegistry.contentType);
+      res.end(await metricsRegistry.metrics());
+    } catch (err) {
+      res.status(500).end(err.message);
+    }
   }
-  const authHeader = req.headers.authorization;
-  if (authHeader !== `Bearer ${METRICS_TOKEN}`) {
-    logger.warn({ ip: req.ip, path: req.path }, 'Unauthorized metrics access attempt');
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-}, async (_req, res) => {
-  try {
-    res.set('Content-Type', metricsRegistry.contentType);
-    res.end(await metricsRegistry.metrics());
-  } catch (err) {
-    res.status(500).end(err.message);
-  }
-});
+);
 
 // CSRF token issuance endpoint
 app.get('/api/v1/auth/csrf-token', setCsrfToken);
@@ -428,30 +463,43 @@ const clientErrorLimiter = buildRateLimiter({
   windowMs: 60 * 1000,
   max: 20,
   message: 'Too many error logs.',
-  limiterName: 'client-error'
+  limiterName: 'client-error',
 });
 
 app.post('/api/v1/logs/client-error', clientErrorLimiter, async (req, res) => {
   if (JSON.stringify(req.body).length > 5000) {
-    return res.status(413).send("Payload too large");
+    return res.status(413).send('Payload too large');
   }
   if (!req.body.message) {
-    return res.status(400).send("Message required");
+    return res.status(400).send('Message required');
   }
 
   const { level, message, source, line, col, stack } = req.body;
   const logLevel = level === 'warn' ? 'warn' : level === 'info' ? 'info' : 'error';
-  
-  logger[logLevel]({ 
-    msg: 'Client side log', level: logLevel, clientMessage: message, source, line, col, stack, userId: req.user?.userId || 'anonymous'
+
+  logger[logLevel]({
+    msg: 'Client side log',
+    level: logLevel,
+    clientMessage: message,
+    source,
+    line,
+    col,
+    stack,
+    userId: req.user?.userId || 'anonymous',
   });
-  
+
   try {
-      await ClientErrorLog.create({
-          message, source, line, col, stack, level: logLevel, userId: req.user?.userId
-      });
+    await ClientErrorLog.create({
+      message,
+      source,
+      line,
+      col,
+      stack,
+      level: logLevel,
+      userId: req.user?.userId,
+    });
   } catch (err) {
-      logger.error('Failed to store client error in DB');
+    logger.error('Failed to store client error in DB');
   }
 
   if (process.env.SENTRY_DSN && logLevel === 'error') {
@@ -481,7 +529,16 @@ app.use('/api/v1/hearings', hearingRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/2fa', twoFactorRoutes);
 // Spec #4: Admin rate limiter — 50 req/hour per IP (wraps all admin routes)
-app.use('/api/v1/admin', rateLimit({ windowMs: 60 * 60 * 1000, max: 50, standardHeaders: 'draft-7', legacyHeaders: false, message: { error: 'ADMIN_RATE_LIMIT', message: 'Too many admin requests. Try again later.' } }));
+app.use(
+  '/api/v1/admin',
+  rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 50,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: { error: 'ADMIN_RATE_LIMIT', message: 'Too many admin requests. Try again later.' },
+  })
+);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/internal/admin', adminInternalLimiter, adminInternalRoutes);
 app.use('/api/v1/news', newsRoutes);
@@ -524,8 +581,9 @@ const __dirname = path.dirname(__filename);
 
 // ─── Sentry Error Handler (must be before custom error handler) ───────────────
 // Sentry v8+ error handler — must be before other error handlers
-if (process.env.SENTRY_DSN) Sentry.setupExpressErrorHandler(app);
-
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
@@ -536,7 +594,7 @@ app.use((req, res) => {
 });
 
 // ─── Global Error Handler ─────────────────────────────────────────────────────
-// eslint-disable-next-line no-unused-vars
+
 app.use((err, req, res, _next) => {
   logger.error({ err, method: req.method, path: req.path }, 'Unhandled error');
 
@@ -576,7 +634,7 @@ async function startServer() {
     // Trigger an immediate seed on startup (non-blocking — errors are caught inside)
     import('./src/services/legalDataService.js')
       .then(({ runFullRefresh }) => runFullRefresh())
-      .catch(err => logger.warn({ err }, 'Initial legal data seed failed (non-fatal)'));
+      .catch((err) => logger.warn({ err }, 'Initial legal data seed failed (non-fatal)'));
 
     currentServer = app.listen(PORT, () => {
       logger.info({ port: PORT, env: process.env.NODE_ENV }, '🚀 Juriq API started');
@@ -585,10 +643,23 @@ async function startServer() {
     initSocketServer(currentServer);
 
     currentServer.on('error', (error) => {
+      // These are genuine unrecoverable server-level errors (port conflict, permission denied)
+      // — not request-level exceptions. Exiting is correct here; the process manager restarts.
       if (error.code === 'EADDRINUSE') {
-        logger.error({ port: PORT }, 'Port already in use');
+        logger.error(
+          { port: PORT },
+          'FATAL: Port already in use — cannot start server. Free the port or set PORT env var.'
+        );
+      } else if (error.code === 'EACCES') {
+        logger.error(
+          { port: PORT },
+          'FATAL: Permission denied to bind port — run on port > 1024 or use a reverse proxy.'
+        );
       } else {
-        logger.error({ error }, 'Server error');
+        logger.error({ error }, 'FATAL: HTTP server error — unrecoverable');
+      }
+      if (process.env.SENTRY_DSN) {
+        Sentry.captureException(error, { tags: { critical: 'true', source: 'httpServer' } });
       }
       process.exit(1);
     });
@@ -602,7 +673,9 @@ async function startServer() {
       }
 
       // Allow in-flight requests to finish (max 5s)
-      await new Promise(resolve => setTimeout(resolve, Math.min(parseInt(process.env.SHUTDOWN_TIMEOUT || '2000', 10), 5000)));
+      await new Promise((resolve) =>
+        setTimeout(resolve, Math.min(parseInt(process.env.SHUTDOWN_TIMEOUT || '2000', 10), 5000))
+      );
 
       logger.info('Shutdown complete');
       process.exit(0);
@@ -613,10 +686,14 @@ async function startServer() {
       logger.info('SIGHUP received — reloading Razorpay keys from environment');
       // Re-read from environment (works with process managers that inject new env on SIGHUP)
       // Force lazy client reset so next API call uses new keys
-      import('./src/routes/payment.js').then(m => {
-        if (typeof m._resetRazorpayClient === 'function') m._resetRazorpayClient();
-        logger.info('Razorpay client reset — new keys active on next request');
-      }).catch(e => logger.error({ e }, 'Key rotation: failed to reset Razorpay client'));
+      import('./src/routes/payment.js')
+        .then((m) => {
+          if (typeof m._resetRazorpayClient === 'function') {
+            m._resetRazorpayClient();
+          }
+          logger.info('Razorpay client reset — new keys active on next request');
+        })
+        .catch((e) => logger.error({ e }, 'Key rotation: failed to reset Razorpay client'));
     });
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
@@ -626,15 +703,76 @@ async function startServer() {
       process.kill(process.pid, 'SIGUSR2');
     });
 
-    process.on('uncaughtException', (error) => {
-      logger.error({ error }, 'Uncaught Exception');
-      gracefulShutdown('uncaughtException');
+    // ── Process-level error handlers ──────────────────────────────────────
+    //
+    // DESIGN: In a production SaaS, the process should NOT be killed by a
+    // single unhandled exception from one bad request. The HTTP server is
+    // still capable of serving other users. We log, alert Sentry, and continue.
+    //
+    // Truly unrecoverable events (DB disconnected, OOM, port conflict) are
+    // handled in their own callbacks below via criticalErrorShutdown().
+    //
+    // With a process manager (Railway / PM2 / systemd), auto-restart handles
+    // genuine crashes. In development (nodemon), we do the same.
+
+    /**
+     * Called ONLY for genuinely unrecoverable system-level failures:
+     * - EADDRINUSE (port conflict at startup)
+     * - MongoDB permanent disconnect with no reconnect possible
+     * Exits with code 1 so the process manager restarts the service.
+     */
+    const criticalErrorShutdown = async (reason, error) => {
+      logger.error({ reason, error }, 'CRITICAL: Unrecoverable server error — initiating shutdown');
+      if (process.env.SENTRY_DSN) {
+        Sentry.captureException(error || new Error(reason), { tags: { critical: 'true' } });
+      }
+      if (currentServer) {
+        currentServer.close(() => logger.info('HTTP server closed (critical shutdown)'));
+      }
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      process.exit(1);
+    };
+
+    process.on('uncaughtException', (error, origin) => {
+      // Log full error with origin ('uncaughtException' vs 'unhandledRejection')
+      logger.error(
+        {
+          err: error,
+          origin,
+          stack: error?.stack,
+        },
+        'uncaughtException — server continuing (not crashing)'
+      );
+
+      // Report to Sentry so the engineering team is alerted
+      if (process.env.SENTRY_DSN) {
+        Sentry.captureException(error, { tags: { origin } });
+      }
+
+      // DO NOT call process.exit() here.
+      // The HTTP server is still listening and can serve other requests.
+      // The exception was likely confined to a single request's async chain.
+      // Let the per-request try/catch and Express error handler deal with it.
     });
 
-    process.on('unhandledRejection', (reason) => {
-      logger.error({ reason }, 'Unhandled Rejection');
-    });
+    process.on('unhandledRejection', (reason, promise) => {
+      logger.error(
+        {
+          reason,
+          stack: reason?.stack,
+          promise: String(promise),
+        },
+        'unhandledRejection — server continuing (not crashing)'
+      );
 
+      if (process.env.SENTRY_DSN) {
+        Sentry.captureException(reason instanceof Error ? reason : new Error(String(reason)), {
+          tags: { type: 'unhandledRejection' },
+        });
+      }
+
+      // DO NOT call process.exit() here.
+    });
   } catch (error) {
     logger.error({ error }, 'Failed to start server');
     process.exit(1);

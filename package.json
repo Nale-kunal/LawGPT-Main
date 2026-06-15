@@ -3,7 +3,13 @@
   "private": true,
   "version": "1.0.0",
   "description": "Juriq — Enterprise Legal Practice Management SaaS for Indian Lawyers",
-  "keywords": ["legal-tech", "saas", "practice-management", "india", "lawyers"],
+  "keywords": [
+    "legal-tech",
+    "saas",
+    "practice-management",
+    "india",
+    "lawyers"
+  ],
   "homepage": "https://juriq.in",
   "repository": {
     "type": "git",
@@ -52,19 +58,25 @@
     "turbo": "^2.5.0"
   },
   "lint-staged": {
-    "*.{ts,tsx}": [
+    "frontend/**/*.{ts,tsx}": [
       "prettier --write",
-      "eslint --max-warnings=0 --fix"
+      "eslint --config frontend/eslint.config.js --max-warnings=0 --fix"
     ],
-    "*.{js,jsx}": [
+    "frontend/**/*.{js,jsx}": [
       "prettier --write",
-      "eslint --max-warnings=0 --fix"
+      "eslint --config frontend/eslint.config.js --max-warnings=0 --fix"
+    ],
+    "backend/**/*.{js,jsx}": [
+      "prettier --write",
+      "eslint --config backend/eslint.config.js --max-warnings=150 --fix"
     ],
     "*.{json,md,yml,yaml}": [
       "prettier --write"
     ]
   },
   "turbo": {
-    "extends": ["//"]
+    "extends": [
+      "//"
+    ]
   }
 }

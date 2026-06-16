@@ -39,7 +39,7 @@
     "type-check": "turbo run type-check",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\" --ignore-path .gitignore",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\" --ignore-path .gitignore",
-    "prepare": "node -e \"if(process.env.CI !== 'true') require('child_process').execSync('husky', {stdio:'inherit'})\" || true",
+    "prepare": "node -e \"try { if (process.env.CI !== 'true' && process.env.VERCEL !== '1' && require('fs').existsSync('.git') && require('fs').existsSync('node_modules/husky')) require('child_process').execSync('husky', {stdio:'inherit'}) } catch (e) {}\"",
     "clean": "turbo run clean && rm -rf node_modules",
     "workspace:list": "npm query .workspace",
     "audit:all": "npm audit --workspaces",
@@ -72,7 +72,8 @@
     "form-data": "^4.0.6",
     "ws": "8.21.0",
     "js-yaml": "4.2.0",
-    "uuid": "11.1.1"
+    "uuid": "11.1.1",
+    "esbuild": "0.28.1"
   },
   "lint-staged": {
     "frontend/**/*.{ts,tsx}": [

@@ -367,6 +367,17 @@ const LegalResearch = () => {
         </div>
       </div>
 
+      {/* Legal Disclaimer Banner */}
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 flex gap-3 text-sm leading-relaxed text-foreground animate-in fade-in slide-in-from-top-4 duration-300">
+        <Scale className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+        <div className="space-y-1">
+          <p className="font-semibold text-amber-900 dark:text-amber-400 text-xs md:text-sm">AI Legal Intelligence Disclaimer</p>
+          <p className="text-[11px] text-muted-foreground">
+            Juriq provides legal research tools and automated AI insights for informational and administrative assistance. Results and AI explanations are not legal advice, and using this tool does not establish an attorney-client relationship. Enrolled advocates and legal professionals remain solely responsible for verifying all statutory provisions, case law citations, legal judgements, filings, and advice provided to clients.
+          </p>
+        </div>
+      </div>
+
       {/* Search Console */}
       <Card className="shadow-card-custom border-primary/10">
         <CardContent className="p-4">

@@ -55,7 +55,8 @@ describe('MongoDB Service - assertSafeFilterValue validation', () => {
   test('should allow string filter values', async () => {
     await expect(
       queryDocuments(COLLECTIONS.HEARINGS, [
-        { field: 'courtName', operator: '==', value: 'Supreme Court' }
+        { field: 'courtName', operator: '==', value: 'Supreme Court' },
+        { field: 'owner', operator: '==', value: '654321098765432109876543' }
       ])
     ).resolves.not.toThrow();
   });
@@ -64,7 +65,8 @@ describe('MongoDB Service - assertSafeFilterValue validation', () => {
     const objectId = new mongoose.Types.ObjectId();
     await expect(
       queryDocuments(COLLECTIONS.HEARINGS, [
-        { field: 'caseId', operator: '==', value: objectId }
+        { field: 'caseId', operator: '==', value: objectId },
+        { field: 'owner', operator: '==', value: '654321098765432109876543' }
       ])
     ).resolves.not.toThrow();
   });
@@ -72,7 +74,8 @@ describe('MongoDB Service - assertSafeFilterValue validation', () => {
   test('should allow null filter values', async () => {
     await expect(
       queryDocuments(COLLECTIONS.HEARINGS, [
-        { field: 'caseId', operator: '==', value: null }
+        { field: 'caseId', operator: '==', value: null },
+        { field: 'owner', operator: '==', value: '654321098765432109876543' }
       ])
     ).resolves.not.toThrow();
   });
@@ -81,7 +84,8 @@ describe('MongoDB Service - assertSafeFilterValue validation', () => {
     const maliciousPayload = { $ne: null };
     await expect(
       queryDocuments(COLLECTIONS.HEARINGS, [
-        { field: 'caseId', operator: '==', value: maliciousPayload }
+        { field: 'caseId', operator: '==', value: maliciousPayload },
+        { field: 'owner', operator: '==', value: '654321098765432109876543' }
       ])
     ).rejects.toThrow('Filter value for field \'caseId\' must not be an object');
   });

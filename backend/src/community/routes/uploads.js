@@ -11,9 +11,11 @@ import crypto from 'crypto';
 import mongoose from 'mongoose';
 import { checkNotBanned } from '../middleware/communityAccess.js';
 import MessageAttachment from '../models/MessageAttachment.js';
+import ConversationParticipant from '../models/ConversationParticipant.js';
 import { getMalwareScanningQueue } from '../workers/malwareWorker.js';
 import { encryptAttachmentMetadata } from '../services/encryptionService.js';
 import { checkRateLimit } from '../socket/rateLimiter.js';
+import { validateCloudinaryUrl } from '../../utils/urlValidator.js';
 import logger from '../../utils/logger.js';
 
 const router = express.Router();
@@ -126,6 +128,33 @@ router.post('/register', checkNotBanned, async (req, res) => {
 
     if (!conversationId || !secureUrl || !mimeType || !sizeBytes) {
       return res.status(400).json({ error: 'Missing required registration parameters' });
+    }
+
+    // SSRF Prevention: Validate that secureUrl is a legitimate Cloudinary URL
+    const urlCheck = validateCloudinaryUrl(secureUrl);
+    if (!urlCheck.ok) {
+      logger.error({ secureUrl, reason: urlCheck.error }, 'Community attachment registration rejected: secureUrl SSRF validation failed');
+      return res.status(400).json({ error: 'INVALID_URL', message: 'File URL is not valid or not from an allowed source' });
+    }
+
+    // Validate thumbnailUrl if provided
+    if (thumbnailUrl) {
+      const thumbCheck = validateCloudinaryUrl(thumbnailUrl);
+      if (!thumbCheck.ok) {
+        logger.error({ thumbnailUrl, reason: thumbCheck.error }, 'Community attachment registration rejected: thumbnailUrl SSRF validation failed');
+        return res.status(400).json({ error: 'INVALID_URL', message: 'Thumbnail URL is not valid or not from an allowed source' });
+      }
+    }
+
+    // Access control: must be an active participant in this conversation
+    const isParticipant = await ConversationParticipant.exists({
+      conversationId,
+      userId,
+      isRemoved: false,
+    });
+    if (!isParticipant) {
+      logger.warn({ userId, conversationId }, 'Unauthorized attempt to register attachment in conversation');
+      return res.status(403).json({ error: 'ACCESS_DENIED', message: 'You are not a member of this conversation' });
     }
 
     // Cryptographic Isolation: encrypt sensitive file URL and name

@@ -110,6 +110,16 @@ function assertSafeFilterValue(value, field) {
     }
 }
 
+const REQUIRED_OWNERSHIP_FIELDS = {
+    cases: 'owner',
+    clients: 'owner',
+    hearings: 'owner',
+    documents: 'ownerId',
+    folders: 'ownerId',
+    alerts: 'userId',
+    activities: 'userId',
+};
+
 // ── CRUD Operations ───────────────────────────────────────────────────────────
 
 /**
@@ -227,11 +237,23 @@ export async function deleteDocument(collection, id) {
  */
 export async function deleteManyDocuments(collection, filter) {
     try {
+        const requiredField = REQUIRED_OWNERSHIP_FIELDS[collection];
+        if (requiredField) {
+            const value = filter ? filter[requiredField] : undefined;
+            if (value === undefined || value === null || value === '') {
+                throw Object.assign(
+                    new Error(`Delete many to collection '${collection}' is missing a required ownership filter on '${requiredField}'`),
+                    { code: 'MISSING_OWNERSHIP_FILTER', status: 400 }
+                );
+            }
+        }
+
         const Model = getModel(collection);
         const sanitizedFilter = stripOperatorKeys(filter);
         const result = await Model.deleteMany(sanitizedFilter);
         return result.deletedCount;
     } catch (error) {
+        if (error.code === 'MISSING_OWNERSHIP_FILTER') { throw error; }
         logger.error({ collection, err: error }, 'Error deleting documents');
         throw error;
     }
@@ -251,6 +273,23 @@ export async function deleteManyDocuments(collection, filter) {
  */
 export async function queryDocuments(collection, filters = [], orderBy = null, limit = null) {
     try {
+        const requiredField = REQUIRED_OWNERSHIP_FIELDS[collection];
+        if (requiredField) {
+            const hasOwnershipFilter = filters.some(
+                f => f.field === requiredField &&
+                f.operator === '==' &&
+                f.value !== undefined &&
+                f.value !== null &&
+                f.value !== ''
+            );
+            if (!hasOwnershipFilter) {
+                throw Object.assign(
+                    new Error(`Query to collection '${collection}' is missing a required ownership filter on '${requiredField}'`),
+                    { code: 'MISSING_OWNERSHIP_FILTER', status: 400 }
+                );
+            }
+        }
+
         const Model = getModel(collection);
         let query = Model.find();
 

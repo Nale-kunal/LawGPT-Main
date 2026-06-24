@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCookieConsent } from '@/hooks/useCookieConsent';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { Ic } from '@/components/landing/LandingIcons';
@@ -12,14 +13,35 @@ interface LandingLayoutProps {
 
 const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
     const { isAuthenticated, isLoading } = useAuth();
+    const { reopenBanner } = useCookieConsent();
     const navigate = useNavigate();
     const location = useLocation();
     const navRef = useRef<HTMLElement | null>(null);
 
-    // Redirect if authenticated
+    // Redirect if authenticated, but exclude legal policy and public info pages
     useEffect(() => {
-        if (!isLoading && isAuthenticated) navigate('/dashboard', { replace: true });
-    }, [isAuthenticated, isLoading, navigate]);
+        const publicDocPaths = [
+            '/privacy',
+            '/terms',
+            '/data-processing',
+            '/cookie-policy',
+            '/refund-policy',
+            '/dpdp-notice',
+            '/legal-disclaimer',
+            '/confidentiality-notice',
+            '/trust',
+            '/grievance',
+            '/community-guidelines',
+            '/copyright-policy',
+            '/security',
+            '/about',
+            '/product',
+            '/experience',
+        ];
+        if (!isLoading && isAuthenticated && !publicDocPaths.includes(location.pathname)) {
+            navigate('/dashboard', { replace: true });
+        }
+    }, [isAuthenticated, isLoading, navigate, location.pathname]);
 
     // Sticky nav — rAF-batched to prevent forced reflows.
     // Reads window.scrollY (layout read) and writes classList (layout write)
@@ -96,10 +118,18 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
                 </ul>
                 <div className="lp-nav-right lp-nav-right-premium">
                     <ThemeToggle />
-                    <button id="nav-login" className="lp-btn lp-btn-ghost lp-btn-ghost-premium" onClick={() => navigate('/login')}>Login</button>
-                    <button id="nav-signup" className="lp-btn lp-btn-gold lp-btn-gold-premium" onClick={() => navigate('/signup')}>
-                        <span>Get Started</span><Ic.Arrow />
-                    </button>
+                    {isAuthenticated ? (
+                        <button id="nav-dashboard" className="lp-btn lp-btn-gold lp-btn-gold-premium" onClick={() => navigate('/dashboard')}>
+                            <span>Go to Dashboard</span><Ic.Arrow />
+                        </button>
+                    ) : (
+                        <>
+                            <button id="nav-login" className="lp-btn lp-btn-ghost lp-btn-ghost-premium" onClick={() => navigate('/login')}>Login</button>
+                            <button id="nav-signup" className="lp-btn lp-btn-gold lp-btn-gold-premium" onClick={() => navigate('/signup')}>
+                                <span>Get Started</span><Ic.Arrow />
+                            </button>
+                        </>
+                    )}
                 </div>
             </nav>
 
@@ -131,7 +161,7 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
                                 { lbl: 'Court Calendar', to: '/product#hearings' },
                                 { lbl: 'Legal Research', to: '/product#features' },
                                 { lbl: 'Legal Notes', to: '/legal-notes' },
-                                { lbl: 'Billing', to: '/product#hub' }
+                                { lbl: 'Legal Templates', to: '/product#hub' }
                             ].map(item => (
                                 <Link key={item.lbl} className="lp-footer-link-btn" to={item.to} style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0 }}>{item.lbl}</Link>
                             ))}
@@ -139,12 +169,26 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
                     </div>
                     <div className="lp-footer-nav-col">
                         <div className="lp-footer-col-title">Legal</div>
-                        <div className="lp-footer-links-list">
+                        <div className="lp-footer-links-list-grid">
                             <Link className="lp-footer-link-btn" to="/privacy" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Privacy Policy</Link>
                             <Link className="lp-footer-link-btn" to="/terms" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Terms of Service</Link>
                             <Link className="lp-footer-link-btn" to="/data-processing" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Data Processing</Link>
                             <Link className="lp-footer-link-btn" to="/cookie-policy" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Cookie Policy</Link>
+                            <button onClick={reopenBanner} className="lp-footer-link-btn" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}>Cookie Settings</button>
+                            <Link className="lp-footer-link-btn" to="/refund-policy" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Refund Policy</Link>
+                            <Link className="lp-footer-link-btn" to="/dpdp-notice" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>DPDP Privacy Notice</Link>
+                            <Link className="lp-footer-link-btn" to="/legal-disclaimer" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Legal Disclaimer</Link>
+                            <Link className="lp-footer-link-btn" to="/confidentiality-notice" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Confidentiality Notice</Link>
                             <Link className="lp-footer-link-btn" to="/security" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Security</Link>
+                            <Link className="lp-footer-link-btn" to="/trust" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Trust Center</Link>
+                            <Link className="lp-footer-link-btn" to="/grievance" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Grievance Redressal</Link>
+                        </div>
+                    </div>
+                    <div className="lp-footer-nav-col">
+                        <div className="lp-footer-col-title">Community</div>
+                        <div className="lp-footer-links-list">
+                            <Link className="lp-footer-link-btn" to="/community-guidelines" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Community Guidelines</Link>
+                            <Link className="lp-footer-link-btn" to="/copyright-policy" style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}>Copyright Policy</Link>
                         </div>
                     </div>
                     <div className="lp-footer-nav-col">
@@ -158,7 +202,7 @@ const LandingLayout: React.FC<LandingLayoutProps> = ({ children }) => {
                 </div>
                 <div className="lp-footer-bottom lp-footer-bottom-premium">
                     <span className="lp-footer-copy">&copy; 2026 Juriq. Handcrafted for modern advocates. All Rights Reserved.</span>
-                    <span className="lp-footer-badge"><span className="lp-green-pulse-dot" style={{ color: '#22c55e' }}>●</span> Systems Operational</span>
+                    <span className="lp-footer-badge"><span style={{ color: '#22c55e', marginRight: '6px' }}>●</span> Systems Operational</span>
                 </div>
             </footer>
         </div>

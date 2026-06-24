@@ -1,3 +1,5 @@
+import dotenv from 'dotenv';
+dotenv.config({ override: true });
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import mongoose from 'mongoose';
 import { User, Case, Document } from '../models/index.js';
@@ -10,16 +12,21 @@ import userDeletionService from '../services/userDeletionService.js';
  */
 
 const MONGODB_URI = process.env.MONGODB_URI;
-const isCI = process.env.CI === 'true' || process.env.CI === '1';
-const describeif = (MONGODB_URI && !isCI) ? describe : describe.skip;
+const describeif = MONGODB_URI ? describe : describe.skip;
 
 describeif('Hard Data Deletion Verification', () => {
     let testUser;
     let userId;
 
     beforeAll(async () => {
+        console.log('URI USED TO CONNECT:', MONGODB_URI);
         if (mongoose.connection.readyState === 0) {
-            await mongoose.connect(MONGODB_URI);
+            await mongoose.connect(MONGODB_URI, {
+                maxPoolSize: 5,
+                serverSelectionTimeoutMS: 10000,
+                socketTimeoutMS: 45000,
+                family: 4,
+            });
         }
     }, 30000);
 

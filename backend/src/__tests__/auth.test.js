@@ -59,7 +59,10 @@ describe('Auth Input Validation', () => {
                 email: 'user@example.com',
                 password: 'secureP@ss123',
                 name: 'Test User',
-                role: 'lawyer'
+                role: 'lawyer',
+                consentGiven: true,
+                termsVersion: '1.0',
+                privacyVersion: '1.0'
             });
             expect(result.success).toBe(true);
         });
@@ -70,10 +73,44 @@ describe('Auth Input Validation', () => {
             const result = registerSchema.safeParse({
                 email: 'User@Example.COM',
                 password: 'secureP@ss123',
-                name: 'Test User'
+                name: 'Test User',
+                consentGiven: true,
+                termsVersion: '1.0',
+                privacyVersion: '1.0'
             });
             expect(result.success).toBe(true);
             expect(result.data.email).toBe('user@example.com');
+        });
+
+        test('should reject missing consentGiven', async () => {
+            const { registerSchema } = await import('../../src/schemas/authSchemas.js');
+
+            const result = registerSchema.safeParse({
+                email: 'user@example.com',
+                password: 'secureP@ss123',
+                name: 'Test User',
+                termsVersion: '1.0',
+                privacyVersion: '1.0'
+            });
+            expect(result.success).toBe(false);
+            const issues = result.error?.issues ?? [];
+            expect(issues.some(e => (e.path ?? []).includes('consentGiven'))).toBe(true);
+        });
+
+        test('should reject invalid termsVersion', async () => {
+            const { registerSchema } = await import('../../src/schemas/authSchemas.js');
+
+            const result = registerSchema.safeParse({
+                email: 'user@example.com',
+                password: 'secureP@ss123',
+                name: 'Test User',
+                consentGiven: true,
+                termsVersion: '0.9',
+                privacyVersion: '1.0'
+            });
+            expect(result.success).toBe(false);
+            const issues = result.error?.issues ?? [];
+            expect(issues.some(e => (e.path ?? []).includes('termsVersion'))).toBe(true);
         });
     });
 

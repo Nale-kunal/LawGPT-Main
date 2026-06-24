@@ -35,7 +35,7 @@ export const DashMockup = () => (
                         { icon: <Ic.Calendar />, label: 'Calendar', act: false },
                         { icon: <Ic.Book />, label: 'Legal Research', act: false },
                         { icon: <Ic.Note />, label: 'Advocate Notes', act: false },
-                        { icon: <Ic.Billing />, label: 'Billing & Fees', act: false },
+                        { icon: <Ic.Scale />, label: 'Legal Templates', act: false },
                     ].map(item => (
                         <div key={item.label} className={`lp-mock-sb-item ${item.act ? 'act' : ''}`}>
                             <span className="lp-mock-item-icon">{item.icon}</span>
@@ -65,7 +65,7 @@ export const DashMockup = () => (
                     {[
                         { lbl: 'Active Cases', val: '24', sub: '+3 this month', trend: 'up' },
                         { lbl: 'Hearings (7 Days)', val: '7', sub: '2 scheduled tomorrow', trend: 'alert' },
-                        { lbl: 'Pending Fees', val: '₹42,500', sub: '3 clients overdue', trend: 'warning' },
+                        { lbl: 'Recent Documents', val: '18', sub: '2 uploaded today', trend: 'up' },
                     ].map(k => (
                         <div key={k.lbl} className="lp-mock-kpi lp-mock-kpi-compact">
                             <div className="lp-mock-kpi-header">

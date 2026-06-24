@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Bell, Clock, AlertTriangle, CheckCircle, Plus, Trash2, Calendar, X, Maximize2, Minimize2 } from 'lucide-react';
 import { useLegalData, type Alert } from '@/contexts/LegalDataContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -45,6 +46,8 @@ export const NotificationDropdown = ({ unreadCount }: NotificationDropdownProps)
     const { formatCurrency } = useFormatting();
     const dropdownRef = useRef<HTMLDivElement>(null);
 
+    const { complianceStatus } = useAuth();
+
     // Form state for creating alerts
     const [alertForm, setAlertForm] = useState({
         caseId: '',
@@ -54,6 +57,10 @@ export const NotificationDropdown = ({ unreadCount }: NotificationDropdownProps)
     });
 
     useEffect(() => {
+        if (complianceStatus !== 'accepted') {
+            setLoading(false);
+            return;
+        }
         const fetchNotifications = async () => {
             try {
                 setLoading(true);
@@ -73,7 +80,7 @@ export const NotificationDropdown = ({ unreadCount }: NotificationDropdownProps)
         // Refresh every 5 minutes
         const interval = setInterval(fetchNotifications, 5 * 60 * 1000);
         return () => clearInterval(interval);
-    }, []);
+    }, [complianceStatus]);
 
     // Close on outside click (only in compact mode)
     useEffect(() => {

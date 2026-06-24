@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { getApiUrl, apiFetch } from '@/lib/api';
 import { Separator } from '@/components/ui/separator';
-import { Check, AlertCircle, Lock, ChevronRight, ChevronLeft, LogOut, Shield } from 'lucide-react';
+import { Check, AlertCircle, Lock, ChevronRight, ChevronLeft, LogOut, Shield, Scale } from 'lucide-react';
 import JuriqLoader from '@/components/ui/JuriqLoader';
 
 interface FormData {
@@ -324,6 +324,13 @@ const Onboarding = () => {
                                 <Lock className="h-4 w-4 text-amber-600" />
                                 <AlertDescription className="text-sm font-medium">
                                     <strong>Important:</strong> This information cannot be changed later. Please verify carefully.
+                                </AlertDescription>
+                            </Alert>
+
+                            <Alert className="border-border bg-muted/30">
+                                <Scale className="h-4 w-4 text-primary" />
+                                <AlertDescription className="text-xs text-muted-foreground leading-normal">
+                                    <strong>Platform Positioning Notice:</strong> Juriq is a legal practice management software-as-a-service (SaaS) platform built for enrolled advocates, law firms, and legal teams in India. Juriq is not a law firm, does not provide legal representation, legal advice, or advocate services, and is not a client acquisition or lawyer-recommendation marketplace.
                                 </AlertDescription>
                             </Alert>
 

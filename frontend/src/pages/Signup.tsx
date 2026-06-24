@@ -12,6 +12,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getApiUrl, getOAuthUrl, apiFetch } from '@/lib/api';
 
+// Current policy versions — must match backend POLICIES registry in legal.js
+const CURRENT_TERMS_VERSION = '1.0';
+const CURRENT_PRIVACY_VERSION = '1.0';
+
 // Minimal Google "G" logo SVG — no external dependency
 const GoogleIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
@@ -41,6 +45,12 @@ const Signup = () => {
   const [showDeletedDialog, setShowDeletedDialog] = useState(false);
   const [isReactivating, setIsReactivating] = useState(false);
   const [pendingFormData, setPendingFormData] = useState<{ name: string; email: string; password: string } | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false); // Optional — unchecked by default
+  const [showOAuthConsentModal, setShowOAuthConsentModal] = useState(false);
+  const [oauthTermsAccepted, setOauthTermsAccepted] = useState(false);
+  const [oauthPrivacyAccepted, setOauthPrivacyAccepted] = useState(false);
   const { register, isAuthenticated, isLoading, user, refreshUser } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -83,7 +93,11 @@ const Signup = () => {
         name,
         email,
         password,
-        role: 'lawyer'
+        role: 'lawyer',
+        consentGiven: true,
+        termsVersion: CURRENT_TERMS_VERSION,
+        privacyVersion: CURRENT_PRIVACY_VERSION,
+        marketingConsent, // Optional — user choice; false by default
       });
 
       if (result.success) {
@@ -151,15 +165,16 @@ const Signup = () => {
   };
 
   const handleGoogleLogin = async () => {
+    // Show the OAuth pre-consent modal before redirecting
+    setShowOAuthConsentModal(true);
+  };
+
+  const handleOAuthConsentAndProceed = () => {
+    setShowOAuthConsentModal(false);
     setIsGoogleLoading(true);
     try {
-      await fetch(getApiUrl('/api/v1/health'));
-    } catch {
-      // proceed anyway
-    }
-    // Use replace() so the OAuth initiation URL is NOT added to browser history.
-    // If we used href=, the browser would store the /api/v1/auth/google URL and
-    // pressing Back from /dashboard would navigate there, re-starting the OAuth flow.
+      // proceed anyway if health check fails
+    } catch { /* no-op */ }
     window.location.replace(getOAuthUrl('/api/v1/auth/google?action=signup'));
   };
 
@@ -248,10 +263,59 @@ const Signup = () => {
                 </Button>
               </div>
             </div>
+            {/* ── Legal Consent Checkboxes ─────────────────────────────── */}
+            <div className="space-y-2 pt-1">
+              <div className="flex items-start gap-2">
+                <input
+                  id="consent-terms"
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-input accent-primary cursor-pointer"
+                  disabled={isSubmitting}
+                />
+                <label htmlFor="consent-terms" className="text-xs text-muted-foreground leading-tight cursor-pointer select-none">
+                  I have read and agree to the{' '}
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">Terms of Service</a>
+                  {' '}(Version {CURRENT_TERMS_VERSION})
+                </label>
+              </div>
+              <div className="flex items-start gap-2">
+                <input
+                  id="consent-privacy"
+                  type="checkbox"
+                  checked={privacyAccepted}
+                  onChange={(e) => setPrivacyAccepted(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-input accent-primary cursor-pointer"
+                  disabled={isSubmitting}
+                />
+                <label htmlFor="consent-privacy" className="text-xs text-muted-foreground leading-tight cursor-pointer select-none">
+                  I have read and agree to the{' '}
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">Privacy Policy</a>
+                  {' '}(Version {CURRENT_PRIVACY_VERSION})
+                </label>
+              </div>
+              {/* Optional marketing consent — unchecked by default, never blocks registration */}
+              <div className="flex items-start gap-2 pt-1 border-t border-border/40 mt-1">
+                <input
+                  id="consent-marketing"
+                  type="checkbox"
+                  checked={marketingConsent}
+                  onChange={(e) => setMarketingConsent(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-input accent-primary cursor-pointer"
+                  disabled={isSubmitting}
+                />
+                <label htmlFor="consent-marketing" className="text-xs text-muted-foreground leading-tight cursor-pointer select-none">
+                  <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono uppercase tracking-wide mr-1">Optional</span>
+                  I would like to receive product updates and newsletters from Juriq. You may unsubscribe at any time.
+                </label>
+              </div>
+            </div>
+
             <Button
               type="submit"
               className="w-full"
-              disabled={isSubmitting || isGoogleLoading}
+              disabled={isSubmitting || isGoogleLoading || !termsAccepted || !privacyAccepted}
             >
               {isSubmitting ? (
                 <>
@@ -337,6 +401,66 @@ const Signup = () => {
               ) : (
                 'Reactivate Account'
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Google OAuth Pre-Consent Modal ───────────────────────────────── */}
+      <Dialog open={showOAuthConsentModal} onOpenChange={(open) => {
+        if (!open) { setShowOAuthConsentModal(false); setOauthTermsAccepted(false); setOauthPrivacyAccepted(false); }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Before you continue with Google</DialogTitle>
+            <DialogDescription className="pt-2">
+              By creating a Juriq account you agree to our legal policies. Please confirm you have read and accepted both:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="flex items-start gap-3">
+              <input
+                id="oauth-consent-terms"
+                type="checkbox"
+                checked={oauthTermsAccepted}
+                onChange={(e) => setOauthTermsAccepted(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-input accent-primary cursor-pointer"
+              />
+              <label htmlFor="oauth-consent-terms" className="text-sm text-muted-foreground leading-tight cursor-pointer select-none">
+                I agree to the{' '}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">Terms of Service</a>
+                {' '}(Version {CURRENT_TERMS_VERSION})
+              </label>
+            </div>
+            <div className="flex items-start gap-3">
+              <input
+                id="oauth-consent-privacy"
+                type="checkbox"
+                checked={oauthPrivacyAccepted}
+                onChange={(e) => setOauthPrivacyAccepted(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-input accent-primary cursor-pointer"
+              />
+              <label htmlFor="oauth-consent-privacy" className="text-sm text-muted-foreground leading-tight cursor-pointer select-none">
+                I agree to the{' '}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">Privacy Policy</a>
+                {' '}(Version {CURRENT_PRIVACY_VERSION})
+              </label>
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => { setShowOAuthConsentModal(false); setOauthTermsAccepted(false); setOauthPrivacyAccepted(false); }}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleOAuthConsentAndProceed}
+              disabled={!oauthTermsAccepted || !oauthPrivacyAccepted}
+              className="w-full sm:w-auto"
+            >
+              {isGoogleLoading ? <><JuriqLoader size="sm" className="mr-2" />Connecting...</> : 'Continue with Google'}
             </Button>
           </DialogFooter>
         </DialogContent>

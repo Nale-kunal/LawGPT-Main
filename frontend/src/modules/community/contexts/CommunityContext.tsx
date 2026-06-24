@@ -13,6 +13,7 @@ import communityApi, { Conversation, Message, Participant } from '../services/co
 import { generateClientMessageId } from '../services/cryptoService';
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/logger';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CommunityContextType {
   socket: Socket | null;
@@ -105,8 +106,15 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [socket, isConnected]);
 
+  const { complianceStatus } = useAuth();
+
   // ── Initialize Socket.IO ────────────────────────────────────────────────────
   useEffect(() => {
+    // Gate on compliance status
+    if (complianceStatus !== 'accepted') {
+      return;
+    }
+
     // Connect unconditionally — the backend socket auth middleware handles
     // unauthenticated connection rejection. The session JWT is httpOnly and
     // is not readable via document.cookie, so we cannot gate here client-side.
@@ -243,7 +251,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       // Clear timers
       Object.values(typingTimerRef.current).forEach(clearTimeout);
     };
-  }, [fetchConversations, toast]);
+  }, [fetchConversations, toast, complianceStatus]);
 
   // ── Send Message ────────────────────────────────────────────────────────────
   const sendMessage = async (

@@ -119,13 +119,29 @@ export async function pinMessage(req, res) {
   try {
     const { messageId } = req.params;
     const { pin = true } = req.body;
+    const userId        = req.user.userId;
 
     const msg = await CommunityMessage.findById(messageId).lean();
     if (!msg) { return res.status(404).json({ error: 'Message not found' }); }
 
-    await CommunityMessage.findByIdAndUpdate(messageId, { $set: { isPinned: !!pin } });
-
     const convId = msg.conversationId.toString();
+
+    // Verify moderator role or global admin
+    const isGlobalAdmin = req.user.role === 'admin';
+    if (!isGlobalAdmin) {
+      const participant = await ConversationParticipant.findOne({
+        userId,
+        conversationId: convId,
+        role: { $in: ['owner', 'admin', 'moderator'] },
+        isRemoved: false,
+      }).lean();
+
+      if (!participant) {
+        return res.status(403).json({ error: 'MODERATOR_REQUIRED', message: 'You must be a moderator of this conversation to pin messages' });
+      }
+    }
+
+    await CommunityMessage.findByIdAndUpdate(messageId, { $set: { isPinned: !!pin } });
 
     // Update conversation's pinnedMessages array to keep in sync with model
     if (pin) {

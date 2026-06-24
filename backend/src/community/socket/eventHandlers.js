@@ -332,6 +332,9 @@ export function registerEventHandlers(socket, io) {
     const parsed = typingSchema.safeParse(data);
     if (!parsed.success) { return; }
     const { conversationId } = parsed.data;
+
+    const participant = await verifyParticipant(userId, conversationId);
+    if (!participant) { return; }
     
     socket.to(`conv:${conversationId}`).emit('typing:stop', { userId, conversationId });
     socket.to(`conv:${conversationId}`).emit('typingStop', { userId, userName, conversationId });
@@ -372,7 +375,7 @@ export function registerEventHandlers(socket, io) {
 
       // Add to message readBy array
       await CommunityMessage.updateOne(
-        { _id: messageId },
+        { _id: messageId, conversationId },
         {
           $addToSet: { readBy: { userId, readAt: new Date() } },
           $set: { deliveryStatus: 'read' },

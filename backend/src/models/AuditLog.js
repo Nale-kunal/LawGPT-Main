@@ -20,22 +20,29 @@ const auditLogSchema = new mongoose.Schema(
                 'email_verify', '2fa_enable', '2fa_disable', '2fa_verify',
                 // Documents
                 'file_upload', 'file_delete', 'folder_create', 'folder_delete',
+                'document_viewed', 'document_downloaded',
                 // Cases
-                'case_create', 'case_update', 'case_delete',
+                'case_create', 'case_update', 'case_delete', 'case_accessed',
                 // Clients
                 'client_create', 'client_update', 'client_delete',
                 // Billing
                 'invoice_create', 'invoice_update', 'invoice_delete',
                 // Admin
-                'role_change', 'account_delete', 'settings_update',
+                'role_change', 'account_delete', 'settings_update', 'admin_access',
                 // System
                 'rate_limit_triggered', 'csrf_violation', 'account_lockout',
+                // Consent & Legal
+                'consent_accepted', 'consent_renewed', 'cookie_consent_updated',
+                'policy_hash_verified',
+                // Data Rights
+                'data_export_requested', 'data_export_generated',
+                'account_deletion_initiated',
             ],
             index: true,
         },
         resourceType: {
             type: String,
-            enum: ['user', 'document', 'folder', 'case', 'client', 'invoice', 'hearing', 'system'],
+            enum: ['user', 'document', 'folder', 'case', 'client', 'invoice', 'hearing', 'system', 'consent', 'export', 'note'],
         },
         resourceId: { type: String },
         ip: { type: String },
@@ -53,10 +60,10 @@ const auditLogSchema = new mongoose.Schema(
             type: String,
             index: true,
         },
-        // Auto-purge after 90 days
+        // Auto-purge after 365 days (compliance audit retention)
         expiresAt: {
             type: Date,
-            default: () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+            default: () => new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         },
         createdAt: {
             type: Date,
@@ -74,6 +81,8 @@ const auditLogSchema = new mongoose.Schema(
 auditLogSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 auditLogSchema.index({ userId: 1, createdAt: -1 });
 auditLogSchema.index({ action: 1, createdAt: -1 });
+// Compound index for privacy rights center: per-user action timeline
+auditLogSchema.index({ userId: 1, action: 1, createdAt: -1 });
 
 // ── Statics ──────────────────────────────────────────────────────────────────
 

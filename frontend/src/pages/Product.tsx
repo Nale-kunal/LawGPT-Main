@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Ic } from '@/components/landing/LandingIcons';
 import LandingLayout from '@/components/layout/LandingLayout';
 
 const Product = () => {
     const revealEls = useRef<(HTMLElement | null)[]>([]);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const io = new IntersectionObserver(
@@ -15,225 +17,256 @@ const Product = () => {
     }, []);
 
     const r = (i: number) => (el: HTMLElement | null) => { revealEls.current[i] = el; };
+    const go = (p: string) => navigate(p);
 
     return (
         <LandingLayout>
-            {/* ══ CORE FEATURES ══════════════════════════════════════════════════════ */}
-            <section className="lp-sec" id="features" aria-labelledby="feat-heading">
-                <div className="lp-sec-inner">
-                    <div className="lp-sec-hd lp-reveal" ref={r(11)}>
-                        <p className="lp-sec-label">Core Platform</p>
-                        <h2 id="feat-heading" className="lp-sec-title">
-                            Every tool a law firm needs,<br />designed to work together
-                        </h2>
-                        <p className="lp-sec-sub">
-                            Purpose-built modules that mirror how legal professionals actually work — not generic project management tools forced into legal shape.
+            <div style={{ background: 'var(--lp-bg)', color: 'var(--lp-text)', overflow: 'hidden' }}>
+
+                {/* ══ HEADER / INTRODUCTION ══════════════════════════════════════ */}
+                <section 
+                    style={{ 
+                        paddingTop: '100px', 
+                        paddingBottom: '32px',
+                        borderBottom: '1px solid var(--border)',
+                        background: 'var(--lp-bg2)'
+                    }}
+                >
+                    <div className="juriq-container" style={{ textAlign: 'center' }}>
+                        <span className="juriq-badge" style={{ marginBottom: '8px' }}>Product Overview</span>
+                        <h1 className="juriq-h1" style={{ marginBottom: '8px', marginTop: '12px' }}>The Operating System for Advocates</h1>
+                        <p className="juriq-body-sm" style={{ maxWidth: '800px', margin: '0 auto', color: 'var(--lp-muted)' }}>
+                            Every tool an independent advocate needs to coordinate matters, track court listing calendars, manage legal documents, and maintain clients — built into a secure workspace.
                         </p>
                     </div>
+                </section>
 
-                    <div className="lp-feat-grid lp-reveal" ref={r(12)}>
-                        {[
-                            {
-                                Icon: Ic.Briefcase,
-                                title: 'Case Management',
-                                desc: 'Create, track and manage every case with structured workflows. Attach documents, add notes, log hearings, and track case status from filing to verdict.',
-                                tag: 'Core Module',
-                            },
-                            {
-                                Icon: Ic.Users,
-                                title: 'Client Portal',
-                                desc: 'Maintain a complete client registry with contact details, linked cases, billing history and communication logs. Know every client at a glance.',
-                                tag: 'Relationships',
-                            },
-                            {
-                                Icon: Ic.Calendar,
-                                title: 'Court Calendar',
-                                desc: 'Visual calendar with court date tracking, hearing reminders, and conflict detection. Never miss a hearing or filing deadline again.',
-                                tag: 'Scheduling',
-                            },
-                            {
-                                Icon: Ic.Book,
-                                title: 'Legal Research',
-                                desc: 'Access Indian legal knowledge base, case precedents, and statute references directly inside Juriq. Supports your argument building instantly.',
-                                tag: 'AI-Assisted',
-                            },
-                            {
-                                Icon: Ic.Note,
-                                title: 'Legal Notes',
-                                desc: 'Rich-text legal notepad with case linking, PDF/Word export, and structured formatting for briefs, affidavits, and internal memos.',
-                                tag: 'Documents',
-                            },
-                            {
-                                Icon: Ic.Scale,
-                                title: 'Legal Templates',
-                                desc: 'Access standard drafts and pre-formatted templates for commonly used affidavits, agreements, notices, and legal pleadings.',
-                                tag: 'Drafting',
-                            },
-                            {
-                                Icon: Ic.Export,
-                                title: 'Document Export',
-                                desc: 'Export legal documents as polished PDFs or Word files with professional formatting. Ready for court, client, or co-counsel.',
-                                tag: 'Exports',
-                            },
-                            {
-                                Icon: Ic.Robot,
-                                title: 'AI Legal Assistant',
-                                desc: 'AI-powered research, case summarization, and legal writing assistance built directly into your workspace — no context switching needed.',
-                                tag: 'AI Layer',
-                            },
-                        ].map(({ Icon, title, desc, tag }) => (
-                            <div key={title} className="lp-feat-card">
-                                <div className="lp-feat-icon"><Icon /></div>
-                                <h3 className="lp-title-lg">{title}</h3>
-                                <p className="lp-text-p">{desc}</p>
-                                <div className="lp-feat-tag">● {tag}</div>
+                {/* ══ FEATURE 1: CASE VAULT ═══════════════════════════════════════ */}
+                <section className="juriq-section" style={{ padding: '40px 0' }}>
+                    <div className="juriq-container">
+                        <div className="lp-reveal grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center" ref={r(0)}>
+                            <div>
+                                <span className="juriq-pill">Centralized Directory</span>
+                                <h2 className="juriq-h2" style={{ marginBottom: '12px', marginTop: 0 }}>Matters & Case Vault</h2>
+                                <p className="juriq-body-sm" style={{ marginBottom: '16px', color: 'var(--lp-muted)' }}>
+                                    Keep all pleadings, hearing histories, client records, and legal research in structured files per case. Move beyond chaotic local folders and manual diaries into a secure workspace.
+                                </p>
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--lp-muted)' }}>
+                                        <span style={{ color: 'hsl(35, 100%, 55%)' }}><Ic.Check /></span> Track case stages with a visual pipeline
+                                    </li>
+                                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--lp-muted)' }}>
+                                        <span style={{ color: 'hsl(35, 100%, 55%)' }}><Ic.Check /></span> Linked index of filings, parties, and court listings
+                                    </li>
+                                </ul>
                             </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* ══ CASE PIPELINE ══════════════════════════════════════════════════════ */}
-            <section className="lp-sec lp-sec-alt" id="pipeline" aria-labelledby="pipe-heading">
-                <div className="lp-sec-inner">
-                    <div className="lp-sec-hd lp-reveal" ref={r(45)}>
-                        <p className="lp-sec-label">Case Pipeline</p>
-                        <h2 id="pipe-heading" className="lp-sec-title">Track Case Progress Clearly</h2>
-                        <p className="lp-sec-sub">Every legal matter progresses through multiple stages. Juriq lets you track these stages through a structured case pipeline so nothing falls through the cracks.</p>
-                    </div>
-                    <div className="lp-pipeline-row lp-reveal" ref={r(46)}>
-                        {[
-                            { n: '01', t: 'Client Registered', s: 'Identity & contact captured' },
-                            { n: '02', t: 'Case Filed', s: 'Court & parties documented' },
-                            { n: '03', t: 'Hearing Scheduled', s: 'Dates on calendar' },
-                            { n: '04', t: 'Under Review', s: 'Strategy & notes active' },
-                            { n: '05', t: 'Judgment Pending', s: 'Final arguments filed' },
-                            { n: '06', t: 'Closed', s: 'Order received & archived' },
-                        ].map(st => (
-                            <div key={st.n} className="lp-pipeline-stage">
-                                <div className="lp-pipeline-badge">{st.n}</div>
-                                <div className="lp-title-md" style={{ marginBottom: 4 }}>{st.t}</div>
-                                <div className="lp-text-sm">{st.s}</div>
-                            </div>
-                        ))}
-                    </div>
-                    <div className="lp-pipeline-features lp-reveal" ref={r(47)}>
-                        {['Custom case milestones', 'Structured case lifecycle', 'Clear visual progress tracking'].map(f => (
-                            <div key={f} className="lp-pipeline-feat"><span className="lp-pipeline-feat-dot" />{f}</div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* ══ HEARING MANAGEMENT ══════════════════════════════════════════════════ */}
-            <section className="lp-sec" id="hearings" aria-labelledby="hear-heading">
-                <div className="lp-sec-inner">
-                    <div className="lp-hearing-split lp-reveal" ref={r(48)}>
-                        <div>
-                            <p className="lp-sec-label">Hearing Management</p>
-                            <h2 id="hear-heading" className="lp-sec-title">Never Miss a Hearing</h2>
-                            <p className="lp-sec-sub" style={{ marginBottom: 28 }}>Juriq provides a calendar-based system to track every hearing and identify scheduling overlaps across multiple courts.</p>
-                            <div className="lp-hearing-features">
-                                {[
-                                    { Icon: Ic.Calendar, t: 'Hearing Timeline Tracking', d: 'Every hearing date logged against its case with full context.' },
-                                    { Icon: Ic.Shield, t: 'Conflict Detection Alerts', d: 'Overlapping hearing dates are flagged so you can reschedule in time.' },
-                                    { Icon: Ic.Map, t: 'Calendar Overview', d: 'Monthly and weekly views across all active cases and courts.' },
-                                ].map(({ Icon, t, d }) => (
-                                    <div key={t} className="lp-hearing-feat">
-                                        <div className="lp-hearing-feat-icon"><Icon /></div>
-                                        <div><div className="lp-title-md" style={{ marginBottom: 2 }}>{t}</div><div className="lp-text-sm">{d}</div></div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="lp-cal-mock">
-                            <div className="lp-cal-mock-header"><span>March 2026</span><span style={{ fontSize: 11, color: 'var(--lp-subtle)' }}>3 hearings this week</span></div>
-                            <div className="lp-cal-mock-grid">
-                                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
-                                    <div key={d} className="lp-cal-mock-cell" style={{ minHeight: 28, background: 'var(--lp-bg3)' }}>
-                                        <div className="lp-cal-mock-day">{d}</div>
-                                    </div>
-                                ))}
-                                {[{ d: '10', ev: 'Sharma HC', conflict: false }, { d: '11', ev: '', conflict: false }, { d: '12', ev: 'Kapoor FC', conflict: false }, { d: '13', ev: 'Tata Civil', conflict: true }, { d: '14', ev: 'Gupta Dist', conflict: true }, { d: '15', ev: '', conflict: false }, { d: '16', ev: '', conflict: false }].map((c, i) => (
-                                    <div key={i} className={`lp-cal-mock-cell${c.ev ? ' has-event' : ''}`}>
-                                        <div className="lp-cal-mock-day">{c.d}</div>
-                                        {c.ev && !c.conflict && <div className="lp-cal-mock-event">{c.ev}</div>}
-                                        {c.ev && c.conflict && <div className="lp-cal-mock-conflict">! {c.ev}</div>}
-                                    </div>
-                                ))}
+                            <div className="juriq-screenshot-wrapper">
+                                <img src="/screenshots/cases.png" alt="Juriq Case Vault Grid" className="crisp-screenshot" />
                             </div>
                         </div>
                     </div>
-                </div>
-            </section>
+                </section>
 
-            {/* ══ DOCUMENT VAULT ══════════════════════════════════════════════════════ */}
-            <section className="lp-sec lp-sec-alt" id="vault" aria-labelledby="vault-heading">
-                <div className="lp-sec-inner">
-                    <div className="lp-sec-hd lp-reveal" ref={r(49)}>
-                        <p className="lp-sec-label">Document Management</p>
-                        <h2 id="vault-heading" className="lp-sec-title">Secure Case Document Vault</h2>
-                        <p className="lp-sec-sub">Juriq organizes every document directly within the case where it belongs.</p>
-                    </div>
-                    <div className="lp-vault-grid lp-reveal" ref={r(50)}>
-                        {[
-                            { Icon: Ic.Folder, title: 'Case-Linked Storage', desc: 'Every document is attached to its specific case file, no more hunting through generic folders.' },
-                            { Icon: Ic.Lock, title: 'Secure Access Control', desc: 'Documents accessible only to the authorized advocate. Role-based access protects sensitive files.' },
-                            { Icon: Ic.Cloud, title: 'Cloud Document Access', desc: 'Access your case documents securely from anywhere with encrypted cloud-based storage.' },
-                        ].map(({ Icon, title, desc }) => (
-                            <div key={title} className="lp-vault-card">
-                                <div className="lp-vault-icon"><Icon /></div>
-                                <div className="lp-title-md">{title}</div>
-                                <div className="lp-text-p">{desc}</div>
+                {/* ══ FEATURE 2: DOCUMENT VAULT ══════════════════════════════════ */}
+                <section className="juriq-section" style={{ background: 'var(--lp-bg2)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', padding: '40px 0' }}>
+                    <div className="juriq-container">
+                        <div className="lp-reveal grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center" ref={r(2)}>
+                            <div className="juriq-screenshot-wrapper order-2 lg:order-1">
+                                <img src="/screenshots/documents.jpg" alt="Juriq Document Vault" className="crisp-screenshot" />
                             </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* ══ WORKSPACE HUB ═══════════════════════════════════════════════════════ */}
-            <section className="lp-sec" id="hub" aria-labelledby="hub-heading">
-                <div className="lp-sec-inner">
-                    <div className="lp-sec-hd-center lp-reveal" ref={r(54)}>
-                        <p className="lp-sec-label">All-in-One</p>
-                        <h2 id="hub-heading" className="lp-sec-title">Your Entire Legal Practice in One Workspace</h2>
-                        <p className="lp-sec-sub">Juriq centralizes every essential component of legal practice management.</p>
-                    </div>
-                    <div className="lp-hub-grid lp-reveal" ref={r(55)}>
-                        {[
-                            { Icon: Ic.Briefcase, label: 'Cases', sub: 'Full case lifecycle tracking' },
-                            { Icon: Ic.Users, label: 'Clients', sub: 'Organized client registry' },
-                            { Icon: Ic.Calendar, label: 'Hearings', sub: 'Court calendar management' },
-                            { Icon: Ic.Folder, label: 'Documents', sub: 'Secure case documents' },
-                            { Icon: Ic.Note, label: 'Legal Notes', sub: 'Strategy & research notes' },
-                            { Icon: Ic.Scale, label: 'Templates', sub: 'Standard legal drafts' },
-                        ].map(({ Icon, label, sub }) => (
-                            <div key={label} className="lp-hub-item">
-                                <div className="lp-hub-icon"><Icon /></div>
-                                <div className="lp-title-md" style={{ marginBottom: 4 }}>{label}</div>
-                                <div className="lp-text-sm">{sub}</div>
+                            <div className="order-1 lg:order-2">
+                                <span className="juriq-pill">Secure Document Repository</span>
+                                <h2 className="juriq-h2" style={{ marginBottom: '12px', marginTop: 0 }}>Case Document Vault</h2>
+                                <p className="juriq-body-sm" style={{ marginBottom: '16px', color: 'var(--lp-muted)' }}>
+                                    Manage, store, and organize writ petitions, pleading papers, and court orders directly inside the case they belong to. Search by file name to retrieve folders instantly.
+                                </p>
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--lp-muted)' }}>
+                                        <span style={{ color: 'hsl(35, 100%, 55%)' }}><Ic.Check /></span> File categorization (PDFs, images, documents)
+                                    </li>
+                                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--lp-muted)' }}>
+                                        <span style={{ color: 'hsl(35, 100%, 55%)' }}><Ic.Check /></span> Encrypted, secure cloud-based data storage
+                                    </li>
+                                </ul>
                             </div>
-                        ))}
+                        </div>
                     </div>
-                </div>
-            </section>
+                </section>
 
-            {/* ══ LEGAL REFERENCE ═════════════════════════════════════════════════════ */}
-            <section className="lp-sec lp-sec-alt" id="reference" aria-labelledby="ref-heading">
-                <div className="lp-sec-inner">
-                    <div className="lp-sec-hd lp-reveal" ref={r(51)}>
-                        <p className="lp-sec-label">Legal Reference</p>
-                        <h2 id="ref-heading" className="lp-sec-title">Quick Legal Reference</h2>
-                        <p className="lp-sec-sub">Juriq includes an integrated reference system containing commonly used Indian laws, keeping key statutes accessible while you work on cases.</p>
+                {/* ══ FEATURE 3: HEARING CALENDAR ════════════════════════════════ */}
+                <section className="juriq-section" style={{ padding: '40px 0' }}>
+                    <div className="juriq-container">
+                        <div className="lp-reveal grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center" ref={r(4)}>
+                            <div>
+                                <span className="juriq-pill">Court Scheduling</span>
+                                <h2 className="juriq-h2" style={{ marginBottom: '12px', marginTop: 0 }}>Hearing Calendar</h2>
+                                <p className="juriq-body-sm" style={{ marginBottom: '16px', color: 'var(--lp-muted)' }}>
+                                    Juriq lists scheduled hearings in a centralized calendar module. Keep track of listing dates, inspect calendar overlays, and receive conflict warnings to plan counsel schedules.
+                                </p>
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--lp-muted)' }}>
+                                        <span style={{ color: 'hsl(35, 100%, 55%)' }}><Ic.Check /></span> Conflict detection alerts for overlapping dates
+                                    </li>
+                                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--lp-muted)' }}>
+                                        <span style={{ color: 'hsl(35, 100%, 55%)' }}><Ic.Check /></span> Integrated timeline linking listing histories to matters
+                                    </li>
+                                </ul>
+                            </div>
+                            <div className="juriq-screenshot-wrapper">
+                                <img src="/screenshots/dashboard.png" alt="Juriq Dashboard Calendar" className="crisp-screenshot" />
+                            </div>
+                        </div>
                     </div>
-                    <div className="lp-ref-chips lp-reveal" ref={r(52)}>
-                        {['Indian Penal Code (IPC)', 'Criminal Procedure Code (CrPC)', 'Indian Contract Act', 'Code of Civil Procedure (CPC)', 'Indian Evidence Act', 'Negotiable Instruments Act', 'Transfer of Property Act', 'Specific Relief Act', 'Arbitration & Conciliation Act', 'Consumer Protection Act', 'Information Technology Act'].map(law => (
-                            <div key={law} className="lp-ref-chip"><span className="lp-ref-chip-dot" />{law}</div>
-                        ))}
+                </section>
+
+                {/* ══ FEATURE 4: CLIENT RECORDS ═════════════════════════════════ */}
+                <section className="juriq-section" style={{ background: 'var(--lp-bg2)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', padding: '40px 0' }}>
+                    <div className="juriq-container">
+                        <div className="lp-reveal grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center" ref={r(6)}>
+                            <div className="juriq-screenshot-wrapper order-2 lg:order-1">
+                                <img src="/screenshots/clients.png" alt="Juriq Client & Case Directory" className="crisp-screenshot" />
+                            </div>
+                            <div className="order-1 lg:order-2">
+                                <span className="juriq-pill">Directories</span>
+                                <h2 className="juriq-h2" style={{ marginBottom: '12px', marginTop: 0 }}>Detailed Client Directory</h2>
+                                <p className="juriq-body-sm" style={{ marginBottom: '16px', color: 'var(--lp-muted)' }}>
+                                    Register contact profiles, communications, and linked matters. Find client details instantly, review active cases, and coordinate updates easily.
+                                </p>
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--lp-muted)' }}>
+                                        <span style={{ color: 'hsl(35, 100%, 55%)' }}><Ic.Check /></span> Secure advocate client logs and notes
+                                    </li>
+                                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--lp-muted)' }}>
+                                        <span style={{ color: 'hsl(35, 100%, 55%)' }}><Ic.Check /></span> Full history listing associated active litigation
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
-                    <p className="lp-text-sm lp-reveal" ref={r(53)} style={{ marginTop: 20, color: 'var(--lp-subtle)' }}>Future updates will expand the legal reference database with more acts and case law summaries.</p>
-                </div>
-            </section>
+                </section>
+
+                {/* ══ FEATURE 5: LEGAL TEMPLATES ════════════════════════════════ */}
+                <section className="juriq-section" style={{ padding: '40px 0' }}>
+                    <div className="juriq-container">
+                        <div className="lp-reveal grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center" ref={r(8)}>
+                            <div>
+                                <span className="juriq-pill">Advocate Drafting</span>
+                                <h2 className="juriq-h2" style={{ marginBottom: '12px', marginTop: 0 }}>Court-Ready Templates</h2>
+                                <p className="juriq-body-sm" style={{ marginBottom: '16px', color: 'var(--lp-muted)' }}>
+                                    Access standard pre-formatted legal drafts for affidavits, notices, plaints, and agreements. Structured templates make drafting faster and help you export court-ready documents in seconds.
+                                </p>
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--lp-muted)' }}>
+                                        <span style={{ color: 'hsl(35, 100%, 55%)' }}><Ic.Check /></span> Civil & Criminal court-ready standard formats
+                                    </li>
+                                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--lp-muted)' }}>
+                                        <span style={{ color: 'hsl(35, 100%, 55%)' }}><Ic.Check /></span> PDF and Microsoft Word document exports
+                                    </li>
+                                </ul>
+                            </div>
+                            <div className="juriq-screenshot-wrapper">
+                                <img src="/screenshots/templates.png" alt="Juriq Templates Library" className="crisp-screenshot" />
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* ══ FEATURE 6: ADVOCATE NOTES ══════════════════════════════════ */}
+                <section className="juriq-section" style={{ background: 'var(--lp-bg2)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', padding: '40px 0' }}>
+                    <div className="juriq-container">
+                        <div className="lp-reveal grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center" ref={r(10)}>
+                            <div className="juriq-screenshot-wrapper order-2 lg:order-1">
+                                <img src="/screenshots/dashboard.png" alt="Juriq Worksheets and Notes" className="crisp-screenshot" />
+                            </div>
+                            <div className="order-1 lg:order-2">
+                                <span className="juriq-pill">Attorney Work Product</span>
+                                <h2 className="juriq-h2" style={{ marginBottom: '12px', marginTop: 0 }}>Advocate Notes & Strategy</h2>
+                                <p className="juriq-body-sm" style={{ marginBottom: '16px', color: 'var(--lp-muted)' }}>
+                                    Keep legal research summaries and strategy worksheets private. Compile details, facts, arguments, and evidence trails in worksheets directly linked to case files.
+                                </p>
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--lp-muted)' }}>
+                                        <span style={{ color: 'hsl(35, 100%, 55%)' }}><Ic.Check /></span> Private by default strategy journals
+                                    </li>
+                                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--lp-muted)' }}>
+                                        <span style={{ color: 'hsl(35, 100%, 55%)' }}><Ic.Check /></span> Case-specific references and argument grids
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* ══ FEATURE 7: COMMUNITY ═══════════════════════════════════════ */}
+                <section className="juriq-section" style={{ padding: '40px 0' }}>
+                    <div className="juriq-container">
+                        <div className="lp-reveal grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center" ref={r(12)}>
+                            <div>
+                                <span className="juriq-pill">Advocate Forum</span>
+                                <h2 className="juriq-h2" style={{ marginBottom: '12px', marginTop: 0 }}>Advocate Community</h2>
+                                <p className="juriq-body-sm" style={{ marginBottom: '16px', color: 'var(--lp-muted)' }}>
+                                    Engage with verified independent advocates. Discuss procedural nuances, review drafts, and build professional networks on a secure platform.
+                                </p>
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--lp-muted)' }}>
+                                        <span style={{ color: 'hsl(35, 100%, 55%)' }}><Ic.Check /></span> Discussion channels verified by bar registration
+                                    </li>
+                                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--lp-muted)' }}>
+                                        <span style={{ color: 'hsl(35, 100%, 55%)' }}><Ic.Check /></span> Secure sharing of model drafts and templates
+                                    </li>
+                                </ul>
+                            </div>
+
+                            {/* Premium CSS Mockup representing Community interface */}
+                            <div 
+                                style={{
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '8px',
+                                    background: 'var(--gradient-card)',
+                                    padding: '20px',
+                                    boxShadow: 'var(--shadow-professional)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '12px'
+                                }}
+                            >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                                    <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--foreground)' }}>Community Forum</span>
+                                    <span className="juriq-badge" style={{ fontSize: '10px' }}>Advocates Online</span>
+                                </div>
+                                <div style={{ background: 'var(--lp-bg)', border: '1px solid var(--border)', borderRadius: '6px', padding: '12px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                        <span style={{ fontSize: '11px', color: 'hsl(35, 100%, 55%)', fontWeight: '600' }}>#HighCourtPractice</span>
+                                        <span style={{ fontSize: '11px', color: 'var(--lp-subtle)' }}>3 hours ago</span>
+                                    </div>
+                                    <h4 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--foreground)', marginBottom: '4px' }}>Model format for filing e-attestation?</h4>
+                                    <p style={{ fontSize: '12px', color: 'var(--lp-muted)', lineHeight: '1.4', margin: 0 }}>Has anyone uploaded the latest checklist for digital registry filings in Delhi HC?</p>
+                                    <div style={{ display: 'flex', gap: '12px', marginTop: '8px', fontSize: '11px', color: 'var(--lp-subtle)' }}>
+                                        <span>👍 18 Likes</span>
+                                        <span>💬 4 Comments</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* ══ FINAL CTA ═══════════════════════════════════════════════════ */}
+                <section className="juriq-section" style={{ background: 'var(--lp-bg2)', borderTop: '1px solid var(--border)', padding: '40px 0' }}>
+                    <div className="juriq-container" style={{ textAlign: 'center' }}>
+                        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+                            <h2 className="juriq-h2" style={{ marginBottom: '8px', marginTop: 0 }}>Start Organizing Your Practice Today</h2>
+                            <p className="juriq-body-sm" style={{ marginBottom: '20px', color: 'var(--lp-muted)' }}>
+                                Set up your secure, dedicated chambers workspace in seconds.
+                            </p>
+                            <button className="juriq-btn-primary" onClick={() => go('/signup')} style={{ padding: '10px 20px', fontSize: '13.5px' }}>
+                                Create Free Workspace <Ic.Arrow />
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
         </LandingLayout>
     );
 };

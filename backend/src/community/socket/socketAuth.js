@@ -54,6 +54,20 @@ export async function socketAuthMiddleware(socket, next) {
       return next(new Error('SOCKET_AUTH_USER_NOT_FOUND'));
     }
 
+    // Session version check (logout-all-devices / password change)
+    const sessionVersion = user.sessionVersion || 0;
+    const sessionVersionAt = user.sessionVersionAt
+      ? new Date(user.sessionVersionAt).getTime()
+      : 0;
+
+    if (sessionVersion > 0 && sessionVersionAt > 0) {
+      const tokenIssuedAt = (decoded.iat || 0) * 1000;
+      if (tokenIssuedAt < sessionVersionAt) {
+        logger.warn({ userId: decoded.userId, sessionVersion }, 'Socket auth: Token predates session version — rejected');
+        return next(new Error('SOCKET_AUTH_REVOKED'));
+      }
+    }
+
     // Block deleted, suspended, or security-flagged users
     const statusCheck = checkAccountStatus(user);
     if (!statusCheck.active) {

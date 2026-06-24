@@ -927,6 +927,30 @@ describe('Priority 4 — Dashboard, Search, and Community Chat', () => {
         isPinned: false,
       });
 
+      // 1. Without participant record (access denied)
+      const resDenied = await request(app)
+        .patch(`/api/v1/community/messages/${messageId}/pin`)
+        .set('Cookie', `token=${userToken}`)
+        .send({ pin: true });
+      expect(resDenied.status).toBe(403);
+
+      // 2. Seed a non-moderator participant record (access denied)
+      mockStore.participants.push({
+        conversationId: convId,
+        userId: userId,
+        role: 'member',
+        isRemoved: false,
+      });
+      const resDeniedMember = await request(app)
+        .patch(`/api/v1/community/messages/${messageId}/pin`)
+        .set('Cookie', `token=${userToken}`)
+        .send({ pin: true });
+      expect(resDeniedMember.status).toBe(403);
+
+      // 3. Update participant to moderator (authorized)
+      const partIdx = mockStore.participants.findIndex(p => p.conversationId === convId && p.userId === userId);
+      mockStore.participants[partIdx].role = 'moderator';
+
       const res = await request(app)
         .patch(`/api/v1/community/messages/${messageId}/pin`)
         .set('Cookie', `token=${userToken}`)

@@ -3,6 +3,7 @@ import multer from 'multer';
 import logger from '../utils/logger.js';
 import { requireAuth } from '../middleware/auth-jwt.js';
 import { logActivity } from '../middleware/activityLogger.js';
+import { auditLog } from '../middleware/audit.js';
 import { validateFolderOwnership, validateCaseOwnership, validateDocumentOwnership } from '../services/ownershipService.js';
 import {
   createDocument,
@@ -430,6 +431,10 @@ router.get('/files/:id/view', requireAuth, validate({ params: idParamSchema }), 
         }
 
         const buffer = await response.arrayBuffer();
+
+        // Audit: document viewed — fire-and-forget
+        auditLog(req, 'document_viewed', 'document', req.params.id, { fileName: doc.name, mimeType: doc.mimetype });
+
         return res.send(Buffer.from(buffer));
       } catch (fetchError) {
         logger.error({ err: fetchError }, 'Error fetching file from storage');
@@ -478,6 +483,10 @@ router.get('/files/:id/download', requireAuth, validate({ params: idParamSchema 
         res.setHeader('Content-Length', doc.size);
 
         const buffer = await response.arrayBuffer();
+
+        // Audit: document downloaded — fire-and-forget
+        auditLog(req, 'document_downloaded', 'document', req.params.id, { fileName: doc.name, mimeType: doc.mimetype });
+
         return res.send(Buffer.from(buffer));
       } catch (fetchError) {
         logger.error({ err: fetchError }, 'Error fetching file from storage');
@@ -595,6 +604,9 @@ router.post('/upload', requireAuth, enforcePlanLimits('document'), upload.array(
 
         logger.info({ docId: doc.id }, '✅ File saved successfully');
         saved.push(doc);
+
+        // Audit: file uploaded — fire-and-forget
+        auditLog(req, 'file_upload', 'document', doc.id, { fileName: file.originalname, fileSize: file.size, mimeType: file.mimetype, folderId: folderId || null });
 
         await activityEmitter.emit({
           userId: ownerId,
@@ -758,6 +770,10 @@ router.delete('/files/:id', requireAuth, validate({ params: idParamSchema }), as
     }
 
     await deleteDocument(COLLECTIONS.DOCUMENTS, req.params.id);
+
+    // Audit: file deleted — fire-and-forget
+    auditLog(req, 'file_delete', 'document', req.params.id, { fileName: doc.name, mimeType: doc.mimetype });
+
     return res.json({ ok: true });
   } catch (error) {
     logger.error({ err: error }, 'Delete file error');

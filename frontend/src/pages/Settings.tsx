@@ -18,13 +18,19 @@ import {
   ClipboardList,
   CheckCircle2,
   ChevronRight,
+  FileText,
+  ExternalLink,
+  Cookie,
+  Scale,
 } from 'lucide-react';
 import JuriqLoader from '@/components/ui/JuriqLoader';
 import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay';
 import { calculateOnboardingProgress } from '@/lib/onboardingUtils';
 
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useCookieConsent } from '@/hooks/useCookieConsent';
 import {
   Select,
   SelectContent,
@@ -114,12 +120,37 @@ const Settings = () => {
   // Dialog states
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showDeleteWarningDialog, setShowDeleteWarningDialog] = useState(false); // Step 1 pre-warning
   const [showRelinkDialog, setShowRelinkDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   // Onboarding wizard — user-initiated from Settings
   const [showOnboardingWizard, setShowOnboardingWizard] = useState(false);
   const [linkingError, setLinkingError] = useState<{ title: string; message: string } | null>(null);
   const [importData, setImportData] = useState<Record<string, unknown> | null>(null);
+
+  // Privacy & Legal state
+  const [myConsents, setMyConsents] = useState<Array<{ policyType: string; version: string; policyHash?: string; acceptedAt: string; method: string }>>([]);
+  const [isLoadingConsents, setIsLoadingConsents] = useState(false);
+  const [currentPolicyVersions, setCurrentPolicyVersions] = useState<Record<string, any>>({});
+  const getPolicyVersion = (key: string): string => {
+    const val = currentPolicyVersions[key];
+    if (!val) return '1.0';
+    if (typeof val === 'object' && val !== null) {
+      return val.version || '1.0';
+    }
+    return String(val);
+  };
+  const [cookiePrefs, setCookiePrefs] = useState({
+    analytics: false,
+    preferences: true,
+  });
+  const [commPrefs, setCommPrefs] = useState({
+    productAnnouncements: false,
+    newsletters: false,
+    featureUpdates: false,
+  });
+  const [isSavingCookies, setIsSavingCookies] = useState(false);
+  const [isSavingComm, setIsSavingComm] = useState(false);
 
   // Password change state
   const [passwordData, setPasswordData] = useState({
@@ -211,7 +242,112 @@ const Settings = () => {
       ...defaultSecuritySettings,
       ...(user.security || {}),
     });
+
+    if (user.cookieConsent) {
+      setCookiePrefs({
+        analytics: user.cookieConsent.analytics || false,
+        preferences: user.cookieConsent.preferences || false,
+      });
+    }
+    if (user.communicationConsent) {
+      setCommPrefs({
+        productAnnouncements: user.communicationConsent.productAnnouncements || false,
+        newsletters: user.communicationConsent.newsletters || false,
+        featureUpdates: user.communicationConsent.featureUpdates || false,
+      });
+    }
   }, [user]);
+
+  // Load consent records when component mounts
+  useEffect(() => {
+    const fetchConsents = async () => {
+      setIsLoadingConsents(true);
+      try {
+        const res = await apiFetch(getApiUrl('/api/v1/legal/my-consents'));
+        if (res.ok) {
+          const data = await res.json();
+          setMyConsents(data.consents ?? []);
+          setCurrentPolicyVersions(data.currentVersions ?? {});
+        }
+      } catch {
+        // Silent — consents are informational, not critical
+      } finally {
+        setIsLoadingConsents(false);
+      }
+    };
+    fetchConsents();
+  }, []);
+
+  const handleSaveCookiePrefs = async () => {
+    setIsSavingCookies(true);
+    try {
+      const res = await apiFetch(getApiUrl('/api/v1/legal/cookie-consent'), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(cookiePrefs),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update cookie preferences');
+      
+      localStorage.setItem('juriq_cookie_consent', JSON.stringify({
+        version: '1.0',
+        timestamp: new Date().toISOString(),
+        preferences: {
+          functional: true,
+          analytics: cookiePrefs.analytics,
+          preferences: cookiePrefs.preferences,
+        }
+      }));
+
+      toast({
+        title: '✓ Preferences Updated',
+        description: 'Your cookie settings have been saved.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Save Failed',
+        description: err.message || 'Could not update cookie preferences',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingCookies(false);
+    }
+  };
+
+  const handleSaveCommPrefs = async () => {
+    setIsSavingComm(true);
+    try {
+      const res = await apiFetch(getApiUrl('/api/v1/legal/communication-consent'), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(commPrefs),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update communication preferences');
+
+      toast({
+        title: '✓ Preferences Updated',
+        description: 'Your communication preferences have been saved.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Save Failed',
+        description: err.message || 'Could not update communication preferences',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingComm(false);
+    }
+  };
+
+  const { reopenBanner } = useCookieConsent();
+
+  const handleResetCookiePreferences = () => {
+    localStorage.removeItem('juriq_cookie_consent');
+    reopenBanner(); // fires CustomEvent — CookieBanner re-appears without page reload
+  };
 
   // Load security question when delete dialog opens
   useEffect(() => {
@@ -1374,6 +1510,12 @@ const Settings = () => {
                 disabled={isSavingNotifications}
               />
             </div>
+            {/* Security notification protection notice */}
+            <div className="rounded-md bg-muted/40 border border-border/50 px-3 py-2">
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                <span className="font-semibold text-foreground/70">Security emails are always sent</span> — login alerts, password reset, and account verification emails are transactional and cannot be disabled, regardless of the toggle above.
+              </p>
+            </div>
             <Button
               onClick={handleSaveNotifications}
               disabled={isSavingNotifications}
@@ -1685,7 +1827,7 @@ const Settings = () => {
               <Button
                 variant="destructive"
                 className="w-full h-7 text-xs"
-                onClick={() => setShowDeleteDialog(true)}
+                onClick={() => setShowDeleteWarningDialog(true)}
               >
                 <AlertTriangle className="mr-1.5 h-3.5 w-3.5" />
                 Delete Account
@@ -1736,6 +1878,262 @@ const Settings = () => {
                 Import Backup
               </Button>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Privacy & Legal ────────────────────────────────── */}
+      <Card id="settings-privacy-card" className="shadow-card-custom">
+        <CardHeader className="p-3 pb-1.5">
+          <CardTitle className="flex items-center gap-1.5 text-sm">
+            <Shield className="h-4 w-4 text-primary" />
+            Privacy &amp; Legal
+          </CardTitle>
+          <CardDescription className="text-[10px]">
+            Your consent records, data rights, and legal policies
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-3 pb-3 pt-0 space-y-5">
+
+          {/* Cookie Preferences Section */}
+          <div className="space-y-2.5">
+            <h4 className="text-xs font-semibold flex items-center gap-1.5 text-primary">
+              <Cookie className="h-3.5 w-3.5" />
+              Cookie Preference Center
+            </h4>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs p-2.5 border rounded-md bg-muted/10">
+                <div>
+                  <div className="font-semibold text-foreground/90">Strictly Necessary Cookies</div>
+                  <div className="text-[10px] text-muted-foreground">Required for authentication, security, and plan enforcement.</div>
+                </div>
+                <span className="text-[9px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded tracking-wide uppercase">Always Active</span>
+              </div>
+              
+              <div className="flex items-center justify-between text-xs p-2.5 border rounded-md bg-muted/10">
+                <div>
+                  <div className="font-semibold text-foreground/90">Analytics & Latency Tracking</div>
+                  <div className="text-[10px] text-muted-foreground">Helps us monitor platform speed, errors, and feature usage.</div>
+                </div>
+                <Switch 
+                  checked={cookiePrefs.analytics} 
+                  onCheckedChange={(checked) => setCookiePrefs(prev => ({ ...prev, analytics: checked }))} 
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs p-2.5 border rounded-md bg-muted/10">
+                <div>
+                  <div className="font-semibold text-foreground/90">UI Customization & State Memory</div>
+                  <div className="text-[10px] text-muted-foreground">Remembers side-panel widths, calendar sorting, and UI choices.</div>
+                </div>
+                <Switch 
+                  checked={cookiePrefs.preferences} 
+                  onCheckedChange={(checked) => setCookiePrefs(prev => ({ ...prev, preferences: checked }))} 
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 items-center justify-between pt-1">
+              <button 
+                onClick={handleResetCookiePreferences} 
+                className="text-[10px] text-muted-foreground hover:text-primary underline bg-transparent border-0 cursor-pointer p-0"
+              >
+                Reset & Re-open Consent Banner
+              </button>
+              <Button 
+                onClick={handleSaveCookiePrefs} 
+                disabled={isSavingCookies} 
+                className="h-8 text-[11px] font-semibold px-3"
+              >
+                {isSavingCookies ? <JuriqLoader size="sm" className="mr-1" /> : null}
+                Save Cookie Preferences
+              </Button>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Communication Consent Section */}
+          <div className="space-y-2.5">
+            <h4 className="text-xs font-semibold flex items-center gap-1.5 text-primary">
+              <Bell className="h-3.5 w-3.5" />
+              Communication & Privacy Consents
+            </h4>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs p-2.5 border rounded-md bg-muted/10">
+                <div>
+                  <div className="font-semibold text-foreground/90">Product Announcements</div>
+                  <div className="text-[10px] text-muted-foreground">Major platform updates, downtime alerts, and new tool announcements.</div>
+                </div>
+                <Switch 
+                  checked={commPrefs.productAnnouncements} 
+                  onCheckedChange={(checked) => setCommPrefs(prev => ({ ...prev, productAnnouncements: checked }))} 
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs p-2.5 border rounded-md bg-muted/10">
+                <div>
+                  <div className="font-semibold text-foreground/90">Legal Tech Newsletters</div>
+                  <div className="text-[10px] text-muted-foreground">Weekly digests of Supreme Court updates, case summaries, and templates.</div>
+                </div>
+                <Switch 
+                  checked={commPrefs.newsletters} 
+                  onCheckedChange={(checked) => setCommPrefs(prev => ({ ...prev, newsletters: checked }))} 
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs p-2.5 border rounded-md bg-muted/10">
+                <div>
+                  <div className="font-semibold text-foreground/90">New Feature Betas</div>
+                  <div className="text-[10px] text-muted-foreground">Early invitations to beta-test vector legal research and AI draft features.</div>
+                </div>
+                <Switch 
+                  checked={commPrefs.featureUpdates} 
+                  onCheckedChange={(checked) => setCommPrefs(prev => ({ ...prev, featureUpdates: checked }))} 
+                />
+              </div>
+            </div>
+            <div className="flex justify-end pt-1">
+              <Button 
+                onClick={handleSaveCommPrefs} 
+                disabled={isSavingComm} 
+                className="h-8 text-[11px] font-semibold px-3"
+              >
+                {isSavingComm ? <JuriqLoader size="sm" className="mr-1" /> : null}
+                Save Consent Settings
+              </Button>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Consent History Section */}
+          <div className="space-y-2.5">
+            <h4 className="text-xs font-semibold flex items-center gap-1.5 text-primary">
+              <FileText className="h-3.5 w-3.5" />
+              Cryptographic Consent History
+            </h4>
+            {isLoadingConsents ? (
+              <div className="text-xs text-muted-foreground">Loading consent history...</div>
+            ) : myConsents.length === 0 ? (
+              <div className="text-[11px] text-muted-foreground p-3 border rounded-md bg-muted/20">
+                No legal consent records found. Consent records are captured at account creation for accounts created after 1 June 2026.
+              </div>
+            ) : (
+              <div className="overflow-x-auto border rounded-lg">
+                <table className="w-full border-collapse text-[11px] text-left">
+                  <thead>
+                    <tr className="bg-muted/40 border-b border-border/80 font-semibold text-muted-foreground">
+                      <th className="p-2.5">Agreement</th>
+                      <th className="p-2.5">Version</th>
+                      <th className="p-2.5">Hash Verification</th>
+                      <th className="p-2.5">Accepted Date</th>
+                      <th className="p-2.5">Method</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {myConsents.map((c, idx) => {
+                      const label = c.policyType === 'terms' ? 'Terms of Service' : c.policyType === 'privacy' ? 'Privacy Policy' : c.policyType === 'refund-policy' ? 'Refund Policy' : c.policyType;
+                      const hashStr = c.policyHash ? `${c.policyHash.slice(0, 10)}...${c.policyHash.slice(-6)}` : 'N/A';
+                      const currentVersion = getPolicyVersion(c.policyType);
+                      const isOutdated = currentVersion && c.version !== currentVersion;
+                      return (
+                        <tr key={idx} className="hover:bg-muted/10">
+                          <td className="p-2.5 font-medium flex items-center gap-1.5 flex-wrap">
+                            {label}
+                            {isOutdated ? (
+                              <span className="text-[8px] bg-amber-500/15 text-amber-700 dark:text-amber-400 font-bold px-1.5 py-0.5 rounded">Outdated</span>
+                            ) : (
+                              <span className="text-[8px] bg-green-500/15 text-green-700 dark:text-green-400 font-bold px-1.5 py-0.5 rounded">Current</span>
+                            )}
+                          </td>
+                          <td className="p-2.5 font-mono text-muted-foreground">v{c.version}</td>
+                          <td className="p-2.5 font-mono text-muted-foreground/60 select-all" title={c.policyHash || 'No Hash Available'}>{hashStr}</td>
+                          <td className="p-2.5 text-muted-foreground">{new Date(c.acceptedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                          <td className="p-2.5 font-semibold text-primary capitalize">{c.method?.replace('_', ' ')}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Data Rights */}
+          <div>
+            <h4 className="text-xs font-semibold mb-2 text-primary flex items-center gap-1.5">
+              <Database className="h-3.5 w-3.5" />
+              Privacy &amp; Data Rights
+            </h4>
+            <div className="grid grid-cols-1 gap-2">
+              <div className="flex items-center justify-between p-2.5 border rounded-md bg-muted/20">
+                <div>
+                  <div className="text-xs font-semibold">Request Data Export</div>
+                  <div className="text-[10px] text-muted-foreground">Download all cases, clients, documents, hearings, and consent history.</div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs shrink-0 ml-2"
+                  onClick={handleExportData}
+                  disabled={isExporting}
+                >
+                  {isExporting ? <JuriqLoader size="sm" className="mr-1" /> : <Download className="h-3.5 w-3.5 mr-1" />}
+                  Export Data
+                </Button>
+              </div>
+              <div className="flex items-center justify-between p-2.5 border rounded-md bg-muted/20">
+                <div>
+                  <div className="text-xs font-semibold text-destructive">Delete Account</div>
+                  <div className="text-[10px] text-muted-foreground">Hard delete your user record, cases, files, and Cloudinary uploads permanently.</div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs shrink-0 ml-2 text-destructive border-destructive/50 hover:bg-destructive/10"
+                  onClick={() => setShowDeleteWarningDialog(true)}
+                >
+                  Delete Account
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Legal Policies */}
+          <div>
+            <h4 className="text-xs font-semibold mb-2 text-primary flex items-center gap-1.5">
+              <Scale className="h-3.5 w-3.5" />
+              Standard Platform Legal Policies
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: 'Terms of Service', href: '/dashboard/terms', version: getPolicyVersion('terms') },
+                { label: 'Privacy Policy', href: '/dashboard/privacy', version: getPolicyVersion('privacy') },
+                { label: 'Data Processing', href: '/dashboard/data-processing', version: getPolicyVersion('data-processing') },
+                { label: 'Cookie Policy', href: '/dashboard/cookie-policy', version: getPolicyVersion('cookie-policy') },
+                { label: 'Refund Policy', href: '/dashboard/refund-policy', version: getPolicyVersion('refund-policy') },
+              ].map(p => (
+                <Link
+                  key={p.href}
+                  to={p.href}
+                  className="flex items-center justify-between p-2 border rounded-md bg-muted/20 hover:bg-muted/40 text-xs transition-colors"
+                >
+                  <span className="font-medium">{p.label}</span>
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <span className="text-[10px]">v{p.version}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div className="text-[10px] text-muted-foreground pt-1 flex items-center justify-between">
+            <span>For privacy rights, contact <span className="font-semibold">support@juriq.in</span></span>
+            <Link to="/dashboard/grievance" className="underline hover:text-primary font-semibold">Grievance Redressal Center</Link>
           </div>
         </CardContent>
       </Card>
@@ -1809,6 +2207,59 @@ const Settings = () => {
         </DialogContent>
       </Dialog>
 
+      {/* ── Step 1: Delete Account Pre-Warning Dialog ─────────────────────── */}
+      <Dialog open={showDeleteWarningDialog} onOpenChange={setShowDeleteWarningDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <DialogTitle className="text-destructive">Before You Delete Your Account</DialogTitle>
+            </div>
+            <DialogDescription className="pt-1">
+              Deleting your account is permanent and cannot be undone. Please read the following carefully.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-destructive/10 border border-destructive/30 rounded-md p-4 space-y-2">
+              <p className="text-sm font-semibold text-destructive">The following will be permanently deleted:</p>
+              <ul className="text-sm text-destructive/90 space-y-1 list-disc pl-5">
+                <li>Your account profile and login credentials</li>
+                <li>All cases, hearing records, and matter details</li>
+                <li>All client records</li>
+                <li>All uploaded documents and files</li>
+                <li>All legal notes and templates you created</li>
+                <li>Your subscription and billing history (billing records are anonymised and retained for 7 years as required by Indian law)</li>
+                <li>All consent records associated with your account</li>
+              </ul>
+            </div>
+            <div className="bg-muted/50 border rounded-md p-3">
+              <p className="text-xs text-muted-foreground">
+                <strong>Before proceeding:</strong> Export your data if you need a copy (Settings → Privacy &amp; Legal → Download Account Data).
+                Data is purged within 30 days of deletion as stated in our{' '}
+                <Link to="/dashboard/privacy" className="text-primary hover:underline">Privacy Policy</Link>.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteWarningDialog(false)}
+              className="w-full sm:w-auto"
+            >
+              Cancel — Keep My Account
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => { setShowDeleteWarningDialog(false); setShowDeleteDialog(true); }}
+              className="w-full sm:w-auto"
+            >
+              I Understand — Proceed to Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Step 2: Delete Account Confirmation Dialog ───────────────────────── */}
       {/* Delete Account Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>

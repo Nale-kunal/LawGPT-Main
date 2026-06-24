@@ -108,11 +108,13 @@ export async function leaveChannel(req, res) {
     const channel = await CommunityChannel.findOne({ slug }).lean();
     if (!channel) { return res.status(404).json({ error: 'Channel not found' }); }
 
-    await ConversationParticipant.updateOne(
-      { userId, conversationId: channel.conversationId },
+    const result = await ConversationParticipant.updateOne(
+      { userId, conversationId: channel.conversationId, isRemoved: false },
       { $set: { isRemoved: true, removedAt: new Date() } }
     );
-    await CommunityChannel.findByIdAndUpdate(channel._id, { $inc: { memberCount: -1 } });
+    if (result.modifiedCount > 0) {
+      await CommunityChannel.findByIdAndUpdate(channel._id, { $inc: { memberCount: -1 } });
+    }
 
     res.json({ ok: true });
   } catch (err) {

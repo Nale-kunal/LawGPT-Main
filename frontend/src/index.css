@@ -84,6 +84,19 @@
     --transition-spring: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 
     --radius: 0.75rem;
+
+    /* Spacing Scale */
+    --space-1: 8px;
+    --space-2: 16px;
+    --space-3: 24px;
+    --space-4: 32px;
+    --space-5: 48px;
+    --space-6: 64px;
+    --space-7: 96px;
+
+    /* Container Constraints */
+    --container-max-width: 1200px;
+    --container-padding: 24px;
   }
 
   .dark {
@@ -411,4 +424,278 @@
       min-height: 100dvh;
     }
   }
+}
+
+/* ============================================================
+   Juriq Professional SaaS Design System Layout Utilities
+   ============================================================ */
+
+.juriq-container {
+  max-width: 1440px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--container-padding);
+  padding-right: var(--container-padding);
+  width: 100%;
+}
+
+.juriq-section {
+  padding-top: var(--space-5);
+  padding-bottom: var(--space-5);
+}
+
+@media (min-width: 768px) {
+  .juriq-section {
+    padding-top: var(--space-6);
+    padding-bottom: var(--space-6);
+  }
+}
+
+.juriq-h1 {
+  font-size: clamp(26px, 3vw, 36px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--foreground);
+  margin-bottom: var(--space-5) !important;
+}
+
+.juriq-h2 {
+  font-size: clamp(20px, 2.5vw, 26px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--foreground);
+  margin-top: var(--space-4) !important;
+  margin-bottom: var(--space-4) !important;
+}
+
+.juriq-h3 {
+  font-size: clamp(16px, 1.8vw, 20px);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.35;
+  color: var(--foreground);
+  margin-top: var(--space-3) !important;
+  margin-bottom: var(--space-3) !important;
+}
+
+.juriq-body {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.65;
+  color: var(--muted-foreground);
+}
+
+.juriq-body-sm {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+
+.juriq-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.juriq-grid-2 {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .juriq-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.juriq-grid-3 {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .juriq-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .juriq-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.juriq-grid-4 {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 768px) {
+  .juriq-grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.juriq-card {
+  background: var(--gradient-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.juriq-card:hover {
+  border-color: hsla(35, 100%, 55%, 0.3);
+  box-shadow: var(--shadow-elevated);
+}
+
+.juriq-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 6px 12px;
+  border-radius: 9999px;
+  background: hsla(35, 100%, 55%, 0.1);
+  border: 1px solid hsla(35, 100%, 55%, 0.2);
+  color: hsl(35, 100%, 55%);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.juriq-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius);
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.juriq-btn-primary:hover {
+  background: hsl(var(--primary-hover, 220 70% 20%));
+  transform: translateY(-1px);
+}
+
+.juriq-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.juriq-btn-secondary:hover {
+  background: var(--muted);
+  border-color: var(--foreground);
+}
+
+.juriq-pill {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: hsl(35, 100%, 55%);
+  margin-bottom: var(--space-1);
+  display: block;
+}
+
+/* Remove AI pulse dots, blobs, glowing, or pulsing shadows */
+.lp-orb, .lp-orbs, .lp-cta-glow, .lp-green-pulse-dot, .lp-orb-premium-1, .lp-orb-premium-2 {
+  animation: none !important;
+  display: none !important;
+  opacity: 0 !important;
+}
+
+.lp-badge-dot {
+  animation: none !important;
+  background: hsl(35, 100%, 55%) !important;
+}
+
+/* Prevent blurry screenshots & sharpen high-definition display */
+.crisp-screenshot {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -o-crisp-edges;
+  image-rendering: pixelated; /* fallback */
+  -ms-interpolation-mode: nearest-neighbor;
+  filter: contrast(1.02) saturate(1.02);
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Premium Screenshot wrapper for high-definition screenshots */
+.juriq-screenshot-wrapper {
+  position: relative;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-elevated);
+  overflow: hidden;
+  margin: 0 auto;
+  width: 100%;
+  transition: var(--transition-smooth);
+}
+
+.juriq-screenshot-wrapper img {
+  width: 100%;
+  height: auto;
+  display: block;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* macOS glassmorphic dock styling */
+.juriq-mac-dock {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 12px 24px;
+  border-radius: 24px;
+  background: rgba(0, 0, 0, 0.03);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  margin: 0 auto;
+  transition: background 0.3s, border-color 0.3s;
+}
+
+.dark .juriq-mac-dock {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }

@@ -188,13 +188,13 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
   const [legalSections] = useState<LegalSection[]>(mockLegalSections);
   const [hearings, setHearings] = useState<Hearing[]>([]);
 
-  // Get authentication status
-  const { isAuthenticated } = useAuth();
+  // Get authentication and compliance status
+  const { isAuthenticated, complianceStatus } = useAuth();
 
-  // Initial loads - only fetch if user is authenticated
+  // Initial loads - only fetch if user is authenticated and compliant
   React.useEffect(() => {
-    // Don't fetch data if user is not authenticated
-    if (!isAuthenticated) {
+    // Don't fetch data if user is not authenticated or not compliant
+    if (!isAuthenticated || complianceStatus !== 'accepted') {
       return;
     }
 
@@ -249,7 +249,7 @@ export const LegalDataProvider: React.FC<LegalDataProviderProps> = ({ children }
       mounted = false;
       abortController.abort();
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, complianceStatus]);
 
   // Case management functions
   const addCase = async (caseData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>) => {

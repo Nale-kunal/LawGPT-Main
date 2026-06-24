@@ -90,6 +90,7 @@ interface AuthContextType {
   ) => Promise<{ success: boolean; message?: string; error?: string }>;
   isLoading: boolean;
   isAuthenticated: boolean;
+  complianceStatus: 'loading' | 'accepted' | 'requires_acceptance';
 }
 
 interface RegisterData {
@@ -99,6 +100,10 @@ interface RegisterData {
   role?: string;
   barNumber?: string;
   firm?: string;
+  // Legal consent — sent when the user explicitly accepts policies on the signup form
+  consentGiven?: boolean;
+  termsVersion?: string;
+  privacyVersion?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -124,6 +129,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [authState, setAuthState] = useState<
     'loading' | 'authenticated' | 'unauthenticated' | 'unknown'
   >('loading');
+  const [complianceStatus, setComplianceStatus] = useState<
+    'loading' | 'accepted' | 'requires_acceptance'
+  >('loading');
   // Guard: prevents refreshUser() from re-authenticating while logout is in progress
   const isLoggingOut = useRef(false);
 
@@ -134,6 +142,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } else {
       setUser(null);
       setAuthState('unauthenticated');
+      setComplianceStatus('accepted');
 
       if (shouldClearCookies) {
         // Clear cookies generically from frontend just in case backend fails
@@ -186,6 +195,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return;
           }
           const retryData = await retryRes.json();
+          // Check consent status
+          const consentRes = await apiFetch(getApiUrl('/api/v1/auth/consent-status'), {
+            credentials: 'include',
+            cache: 'no-store',
+          });
+          if (consentRes.ok) {
+            const consentData = await consentRes.json();
+            setComplianceStatus(consentData.compliant ? 'accepted' : 'requires_acceptance');
+          } else {
+            setComplianceStatus('accepted');
+          }
           persistUser(retryData.user ? (retryData.user as User) : null);
           return;
         } catch {
@@ -199,6 +219,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
       const data = await res.json();
+      // Check consent status
+      const consentRes = await apiFetch(getApiUrl('/api/v1/auth/consent-status'), {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      if (consentRes.ok) {
+        const consentData = await consentRes.json();
+        setComplianceStatus(consentData.compliant ? 'accepted' : 'requires_acceptance');
+      } else {
+        setComplianceStatus('accepted');
+      }
       persistUser(data.user ? (data.user as User) : null);
     } catch (error: unknown) {
       if ((error as any).name !== 'AbortError') persistUser(null); // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -211,6 +242,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const runGlobalAuthGuard = async () => {
       try {
         setAuthState('loading');
+        setComplianceStatus('loading');
 
         // 1. Core verification against new /validate endpoint
         const valRes = await apiFetch(getApiUrl('/api/v1/auth/validate'), {
@@ -231,17 +263,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // 3. GLOBAL AUTH GUARD (IF AUTHENTICATED -> NO RENDER OF LOGIN/LANDING)
         const p = window.location.pathname;
-        if (['/login', '/signup', '/forgot-password', '/reset-password', '/'].includes(p)) {
+        // /consent-gate is exempt — authenticated users must be allowed to stay there
+        const authGuardExcluded = ['/consent-gate'];
+        if (!authGuardExcluded.includes(p) && ['/login', '/signup', '/forgot-password', '/reset-password', '/'].includes(p)) {
           // 4. HARD REDIRECT
           window.location.replace('/dashboard');
           return;
         }
 
-        // 2. We are validated. Fetch context profile memory.
-        const res = await apiFetch(getApiUrl('/api/v1/auth/me'), {
-          credentials: 'include',
-          cache: 'no-store',
-        });
+        // 2. We are validated. Fetch context profile memory and consent status in parallel
+        const [res, consentRes] = await Promise.all([
+          apiFetch(getApiUrl('/api/v1/auth/me'), {
+            credentials: 'include',
+            cache: 'no-store',
+          }),
+          apiFetch(getApiUrl('/api/v1/auth/consent-status'), {
+            credentials: 'include',
+            cache: 'no-store',
+          })
+        ]);
 
         if (!res.ok) {
           // if /me fails but /validate succeeds, try full refresh
@@ -251,10 +291,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         const data = await res.json();
+        let isCompliant = true;
+        if (consentRes.ok) {
+          const consentData = await consentRes.json();
+          isCompliant = !!consentData.compliant;
+        }
+
         if (mounted) {
           // Clear stale circuit-breaker so plan fetches work after Google OAuth login
           sessionStorage.removeItem('__refreshFailTs');
           sessionStorage.removeItem('__isRefreshing');
+          setComplianceStatus(isCompliant ? 'accepted' : 'requires_acceptance');
           persistUser(data.user as User);
           setIsLoading(false);
         }
@@ -374,8 +421,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Clear stale circuit-breaker state so plan fetches work immediately after fresh login
         sessionStorage.removeItem('__refreshFailTs');
         sessionStorage.removeItem('__isRefreshing');
+        setComplianceStatus(data.consentRequired ? 'requires_acceptance' : 'accepted');
         // 5. HISTORY STACK ELIMINATION
-        window.location.replace('/dashboard');
+        // If the user has not accepted current required policies, gate them first.
+        if (data.consentRequired) {
+          window.location.replace('/consent-gate');
+        } else {
+          window.location.replace('/dashboard');
+        }
         return { success: true };
       } else {
         persistUser(null);
@@ -418,6 +471,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       persistUser(data.user as User);
+      setComplianceStatus('accepted');
       setIsLoading(false);
       setAuthState('authenticated');
       return { success: true };
@@ -514,6 +568,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     resendVerificationEmail,
     isLoading,
     isAuthenticated: !!user,
+    complianceStatus,
   };
 
   /**

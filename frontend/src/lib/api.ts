@@ -144,13 +144,24 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
     credentials: 'include', // ALWAYS set
   }, 8000);
 
-  // CSRF Handling: If we get a 403 with CSRF error, the cached frontend token is stale.
-  // We need to clear it, fetch a new one, and retry the request exactly once.
-  if (response.status === 403 && isMutating) {
+  // 403 Handling: Compliance gating and CSRF recovery
+  if (response.status === 403) {
     try {
       const clonedRes = response.clone();
       const errBody = await clonedRes.json().catch(() => ({}));
-      if (errBody.error === 'CSRF validation failed' || errBody.message?.includes('CSRF')) {
+
+      // Compliance Update Gating: Redirect user to policy acceptance workflow
+      if (errBody.errorCode === 'POLICY_UPDATE_REQUIRED') {
+        logger.warn('API 403 compliance acceptance required. Redirecting...');
+        if (window.location.pathname !== '/consent-gate') {
+          window.location.replace('/consent-gate');
+        }
+        return response;
+      }
+
+      // CSRF Handling: If we get a CSRF error, the cached frontend token is stale.
+      // We need to clear it, fetch a new one, and retry the request exactly once.
+      if (isMutating && (errBody.error === 'CSRF validation failed' || errBody.message?.includes('CSRF'))) {
         logger.warn('API 403 CSRF validation failed. Clearing stale token cache and retrying...');
         
         // 1. Clear the stale frontend cookie
@@ -175,9 +186,22 @@ export async function apiFetch(pathOrUrl: string, options: RequestInit = {}): Pr
           }
         }
       }
-    } catch (_csrfErr) {
-      logger.error('Failed to auto-recover from CSRF error.', _csrfErr);
+    } catch (_err) {
+      logger.error('Failed to handle 403 response in API interceptor.', _err);
     }
+  }
+
+  // 419 Handling: Page expired / Session timeout
+  if (response.status === 419) {
+    logger.error('API 419 page expired. Dispatching auth:unauthorized...');
+    window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+    return response;
+  }
+
+  // 429 Handling: Too Many Requests (avoid endless retries and log storms)
+  if (response.status === 429) {
+    logger.error('API 429 rate limit exceeded. Skipping retry.', { url });
+    return response;
   }
 
 

@@ -218,6 +218,55 @@ const userSchema = new mongoose.Schema(
     // Any JWT with iat < sessionVersionAt is rejected by auth middleware.
     sessionVersion: { type: Number, default: 0 },
     sessionVersionAt: { type: Date, default: null },
+
+    // ── Legal Consent Audit Trail ─────────────────────────────────────────────
+    // Records explicit acceptance of versioned legal policies (Terms, Privacy).
+    // Appended at registration and on consent renewal. Never overwritten.
+    // Each record is immutable — new acceptances append a new subdocument.
+    legalConsents: [
+      {
+        // Which policy was accepted: 'terms' | 'privacy' | 'refund-policy' | ...
+        policyType: { type: String, required: true },
+        // Policy version string matching the POLICIES registry in legal.js, e.g. '1.0'
+        version: { type: String, required: true },
+        // SHA-256 hash of the canonical policy text at the time of acceptance
+        // Proves exactly which text the user agreed to (tamper-evident)
+        policyHash: { type: String, default: null },
+        // Exact UTC timestamp of acceptance
+        acceptedAt: { type: Date, required: true },
+        // IP address from which consent was given (req.ip), for audit purposes
+        acceptedFromIp: { type: String, default: null },
+        // User-agent string, for audit purposes
+        acceptedUserAgent: { type: String, default: null },
+        // How consent was given: 'checkbox' | 'oauth-pre-consent' | 'explicit_gate'
+        method: { type: String, default: 'checkbox' },
+      },
+    ],
+
+    // ── Cookie Consent Preferences ───────────────────────────────────────────
+    // Tracks cookie category preferences for each user.
+    // Set by the CookieBanner component; required cookies are always on.
+    cookieConsent: {
+      version:     { type: String, default: null },      // consent version (e.g. '1.0')
+      acceptedAt:  { type: Date, default: null },
+      functional:  { type: Boolean, default: true },     // always required — cannot be disabled
+      analytics:   { type: Boolean, default: false },    // opt-in
+      preferences: { type: Boolean, default: true },     // functional UX prefs — on by default
+    },
+
+    // ── Communication Consent ────────────────────────────────────────────────
+    // Opt-in/out preferences for non-essential communications.
+    // Changed only by the user through Settings or at signup. All false by default.
+    // Per-field timestamps record exactly when each preference was last changed.
+    communicationConsent: {
+      productAnnouncements:   { type: Boolean, default: false },
+      productAnnouncementsAt: { type: Date, default: null },    // timestamp when this field last changed
+      newsletters:            { type: Boolean, default: false },
+      newslettersAt:          { type: Date, default: null },     // timestamp when this field last changed
+      featureUpdates:         { type: Boolean, default: false },
+      featureUpdatesAt:       { type: Date, default: null },     // timestamp when this field last changed
+      updatedAt:              { type: Date, default: null },     // overall last-updated timestamp
+    },
   },
   { timestamps: true }
 );

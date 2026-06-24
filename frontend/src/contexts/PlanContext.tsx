@@ -110,8 +110,8 @@ export const usePlan = (): PlanContextType => {
 interface PlanProviderProps { children: React.ReactNode }
 
 export const PlanProvider: React.FC<PlanProviderProps> = ({ children }) => {
-  // Read the authenticated user so we can scope the cache to their ID.
-  const { user } = useAuth();
+  // Read the authenticated user and compliance status.
+  const { user, complianceStatus } = useAuth();
   const userId = user?.id;
 
   // Initialize from user-scoped cache — NOT from anonymous/other-user cache.
@@ -153,6 +153,14 @@ export const PlanProvider: React.FC<PlanProviderProps> = ({ children }) => {
       return;
     }
 
+    // Gate on compliance status: do not fetch subscription plan until compliance is verified and passes
+    if (complianceStatus !== 'accepted') {
+      setPlanInfo(null);
+      setLoading(false);
+      setLoaded(true);
+      return;
+    }
+
     // When userId changes (account switch), always drop any stale in-memory state
     // and re-read from the correct user-scoped cache.
     const cached = readCache(userId);
@@ -166,7 +174,7 @@ export const PlanProvider: React.FC<PlanProviderProps> = ({ children }) => {
       setLoaded(false);
       refreshPlan();
     }
-  }, [userId, refreshPlan]);
+  }, [userId, complianceStatus, refreshPlan]);
 
   const effectivePlan: Plan = planInfo?.plan ?? 'free';
 

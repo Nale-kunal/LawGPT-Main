@@ -470,6 +470,21 @@ jest.unstable_mockModule('../utils/mailer.js', () => ({
   sendVerificationEmail: jest.fn().mockResolvedValue(true)
 }));
 
+// Mock CommunityMessage model
+jest.unstable_mockModule('../community/models/Message.js', () => ({
+  default: {
+    find: jest.fn().mockResolvedValue([])
+  }
+}));
+
+// Mock AuditLog model
+jest.unstable_mockModule('../models/AuditLog.js', () => ({
+  default: {
+    countDocuments: jest.fn().mockResolvedValue(0),
+    create: jest.fn().mockResolvedValue({})
+  }
+}));
+
 // ── 2. Express App Building ──────────────────────────────────────────────────
 
 async function buildApp() {
@@ -789,7 +804,10 @@ describe('Priority 1 — Authentication, Session, and Verification Tests', () =>
         password: 'password123',
         barNumber: 'BC123456',
         firm: 'Zen Legal',
-        role: 'lawyer'
+        role: 'lawyer',
+        consentGiven: true,
+        termsVersion: '1.0',
+        privacyVersion: '1.0'
       };
 
       const res = await request(app)
@@ -805,12 +823,12 @@ describe('Priority 1 — Authentication, Session, and Verification Tests', () =>
     test('POST /register rejects weak password and invalid email', async () => {
       const resWeak = await request(app)
         .post('/api/v1/auth/register')
-        .send({ name: 'A', email: 'a@b.com', password: 'short' });
+        .send({ name: 'A', email: 'a@b.com', password: 'short', consentGiven: true, termsVersion: '1.0', privacyVersion: '1.0' });
       expect(resWeak.status).toBe(400);
 
       const resMail = await request(app)
         .post('/api/v1/auth/register')
-        .send({ name: 'A', email: 'invalid-email', password: 'password123' });
+        .send({ name: 'A', email: 'invalid-email', password: 'password123', consentGiven: true, termsVersion: '1.0', privacyVersion: '1.0' });
       expect(resMail.status).toBe(400);
     });
 
@@ -826,7 +844,7 @@ describe('Priority 1 — Authentication, Session, and Verification Tests', () =>
 
       const res = await request(app)
         .post('/api/v1/auth/register')
-        .send({ name: 'Re Signup', email: 'deleteduser@test.com', password: 'password123' });
+        .send({ name: 'Re Signup', email: 'deleteduser@test.com', password: 'password123', consentGiven: true, termsVersion: '1.0', privacyVersion: '1.0' });
 
       expect(res.status).toBe(201);
       expect(mockUserDeletionService.deleteUserAccount).toHaveBeenCalledWith('deleted_user_99');
@@ -970,8 +988,8 @@ describe('Priority 1 — Authentication, Session, and Verification Tests', () =>
     });
 
     test('GET /export-data returns all case notes and documents', async () => {
-      mockStore.cases.push({ _id: 'case_1', userId: '654321098765432109876543', title: 'Case A' });
-      mockStore.clients.push({ _id: 'client_1', userId: '654321098765432109876543', name: 'Client A' });
+      mockStore.cases.push({ _id: 'case_1', userId: '654321098765432109876543', owner: '654321098765432109876543', title: 'Case A' });
+      mockStore.clients.push({ _id: 'client_1', userId: '654321098765432109876543', owner: '654321098765432109876543', name: 'Client A' });
 
       const res = await request(app)
         .get('/api/v1/auth/export-data')

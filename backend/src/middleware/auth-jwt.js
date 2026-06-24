@@ -6,6 +6,7 @@ import { env } from '../config/env.js';
 import { getCachedUser, setCachedUser } from '../utils/userCache.js';
 import { maskToken } from '../utils/logSanitizer.js';
 import { checkAccountStatus } from '../utils/accountStatus.js';
+import { REQUIRED_SIGNUP_CONSENTS } from '../config/policyVersions.js';
 
 /**
  * JWT-based authentication middleware.
@@ -113,7 +114,41 @@ export async function requireAuth(req, res, next) {
             }
         }
 
-        // ── 7. Attach minimal user info to request ────────────────────────────
+        // ── 7. Legal Consent Compliance Gating ────────────────────────────────
+        // If policies are updated, users must accept the new versions before
+        // they can use any non-exempt platform APIs.
+        const requestPath = req.originalUrl.split('?')[0];
+        const bypassRoutes = [
+            '/api/v1/auth/consent-status',
+            '/api/v1/legal/record-consent',
+            '/api/v1/legal/check-consent',
+            '/api/v1/legal/my-consents',
+            '/api/v1/auth/me',
+            '/api/v1/auth/logout',
+        ];
+        const isBypassed = bypassRoutes.includes(requestPath) || requestPath.startsWith('/api/v1/legal/');
+
+        if (!isBypassed) {
+            const enforceConsent = env.NODE_ENV !== 'test' || process.env.TEST_ENFORCE_CONSENT === 'true';
+            if (enforceConsent) {
+                const userConsents = userProfile.legalConsents || [];
+                const isCompliant = REQUIRED_SIGNUP_CONSENTS.every(
+                    (reqConsent) => userConsents.some(
+                        (c) => c.policyType === reqConsent.policyType && c.version === reqConsent.version
+                    )
+                );
+
+                if (!isCompliant) {
+                    logger.warn({ userId, requestPath }, 'Blocking request: Policy acceptance required');
+                    return res.status(403).json({
+                        error: 'You must accept the updated Terms of Service and Privacy Policy to continue using Juriq.',
+                        errorCode: 'POLICY_UPDATE_REQUIRED',
+                    });
+                }
+            }
+        }
+
+        // ── 8. Attach minimal user info to request ────────────────────────────
         req.user = {
             userId: userId,
             email: decodedToken.email || userProfile.email,
@@ -123,7 +158,7 @@ export async function requireAuth(req, res, next) {
             firm: userProfile.firm,
         };
 
-        // ── 8. Abuse detection ────────────────────────────────────────────────
+        // ── 9. Abuse detection ────────────────────────────────────────────────
         const { abuseDetection: detectAbuse } = await import('./abuseDetection.js');
         return await detectAbuse(req, res, next);
 

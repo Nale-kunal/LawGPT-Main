@@ -1,5 +1,6 @@
 import { logger } from '@/lib/logger';
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useCommunity } from '../contexts/CommunityContext';
 import ConversationList from '../components/ConversationList';
 import MessageBubble from '../components/MessageBubble';
@@ -8,11 +9,15 @@ import ChannelList from '../components/ChannelList';
 import SupportPage from './SupportPage';
 import FeedbackPage from './FeedbackPage';
 import { Button } from '@/components/ui/button';
-import { Dialog } from '@/components/ui/dialog';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { IssueReport } from '../components/IssueReport';
 import communityApi, { Conversation, Message, Channel } from '../services/communityApi';
 import { useToast } from '@/hooks/use-toast';
-import { Hash, MessageSquare, Users, Pin, ShieldCheck } from 'lucide-react';
+import { Hash, MessageSquare, Users, Pin, ShieldCheck, Scale, ExternalLink } from 'lucide-react';
+
+const GUIDELINES_STORAGE_KEY = 'juriq_community_guidelines_ack_v1';
 
 export const CommunityPage: React.FC = () => {
   const {
@@ -35,6 +40,11 @@ export const CommunityPage: React.FC = () => {
   
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [reportMessageId, setReportMessageId] = useState<string | null>(null);
+  // Guidelines gate — show once per browser session, persist in localStorage
+  const [guidelinesAcknowledged, setGuidelinesAcknowledged] = useState<boolean>(() => {
+    try { return localStorage.getItem(GUIDELINES_STORAGE_KEY) === 'true'; } catch { return false; }
+  });
+  const [showGuidelinesGate, setShowGuidelinesGate] = useState<boolean>(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -43,6 +53,19 @@ export const CommunityPage: React.FC = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typingUsers, activeTab]);
+
+  // Show guidelines gate when discussions tab first accessed and not yet acknowledged
+  useEffect(() => {
+    if (activeTab === 'discussions' && !guidelinesAcknowledged) {
+      setShowGuidelinesGate(true);
+    }
+  }, [activeTab, guidelinesAcknowledged]);
+
+  const handleAcknowledgeGuidelines = () => {
+    try { localStorage.setItem(GUIDELINES_STORAGE_KEY, 'true'); } catch { /* storage unavailable */ }
+    setGuidelinesAcknowledged(true);
+    setShowGuidelinesGate(false);
+  };
 
   // Load public channels
   const fetchChannels = async () => {
@@ -115,10 +138,10 @@ export const CommunityPage: React.FC = () => {
     }
   };
 
-  const handleReportViolation = async (reason: string) => {
+  const handleReportViolation = async (category: string, detail: string) => {
     if (!reportMessageId) return;
     try {
-      await communityApi.reportMessage(reportMessageId, reason);
+      await communityApi.reportMessage(reportMessageId, category, detail);
       toast({ title: 'Report Filed', description: 'Our moderation team will review the flagged content.' });
       setReportMessageId(null);
     } catch (err) {
@@ -142,6 +165,56 @@ export const CommunityPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-120px)] w-full rounded-2xl overflow-hidden border bg-background/30 backdrop-blur-xl shadow-2xl">
+
+      {/* ── Community Guidelines Gate — shown once before discussions access ── */}
+      <Dialog
+        open={showGuidelinesGate}
+        onOpenChange={() => { /* intentionally non-dismissible — user must accept */ }}
+      >
+        <DialogContent className="sm:max-w-lg" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <Scale className="h-5 w-5 text-primary" />
+              <DialogTitle>Community Guidelines</DialogTitle>
+            </div>
+            <DialogDescription className="pt-1">
+              Before joining the discussion, please acknowledge our community standards.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="bg-muted/50 border rounded-md p-4 space-y-2">
+              <p className="text-xs font-semibold text-foreground">By participating in Juriq's community, you agree to:</p>
+              <ul className="text-xs text-muted-foreground space-y-1.5 list-disc pl-4">
+                <li>Communicate respectfully — no harassment, hate speech, or abusive language</li>
+                <li>Not share confidential client information or case-specific legal advice</li>
+                <li>Not post spam, promotional content, or off-topic material</li>
+                <li>Not infringe third-party intellectual property rights</li>
+                <li>Report content that violates these guidelines using the Report button</li>
+                <li>Accept that Juriq may remove content or restrict access for violations</li>
+              </ul>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Read the full{' '}
+              <Link
+                to="/dashboard/community-guidelines"
+                className="text-primary hover:underline inline-flex items-center gap-0.5"
+              >
+                Community Guidelines <ExternalLink className="h-3 w-3" />
+              </Link>
+              {' '}before proceeding.
+            </p>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setActiveTab('support')} className="w-full sm:w-auto">
+              Go Back
+            </Button>
+            <Button onClick={handleAcknowledgeGuidelines} className="w-full sm:w-auto">
+              <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
+              I Understand &amp; Accept
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Top Consolidated Tab Bar Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b bg-card/50 backdrop-blur-md px-5 py-3 gap-3 shrink-0">
         <div>

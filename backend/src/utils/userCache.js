@@ -56,6 +56,7 @@ export async function setCachedUser(userId, userProfile) {
             sessionVersionAt: userProfile.sessionVersionAt || null,
             securityFlags: userProfile.securityFlags || {},
             accountStatus: userProfile.accountStatus || {},
+            legalConsents: userProfile.legalConsents || [],
             barNumber: userProfile.barNumber || null,
             firm: userProfile.firm || null,
             cachedAt: Date.now(),

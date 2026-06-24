@@ -44,6 +44,7 @@ const Privacy = React.lazy(() => import("./pages/Privacy"));
 const Terms = React.lazy(() => import("./pages/Terms"));
 const DataProcessing = React.lazy(() => import("./pages/DataProcessing"));
 const CookiePolicy = React.lazy(() => import("./pages/CookiePolicy"));
+const RefundPolicy = React.lazy(() => import("./pages/RefundPolicy"));
 const ClientPortalLanding = React.lazy(() => import("./pages/ClientPortalLanding"));
 const LegalNotesLanding = React.lazy(() => import("./pages/LegalNotesLanding"));
 const TemplatesDashboard = React.lazy(() => import("./modules/legalTemplates/pages/TemplatesDashboard"));
@@ -57,6 +58,14 @@ const CommunityPage = React.lazy(() => import("./modules/community/pages/Communi
 const SupportPage = React.lazy(() => import("./modules/community/pages/SupportPage"));
 const FeedbackPage = React.lazy(() => import("./modules/community/pages/FeedbackPage"));
 const AdminCommunityPage = React.lazy(() => import("./modules/community/pages/AdminCommunityPage"));
+const ConsentGate = React.lazy(() => import("./pages/ConsentGate"));
+const Grievance = React.lazy(() => import("./pages/Grievance"));
+const TrustCenter = React.lazy(() => import("./pages/TrustCenter"));
+const CommunityGuidelines = React.lazy(() => import("./pages/CommunityGuidelines"));
+const CopyrightPolicy = React.lazy(() => import("./pages/CopyrightPolicy"));
+const LegalDisclaimer = React.lazy(() => import("./pages/LegalDisclaimer"));
+const ConfidentialityNotice = React.lazy(() => import("./pages/ConfidentialityNotice"));
+const DpdpNotice = React.lazy(() => import("./pages/DpdpNotice"));
 
 
 // Import Layout (not lazy — needed immediately for dashboard shell)
@@ -64,6 +73,7 @@ import DashboardLayout from "./components/layout/DashboardLayout";
 import ScrollToHash from "./components/ScrollToHash";
 import JuriqLoader from "./components/ui/JuriqLoader";
 import { FeatureGate } from "./components/subscription/FeatureGate";
+import CookieBanner from "./components/consent/CookieBanner";
 
 // Suspense fallback loader
 const PageLoader = () => <JuriqLoader size="full" />;
@@ -115,11 +125,12 @@ const App = () => {
               <LegalDataProvider>
               <TooltipProvider>
                 <Toaster />
-              <Sonner />
-              <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-                <ScrollToHash />
-                <DynamicCanonical />
-                <Suspense fallback={<PageLoader />}>
+                <Sonner />
+                <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                  <ScrollToHash />
+                  <DynamicCanonical />
+                  <CookieBanner />
+                  <Suspense fallback={<PageLoader />}>
                   <Routes>
                     {/* Public Landing Routes — landing is always immediately visible; authenticated
                         users are bounced to /dashboard by the global auth guard in AuthContext */}
@@ -132,8 +143,16 @@ const App = () => {
                     <Route path="/terms" element={<Terms />} />
                     <Route path="/data-processing" element={<DataProcessing />} />
                     <Route path="/cookie-policy" element={<CookiePolicy />} />
+                    <Route path="/refund-policy" element={<RefundPolicy />} />
                     <Route path="/client-portal" element={<ClientPortalLanding />} />
                     <Route path="/legal-notes" element={<LegalNotesLanding />} />
+                    <Route path="/trust" element={<TrustCenter />} />
+                    <Route path="/grievance" element={<Grievance />} />
+                    <Route path="/community-guidelines" element={<CommunityGuidelines />} />
+                    <Route path="/copyright-policy" element={<CopyrightPolicy />} />
+                    <Route path="/legal-disclaimer" element={<LegalDisclaimer />} />
+                    <Route path="/confidentiality-notice" element={<ConfidentialityNotice />} />
+                    <Route path="/dpdp-notice" element={<DpdpNotice />} />
 
                     {/* Auth pages — authenticated users are immediately bounced to /dashboard */}
                     <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
@@ -142,6 +161,9 @@ const App = () => {
                     <Route path="/reset-password/:token" element={<ResetPassword />} />
                     <Route path="/verify-email" element={<EmailVerificationSuccess />} />
                     <Route path="/verification-pending" element={<EmailVerificationPending />} />
+
+                    {/* Consent Gate — authenticated but pre-onboarding consent screen */}
+                    <Route path="/consent-gate" element={<RequireAuth><ConsentGate /></RequireAuth>} />
 
                     {/* 14. Protected Dashboard Routes — wrapped with RequireAuth */}
                     <Route
@@ -161,6 +183,18 @@ const App = () => {
                       <Route path="legal-research" element={<FeatureGate feature="legal-research"><LegalResearch /></FeatureGate>} />
                       <Route path="documents" element={<FeatureGate feature="documents"><Documents /></FeatureGate>} />
                       <Route path="settings" element={<Settings />} />
+                      <Route path="privacy" element={<Privacy />} />
+                      <Route path="terms" element={<Terms />} />
+                      <Route path="community-guidelines" element={<CommunityGuidelines />} />
+                      <Route path="grievance" element={<Grievance />} />
+                      <Route path="data-processing" element={<DataProcessing />} />
+                      <Route path="cookie-policy" element={<CookiePolicy />} />
+                      <Route path="refund-policy" element={<RefundPolicy />} />
+                      <Route path="dpdp-notice" element={<DpdpNotice />} />
+                      <Route path="legal-disclaimer" element={<LegalDisclaimer />} />
+                      <Route path="confidentiality-notice" element={<ConfidentialityNotice />} />
+                      <Route path="copyright-policy" element={<CopyrightPolicy />} />
+                      <Route path="trust" element={<TrustCenter />} />
                       <Route path="news" element={<FeatureGate feature="news"><News /></FeatureGate>} />
                       <Route path="notes" element={<FeatureGate feature="notes"><Notes /></FeatureGate>} />
                       <Route path="templates" element={<FeatureGate feature="templates"><TemplatesDashboard /></FeatureGate>} />

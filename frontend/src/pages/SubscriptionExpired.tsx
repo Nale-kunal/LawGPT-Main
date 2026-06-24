@@ -47,7 +47,7 @@ export default function SubscriptionExpired() {
           <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 space-y-2">
             <p className="text-xs font-semibold text-destructive uppercase tracking-wide">Locked Features</p>
             <ul className="space-y-1">
-              {['Billing & Invoicing', 'Documents', 'Legal Research', 'Templates', 'Notes', 'Legal News'].map(f => (
+              {['Advanced Documents', 'Legal Research', 'Templates', 'Notes', 'Legal News'].map(f => (
                 <li key={f} className="text-sm flex items-center gap-1.5 text-muted-foreground">
                   <span className="text-destructive">✗</span> {f}
                 </li>

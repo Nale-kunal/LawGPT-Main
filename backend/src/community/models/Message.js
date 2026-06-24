@@ -89,7 +89,8 @@ const messageSchema = new mongoose.Schema(
 
     // Admin moderation
     isFlagged:    { type: Boolean, default: false },
-    flagReason:   { type: String, default: null },
+    flagReason:   { type: String, default: null },   // legacy free-text (deprecated)
+    flagCategory: { type: String, default: null },   // structured enum from CommunityReport
     isModerated:  { type: Boolean, default: false },
     moderatedBy:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 

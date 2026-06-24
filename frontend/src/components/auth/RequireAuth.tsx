@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react';
  * - Renders children if the user is authenticated.
  */
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
-    const { isAuthenticated, isLoading } = useAuth();
+    const { isAuthenticated, isLoading, complianceStatus } = useAuth();
     const [timedOut, setTimedOut] = useState(false);
 
     // Safety timeout: if auth takes too long, stop showing the loader
@@ -23,7 +23,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
         return () => clearTimeout(timer);
     }, [isLoading]);
 
-    if (isLoading && !timedOut) {
+    if ((isLoading || complianceStatus === 'loading') && !timedOut) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-background">
                 <JuriqLoader size="lg" />
@@ -33,6 +33,11 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
 
     if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
+    }
+
+    const currentPath = window.location.pathname;
+    if (complianceStatus === 'requires_acceptance' && currentPath !== '/consent-gate') {
+        return <Navigate to="/consent-gate" replace />;
     }
 
     return <>{children}</>;

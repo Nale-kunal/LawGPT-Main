@@ -450,7 +450,7 @@ describe('Priority 5 — Workers, Background Jobs, and scheduled Crons', () => {
       const attachmentId = new mongoose.Types.ObjectId().toString();
       mockStore.messageattachments.push({
         _id: attachmentId,
-        secureUrl: 'http://malware.scan/winfile.exe',
+        secureUrl: 'https://res.cloudinary.com/test-cloud/raw/upload/winfile.exe',
       });
 
       // Mock fetch response for Windows executable header
@@ -477,7 +477,7 @@ describe('Priority 5 — Workers, Background Jobs, and scheduled Crons', () => {
       const attachmentId = new mongoose.Types.ObjectId().toString();
       mockStore.messageattachments.push({
         _id: attachmentId,
-        secureUrl: 'http://malware.scan/clean.txt',
+        secureUrl: 'https://res.cloudinary.com/test-cloud/raw/upload/clean.txt',
       });
 
       global.fetch.mockResolvedValueOnce({

@@ -8,10 +8,12 @@ import { Shield, ShieldAlert, Trash2, CheckCircle2, UserX, AlertTriangle, Activi
 interface ReportLog {
   _id: string;
   reporterId: { _id: string; name: string };
-  targetUserId: { _id: string; name: string };
-  messageId?: { _id: string; content: string };
-  reason: string;
-  status: 'pending' | 'resolved' | 'dismissed';
+  targetType: 'message' | 'user';
+  targetMessageId?: { _id: string; content: string; senderId?: string | { _id: string; name: string } };
+  targetUserId?: { _id: string; name: string };
+  category: string;
+  detail?: string;
+  status: 'pending' | 'under_review' | 'actioned' | 'dismissed' | 'duplicate';
   createdAt: string;
 }
 
@@ -41,10 +43,14 @@ export const ModerationPanel: React.FC<ModerationPanelProps> = ({
 
   const getStatusBadge = (s: string) => {
     switch (s) {
-      case 'resolved':
-        return <Badge className="bg-emerald-600 text-[8px] uppercase tracking-wider h-3.5">Resolved</Badge>;
+      case 'actioned':
+        return <Badge className="bg-emerald-600 text-[8px] uppercase tracking-wider h-3.5">Actioned</Badge>;
       case 'dismissed':
         return <Badge className="bg-zinc-500 text-[8px] uppercase tracking-wider h-3.5">Dismissed</Badge>;
+      case 'duplicate':
+        return <Badge className="bg-amber-500 text-[8px] uppercase tracking-wider h-3.5">Duplicate</Badge>;
+      case 'under_review':
+        return <Badge className="bg-blue-600 text-[8px] uppercase tracking-wider h-3.5 animate-pulse">Under Review</Badge>;
       default:
         return <Badge className="bg-amber-600 text-[8px] uppercase tracking-wider h-3.5 animate-pulse">Pending</Badge>;
     }
@@ -72,7 +78,7 @@ export const ModerationPanel: React.FC<ModerationPanelProps> = ({
           </CardHeader>
           <CardContent className="p-3 pt-0">
             <div className="text-xl font-extrabold text-foreground font-mono">
-              {reports.filter(r => r.status === 'pending').length}
+              {reports.filter(r => r.status === 'pending' || r.status === 'under_review').length}
             </div>
             <span className="text-[8px] text-muted-foreground">Awaiting review</span>
           </CardContent>
@@ -86,7 +92,7 @@ export const ModerationPanel: React.FC<ModerationPanelProps> = ({
           </CardHeader>
           <CardContent className="p-3 pt-0">
             <div className="text-xl font-extrabold text-foreground font-mono">
-              {reports.filter(r => r.status !== 'pending').length}
+              {reports.filter(r => r.status === 'actioned' || r.status === 'dismissed').length}
             </div>
             <span className="text-[8px] text-muted-foreground">Successfully resolved</span>
           </CardContent>
@@ -108,8 +114,13 @@ export const ModerationPanel: React.FC<ModerationPanelProps> = ({
       {/* Reports Board */}
       <div className="space-y-3 mt-2">
         {reports.map(rep => {
-          const isPending = rep.status === 'pending';
+          const isPending = rep.status === 'pending' || rep.status === 'under_review';
           const isProcessing = processingId === rep._id;
+
+          const formattedCategory = String(rep.category).replace('_', ' ').toUpperCase();
+          const targetName = rep.targetUserId?.name || 
+            (typeof rep.targetMessageId?.senderId === 'object' ? rep.targetMessageId.senderId?.name : null) || 
+            'Unknown User';
 
           return (
             <Card key={rep._id} className="border bg-card/60 backdrop-blur-md relative hover:shadow-sm transition-all duration-300">
@@ -122,7 +133,7 @@ export const ModerationPanel: React.FC<ModerationPanelProps> = ({
                 </div>
                 <CardTitle className="text-xs font-bold flex flex-col gap-0.5">
                   <span>Reporter: {rep.reporterId?.name || 'Anonymous'}</span>
-                  <span className="text-destructive font-medium">Flagged member: {rep.targetUserId?.name || 'Unknown'}</span>
+                  <span className="text-destructive font-medium">Flagged member: {targetName}</span>
                 </CardTitle>
               </CardHeader>
 
@@ -131,16 +142,16 @@ export const ModerationPanel: React.FC<ModerationPanelProps> = ({
                 <div className="p-2 bg-muted/40 rounded text-[10px] leading-relaxed text-foreground flex items-start gap-1.5 border-l-2 border-amber-500">
                   <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
                   <div>
-                    <span className="font-extrabold block mb-0.5 text-amber-500">Filing Reason:</span>
-                    {rep.reason}
+                    <span className="font-extrabold block mb-0.5 text-amber-500">Filing Reason: {formattedCategory}</span>
+                    {rep.detail && <p className="text-[10px] text-muted-foreground mt-0.5">{rep.detail}</p>}
                   </div>
                 </div>
 
                 {/* Message snippet context */}
-                {rep.messageId && (
+                {rep.targetMessageId && (
                   <div className="p-2 bg-zinc-950/5 border border-dashed rounded text-[10px] italic leading-relaxed text-muted-foreground">
                     <span className="font-extrabold block text-foreground not-italic mb-1">Message Context:</span>
-                    "{rep.messageId.content}"
+                    "{rep.targetMessageId.content}"
                   </div>
                 )}
 

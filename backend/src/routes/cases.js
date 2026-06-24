@@ -2,6 +2,7 @@ import express from 'express';
 import { requireAuth } from '../middleware/auth-jwt.js';
 import logger from '../utils/logger.js';
 import { logActivity } from '../middleware/activityLogger.js';
+import { auditLog } from '../middleware/audit.js';
 import { validateCaseOwnership } from '../services/ownershipService.js';
 import {
   createDocument,
@@ -161,6 +162,10 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Not found' });
     }
     const item = await getDocumentById(COLLECTIONS.CASES, req.params.id);
+
+    // Audit: case accessed — fire-and-forget
+    auditLog(req, 'case_accessed', 'case', req.params.id, { caseNumber: item.caseNumber, clientName: item.clientName });
+
     return res.json(item);
   } catch (error) {
     logger.error({ err: error }, 'Get case error');

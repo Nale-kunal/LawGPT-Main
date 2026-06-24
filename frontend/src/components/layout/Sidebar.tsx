@@ -17,6 +17,8 @@ import {
   CreditCard,
   ShieldAlert,
   Lightbulb,
+  Scale,
+  ExternalLink,
 } from 'lucide-react';
 
 
@@ -169,6 +171,31 @@ export const Sidebar = () => {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Legal Links group — compliance footer */}
+        {state !== 'collapsed' && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-[10px]">Legal</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <div className="px-2 space-y-0.5">
+                {[
+                  { label: 'Privacy Policy', href: '/dashboard/privacy' },
+                  { label: 'Terms of Service', href: '/dashboard/terms' },
+                  { label: 'Community Guidelines', href: '/dashboard/community-guidelines' },
+                  { label: 'Grievance Redressal', href: '/dashboard/grievance' },
+                ].map(item => (
+                  <Link
+                    key={item.label}
+                    to={item.href}
+                    className="flex items-center justify-between gap-1.5 text-[10px] text-sidebar-foreground/50 hover:text-sidebar-foreground/80 py-0.5 transition-colors"
+                  >
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       {/* Desktop expand/collapse control at bottom */}

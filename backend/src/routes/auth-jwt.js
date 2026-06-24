@@ -3,8 +3,10 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
+import AuditLog from '../models/AuditLog.js';
 import AdminAuditLog from '../models/AdminAuditLog.js';
 import PasswordReset from '../models/PasswordReset.js';
+import { auditLog } from '../middleware/audit.js';
 import {
   createDocument,
   getDocumentById,
@@ -35,6 +37,9 @@ import { blacklistToken, isTokenBlacklisted } from '../services/tokenService.js'
 import activityEmitter from '../utils/eventEmitter.js';
 import userDeletionService from '../services/userDeletionService.js';
 import { env } from '../config/env.js';
+import { computePolicyHash, REQUIRED_SIGNUP_CONSENTS } from '../config/policyVersions.js';
+import CommunityMessage from '../community/models/Message.js';
+import { decryptMessages } from '../community/services/encryptionService.js';
 
 const router = express.Router();
 
@@ -204,6 +209,8 @@ function buildUserResponse(userId, profile) {
     notifications: profile.notifications || defaultNotificationSettings,
     preferences: profile.preferences || defaultPreferenceSettings,
     security: profile.security || defaultSecuritySettings,
+    cookieConsent: profile.cookieConsent || { version: null, acceptedAt: null, functional: true, analytics: false, preferences: true },
+    communicationConsent: profile.communicationConsent || { productAnnouncements: false, newsletters: false, featureUpdates: false },
     createdAt: profile.createdAt,
     updatedAt: profile.updatedAt,
   };
@@ -215,7 +222,7 @@ function buildUserResponse(userId, profile) {
  */
 router.post('/register', validate({ body: registerSchema }), async (req, res) => {
   try {
-    const { email, password, name, barNumber, firm, role } = req.body;
+    const { email, password, name, barNumber, firm, role, consentGiven, termsVersion, privacyVersion, marketingConsent } = req.body;
 
     // Validate required fields
     if (!email || !password || !name) {
@@ -299,6 +306,58 @@ router.post('/register', validate({ body: registerSchema }), async (req, res) =>
       preferences: defaultPreferenceSettings,
       security: defaultSecuritySettings,
     };
+
+    // ── Legal Consent Records ──────────────────────────────────────────────────
+    // If the client sends explicit consent (consentGiven: true), record each policy.
+    // Gracefully skipped if consent payload is absent (legacy/admin-created accounts).
+    if (consentGiven === true) {
+      const consentTimestamp = new Date();
+      const clientIp = req.ip || req.headers['x-forwarded-for'] || null;
+      const userAgent = req.headers['user-agent'] || null;
+      const consents = [];
+
+      if (termsVersion) {
+        consents.push({
+          policyType:        'terms',
+          version:           termsVersion,
+          policyHash:        computePolicyHash('terms', termsVersion),
+          acceptedAt:        consentTimestamp,
+          acceptedFromIp:    clientIp,
+          acceptedUserAgent: userAgent,
+          method:            'checkbox',
+        });
+      }
+      if (privacyVersion) {
+        consents.push({
+          policyType:        'privacy',
+          version:           privacyVersion,
+          policyHash:        computePolicyHash('privacy', privacyVersion),
+          acceptedAt:        consentTimestamp,
+          acceptedFromIp:    clientIp,
+          acceptedUserAgent: userAgent,
+          method:            'checkbox',
+        });
+      }
+
+      if (consents.length > 0) {
+        userData.legalConsents = consents;
+      }
+    }
+
+    // ── Marketing Consent (optional opt-in at signup) ──────────────────────────
+    // Only set if user explicitly opted in (true). Default is false for all three fields.
+    if (marketingConsent === true) {
+      const consentTimestamp = new Date();
+      userData.communicationConsent = {
+        productAnnouncements:   true,
+        productAnnouncementsAt: consentTimestamp,
+        newsletters:            false,
+        newslettersAt:          null,
+        featureUpdates:         false,
+        featureUpdatesAt:       null,
+        updatedAt:              consentTimestamp,
+      };
+    }
 
     const user = await createDocument(MODELS.USERS, userData);
 
@@ -583,10 +642,19 @@ router.post('/login', validate({ body: loginSchema }), async (req, res) => {
       req,
     });
 
+    // Compute consent requirement for post-login gate
+    const userConsents = userDoc.legalConsents || [];
+    const consentRequired = REQUIRED_SIGNUP_CONSENTS.some(
+      (req) => !userConsents.some(
+        (c) => c.policyType === req.policyType && c.version === req.version
+      )
+    );
+
     // Return user data
     return res.json({
       user: buildUserResponse(user.id, user),
       token,
+      consentRequired,
     });
   } catch (error) {
     logger.error({ err: error.message }, '❌ Login error');
@@ -659,6 +727,36 @@ router.post('/logout', async (req, res) => {
       eventType: 'session_revoked',
       req,
     });
+  }
+});
+
+/**
+ * GET /api/auth/consent-status
+ * Check if the currently authenticated user has accepted all required policies.
+ * Used by the ConsentGate page and AuthContext to determine if redirect is needed.
+ */
+router.get('/consent-status', requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select('legalConsents').lean();
+    if (!user) {
+      return res.status(404).json({ ok: false, error: 'User not found' });
+    }
+
+    const userConsents = user.legalConsents || [];
+    const missing = REQUIRED_SIGNUP_CONSENTS.filter(
+      (req) => !userConsents.some(
+        (c) => c.policyType === req.policyType && c.version === req.version
+      )
+    );
+
+    return res.json({
+      ok:        true,
+      compliant: missing.length === 0,
+      missing,
+    });
+  } catch (err) {
+    logger.error({ err }, 'consent-status error');
+    return res.status(500).json({ ok: false, error: 'Failed to check consent status' });
   }
 });
 
@@ -1266,6 +1364,20 @@ router.post(
  */
 router.get('/export-data', requireAuth, async (req, res) => {
   try {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const exportCount = await AuditLog.countDocuments({
+      userId: req.user.userId,
+      action: 'data_export_requested',
+      createdAt: { $gte: twentyFourHoursAgo },
+    });
+
+    if (exportCount >= 3) {
+      return res.status(429).json({ error: 'Rate limit exceeded: You can only export your data 3 times per 24 hours.' });
+    }
+
+    // Audit: data export requested — fire-and-forget
+    auditLog(req, 'data_export_requested', 'export', req.user.userId, {});
+
     const user = await getDocumentById(MODELS.USERS, req.user.userId);
 
     if (!user) {
@@ -1274,38 +1386,56 @@ router.get('/export-data', requireAuth, async (req, res) => {
 
     // Fetch all user-related data
     const cases = await queryDocuments(MODELS.CASES, [
-      { field: 'userId', operator: '==', value: req.user.userId },
+      { field: 'owner', operator: '==', value: req.user.userId },
     ]);
 
     const clients = await queryDocuments(MODELS.CLIENTS, [
-      { field: 'userId', operator: '==', value: req.user.userId },
+      { field: 'owner', operator: '==', value: req.user.userId },
     ]);
 
     const documents = await queryDocuments(MODELS.DOCUMENTS, [
-      { field: 'userId', operator: '==', value: req.user.userId },
+      { field: 'ownerId', operator: '==', value: req.user.userId },
     ]);
 
     const hearings = await queryDocuments(MODELS.HEARINGS, [
-      { field: 'userId', operator: '==', value: req.user.userId },
+      { field: 'owner', operator: '==', value: req.user.userId },
     ]);
 
-    // Compile export data
+    const rawCommunityMessages = await CommunityMessage.find({ senderId: req.user.userId });
+    const communityMessagesPlain = rawCommunityMessages.map(m => m.toObject());
+    const communityMessages = decryptMessages(communityMessagesPlain);
+
+    // Compile export data including legal consent audit trail and cookie consent preferences
     const exportData = {
       exportDate: new Date().toISOString(),
       user: buildUserResponse(user.id, user),
+      legalConsents: user.legalConsents || [],
+      cookieConsent: user.cookieConsent || null,
+      communicationConsent: user.communicationConsent || null,
       data: {
         cases,
         clients,
         documents,
         hearings,
+        communityMessages,
       },
       statistics: {
         totalCases: cases.length,
         totalClients: clients.length,
         totalDocuments: documents.length,
         totalHearings: hearings.length,
+        totalCommunityMessages: communityMessages.length,
       },
     };
+
+    // Audit: data export generated — fire-and-forget
+    auditLog(req, 'data_export_generated', 'export', req.user.userId, {
+      totalCases: cases.length,
+      totalClients: clients.length,
+      totalDocuments: documents.length,
+      totalHearings: hearings.length,
+      totalCommunityMessages: communityMessages.length,
+    });
 
     // Set headers for file download
     res.setHeader('Content-Type', 'application/json');
@@ -1358,29 +1488,29 @@ router.post('/import-data', requireAuth, validate({ body: importDataSchema }), a
 
     // 2. Destructive Restoration of Business Data
     // We clear existing data to ensure the state exactly matches the backup
-    const userIdFilter = { userId: req.user.userId };
-
     const collectionsToRestore = [
-      { key: 'cases', collection: MODELS.CASES },
-      { key: 'clients', collection: MODELS.CLIENTS },
-      { key: 'documents', collection: MODELS.DOCUMENTS },
-      { key: 'hearings', collection: MODELS.HEARINGS },
+      { key: 'cases', collection: MODELS.CASES, ownerField: 'owner' },
+      { key: 'clients', collection: MODELS.CLIENTS, ownerField: 'owner' },
+      { key: 'documents', collection: MODELS.DOCUMENTS, ownerField: 'ownerId' },
+      { key: 'hearings', collection: MODELS.HEARINGS, ownerField: 'owner' },
     ];
 
     for (const item of collectionsToRestore) {
-      // Clear existing
-      await deleteManyDocuments(item.collection, userIdFilter);
+      // Clear existing matching the authenticated user's ownership
+      await deleteManyDocuments(item.collection, { [item.ownerField]: req.user.userId });
 
       // Insert new if available
       const dataToInsert = importedData[item.key];
       if (Array.isArray(dataToInsert) && dataToInsert.length > 0) {
-        // Sanitize: ensure all records point to the CURRENT userId
+        // Sanitize: ensure all records point to the CURRENT userId and cannot overwrite other fields.
         // (This prevents cases where a backup from User A is imported into User B's account)
         const sanitizedData = dataToInsert.map((record) => {
           const { id: _id_orig, _id: _id_mongo, createdAt: _ca, updatedAt: _ua, ...rest } = record; // eslint-disable-line no-unused-vars
           return {
             ...rest,
             userId: req.user.userId,
+            owner: req.user.userId,
+            ownerId: req.user.userId,
             // We let Mongo generate new IDs to avoid conflicts with existing objects in the DB
             // that might have been deleted but cached, or simply to follow system consistency.
           };
@@ -1435,6 +1565,19 @@ router.delete('/delete-account', requireAuth, async (req, res) => {
     if (confirmation !== 'DELETE') {
       return res.status(400).json({ error: 'Please type DELETE to confirm account deletion' });
     }
+
+    // Rate limit — max 3 delete attempts per hour to prevent brute-force on password check
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentAttempts = await AuditLog.countDocuments({
+      userId: req.user.userId,
+      action: 'account_delete_attempt',
+      createdAt: { $gte: oneHourAgo },
+    });
+    if (recentAttempts >= 3) {
+      return res.status(429).json({ error: 'Too many deletion attempts. Please wait 1 hour before trying again.' });
+    }
+    // Record this attempt (non-blocking)
+    auditLog(req, 'account_delete_attempt', 'account', req.user.userId, {});
 
     // Require password confirmation ONLY if user has a password set
     if (userDoc.passwordHash) {

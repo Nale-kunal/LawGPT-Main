@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { POLICY_VERSIONS } from '../config/policyVersions.js';
 
 // Reusable base schemas
 const emailSchema = z
@@ -26,6 +27,17 @@ export const registerSchema = z.object({
     role: z.enum(['lawyer', 'assistant']).optional().default('lawyer'),
     barNumber: z.string().max(50).trim().optional(),
     firm: z.string().max(200).trim().optional(),
+    consentGiven: z.literal(true, {
+        invalid_type_error: 'You must accept the Terms of Service and Privacy Policy to register',
+        required_error: 'Consent is required'
+    }),
+    termsVersion: z.string().refine(v => v === POLICY_VERSIONS.terms, {
+        message: `Must accept the current Terms of Service version (${POLICY_VERSIONS.terms})`
+    }),
+    privacyVersion: z.string().refine(v => v === POLICY_VERSIONS.privacy, {
+        message: `Must accept the current Privacy Policy version (${POLICY_VERSIONS.privacy})`
+    }),
+    marketingConsent: z.boolean().optional().default(false),
 });
 
 export const forgotPasswordSchema = z.object({

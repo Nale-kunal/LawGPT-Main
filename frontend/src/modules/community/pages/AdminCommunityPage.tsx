@@ -12,10 +12,15 @@ export const AdminCommunityPage: React.FC = () => {
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const data = await communityApi.getAdminReports();
-      setReports(data || []);
+      const res = await communityApi.getAdminReports();
+      setReports(res.reports || []);
     } catch (err) {
       logger.error(err);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch the moderation queue.',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -26,20 +31,45 @@ export const AdminCommunityPage: React.FC = () => {
   }, []);
 
   const handleResolveReport = async (id: string, action: 'dismiss' | 'delete' | 'ban') => {
+    const report = reports.find(r => r._id === id);
+    if (!report) return;
+
     try {
-      // In production, you would call `communityApi.resolveReport(id, action)` or similar endpoint.
-      // We will mock the resolution in Phase 1 since direct endpoint routes differ.
-      toast({
-        title: 'Action Processed',
-        description: `Successfully applied: ${action.toUpperCase()} to report #${id.substring(id.length - 8).toUpperCase()}`,
-      });
-      // Filter out resolved report locally
-      setReports(prev => prev.map(r => r._id === id ? { ...r, status: action === 'dismiss' ? 'dismissed' : 'resolved' } : r));
+      if (action === 'dismiss') {
+        await communityApi.resolveReport(id, 'dismissed', 'Dismissed by administrator');
+        toast({
+          title: 'Report Dismissed',
+          description: 'The report has been successfully dismissed.',
+        });
+      } else if (action === 'delete') {
+        if (report.targetMessageId?._id) {
+          await communityApi.resolveFlaggedMessage(report.targetMessageId._id, 'delete', 'Removed by admin via reports queue');
+        }
+        await communityApi.resolveReport(id, 'actioned', 'Content removed by administrator');
+        toast({
+          title: 'Content Removed',
+          description: 'The message has been removed and the report is marked as actioned.',
+        });
+      } else if (action === 'ban') {
+        const targetUserId = report.targetUserId?._id || 
+          (typeof report.targetMessageId?.senderId === 'object' ? report.targetMessageId.senderId?._id : report.targetMessageId?.senderId);
+        
+        if (targetUserId) {
+          await communityApi.banUser(targetUserId, 'Permanent ban due to severe community guideline violations');
+        }
+        await communityApi.resolveReport(id, 'actioned', 'User banned by administrator');
+        toast({
+          title: 'User Banned',
+          description: 'The user has been banned and the report is marked as actioned.',
+        });
+      }
+
+      await fetchReports();
     } catch (err) {
       logger.error(err);
       toast({
         title: 'Action Failed',
-        description: 'Failed to process resolution.',
+        description: 'An error occurred while resolving the report.',
         variant: 'destructive',
       });
     }

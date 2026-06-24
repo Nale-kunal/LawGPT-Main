@@ -122,7 +122,7 @@ export const AccessDeniedOverlay: React.FC<AccessDeniedOverlayProps> = ({ featur
 
                 <div className="space-y-1">
                   <h2 className="text-lg font-bold text-foreground">Plan Upgrade Required</h2>
-                  <p className="text-sm text-muted-foreground">
+                  <div className="text-sm text-muted-foreground">
                     <span className="font-medium text-foreground">{featureLabel}</span>
                     {' '}is available on the{' '}
                     <Badge variant="secondary" className="text-primary border-primary/30 font-semibold text-xs">
@@ -130,7 +130,7 @@ export const AccessDeniedOverlay: React.FC<AccessDeniedOverlayProps> = ({ featur
                       {planLabel}
                     </Badge>
                     {' '}plan and above.
-                  </p>
+                  </div>
                 </div>
               </div>
             </CardHeader>

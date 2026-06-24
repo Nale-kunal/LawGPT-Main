@@ -1,5 +1,6 @@
 import { logger } from '@/lib/logger';
 import React, { useState } from 'react';
+import { useLocation, Link } from 'react-router-dom';
 import { usePlan, type Plan } from '@/contexts/PlanContext';
 import { getApiUrl, apiFetch } from '@/lib/api';
 import {
@@ -10,8 +11,11 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   Check, Zap, Crown, Tag, Star, AlertCircle, CheckCircle2, Loader2,
-  LayoutDashboard, Receipt, BookOpen, LayoutGrid,
+  LayoutDashboard, Receipt, BookOpen, LayoutGrid, RefreshCw,
 } from 'lucide-react';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 
 // ─── Plan definitions ─────────────────────────────────────────────────────────
 
@@ -40,7 +44,7 @@ const PLANS: PlanDef[] = [
     price: { monthly: 199, yearly: 1999 },
     accent: 'text-blue-600 dark:text-blue-400',
     icon: <Receipt className="w-4 h-4" />,
-    features: ['Everything in Free', 'Billing & Invoicing', 'Unlimited Cases'],
+    features: ['Everything in Free', 'Unlimited Cases & Clients', 'Document Manager'],
   },
   {
     id:      'pro',
@@ -88,6 +92,8 @@ const PLAN_HIERARCHY: Plan[] = ['free', 'basic', 'pro', 'premium', 'elite'];
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Pricing() {
+  const location = useLocation();
+  const isDashboard = location.pathname.startsWith('/dashboard');
   const { plan: currentPlan, applyCoupon, createOrder, refreshPlan } = usePlan();
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [couponCode, setCouponCode]     = useState('');
@@ -96,6 +102,10 @@ export default function Pricing() {
   const [paymentStatus, setPaymentStatus] = useState<Record<Plan, 'idle' | 'loading'>>({
     free: 'idle', basic: 'idle', pro: 'idle', premium: 'idle', elite: 'idle',
   });
+  // Pre-checkout auto-renewal disclosure
+  const [pendingUpgrade, setPendingUpgrade] = useState<{
+    plan: Plan; planName: string; price: number; billingCycle: 'monthly' | 'yearly';
+  } | null>(null);
 
   const currentIdx = PLAN_HIERARCHY.indexOf(currentPlan);
 
@@ -112,6 +122,13 @@ export default function Pricing() {
     }
   };
 
+  // Step 1: show pre-checkout disclosure dialog
+  const handleUpgradeClick = (plan: Plan, planName: string, price: number) => {
+    if (plan === 'free' || plan === currentPlan) return;
+    setPendingUpgrade({ plan, planName, price, billingCycle });
+  };
+
+  // Step 2: user confirmed — actually open Razorpay
   const handleUpgrade = async (plan: Plan) => {
     if (plan === 'free' || plan === currentPlan) return;
     setPaymentStatus(prev => ({ ...prev, [plan]: 'loading' }));
@@ -288,7 +305,7 @@ export default function Pricing() {
                 <Button
                   id={`upgrade-${planDef.id}-btn`}
                   size="sm"
-                  onClick={() => handleUpgrade(planDef.id)}
+                  onClick={() => handleUpgradeClick(planDef.id, planDef.name, price)}
                   disabled={isCurrent || isLower || planDef.id === 'free' || isLoading}
                   variant={isCurrent ? 'outline' : isPro ? 'default' : 'outline'}
                   className={`
@@ -378,6 +395,88 @@ export default function Pricing() {
       <p className="text-xs text-center text-muted-foreground pb-2">
         All plans include a 7-day refund policy · Plans are billed in INR · Taxes may apply
       </p>
+
+      {/* ── Auto-Renewal Disclosure Dialog ───────────────────────────────────── */}
+      <Dialog open={!!pendingUpgrade} onOpenChange={(open) => { if (!open) setPendingUpgrade(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 text-primary" />
+              <DialogTitle>Confirm Subscription</DialogTitle>
+            </div>
+            <DialogDescription className="pt-1">
+              Please review your subscription details before proceeding to payment.
+            </DialogDescription>
+          </DialogHeader>
+
+          {pendingUpgrade && (
+            <div className="space-y-4">
+              {/* Plan summary */}
+              <div className="bg-muted/50 border rounded-md p-4 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Plan</span>
+                  <span className="text-sm font-bold">{pendingUpgrade.planName}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Amount</span>
+                  <span className="text-sm font-bold">
+                    ₹{pendingUpgrade.price.toLocaleString('en-IN')}
+                    <span className="text-xs font-normal text-muted-foreground ml-1">
+                      /{pendingUpgrade.billingCycle === 'monthly' ? 'month' : 'year'}
+                    </span>
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Billing cycle</span>
+                  <span className="text-sm capitalize">{pendingUpgrade.billingCycle}</span>
+                </div>
+              </div>
+
+              {/* Auto-renewal disclosure — required before checkout */}
+              <div className="bg-primary/5 border border-primary/20 rounded-md p-3 space-y-1">
+                <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <RefreshCw className="h-3.5 w-3.5 text-primary" />
+                  Recurring Charge
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  This is a <strong>recurring subscription</strong>. You will be charged
+                  {' '}₹{pendingUpgrade.price.toLocaleString('en-IN')} automatically every{' '}
+                  {pendingUpgrade.billingCycle === 'monthly' ? 'month' : 'year'} until you cancel.
+                  You may cancel at any time from <strong>Settings → Subscription → Cancel Plan</strong>.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  A <strong>7-day refund</strong> applies to your first payment only.
+                  See our{' '}
+                  <Link to={isDashboard ? "/dashboard/refund-policy" : "/refund-policy"}
+                    className="text-primary hover:underline">Refund Policy</Link>.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setPendingUpgrade(null)}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!pendingUpgrade) return;
+                const plan = pendingUpgrade.plan;
+                setPendingUpgrade(null);
+                handleUpgrade(plan);
+              }}
+              className="w-full sm:w-auto"
+            >
+              <Zap className="w-3.5 h-3.5 mr-1.5" />
+              Proceed to Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

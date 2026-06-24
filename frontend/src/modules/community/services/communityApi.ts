@@ -279,13 +279,46 @@ export const communityApi = {
   },
 
   // Reports
-  reportMessage: async (messageId: string, reason: string) => {
-    const res = await api.post<{ ok: boolean }>('/api/v1/community/reports/message', { messageId, reason });
+  reportMessage: async (messageId: string, category: string, detail?: string) => {
+    const res = await api.post<{ ok: boolean }>('/api/v1/community/reports/message', { messageId, category, detail });
     return { success: res.ok };
   },
   
-  reportUser: async (targetUserId: string, reason: string) => {
-    const res = await api.post<{ ok: boolean }>('/api/v1/community/reports/user', { targetUserId, reason });
+  reportUser: async (targetUserId: string, category: string, detail?: string) => {
+    const res = await api.post<{ ok: boolean }>('/api/v1/community/reports/user', { targetUserId, category, detail });
+    return { success: res.ok };
+  },
+
+  // Admin: moderation queue
+  getAdminReports: async (params?: { status?: string; targetType?: string; page?: number; limit?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.status)     q.set('status',     params.status);
+    if (params?.targetType) q.set('targetType', params.targetType);
+    if (params?.page)       q.set('page',       String(params.page));
+    if (params?.limit)      q.set('limit',      String(params.limit));
+    const res = await api.get<{ ok: boolean; reports: any[]; total: number }>(
+      `/api/v1/community/admin/reports${q.toString() ? '?' + q.toString() : ''}`
+    );
+    return { reports: res.reports || [], total: res.total ?? 0 };
+  },
+
+  resolveReport: async (reportId: string, status: string, adminNote?: string) => {
+    const res = await api.patch<{ ok: boolean }>(`/api/v1/community/admin/reports/${reportId}`, { status, adminNote });
+    return { success: res.ok };
+  },
+
+  banUser: async (targetUserId: string, reason: string, duration?: number) => {
+    const res = await api.post<{ ok: boolean }>('/api/v1/community/moderation/ban', { targetUserId, reason, duration });
+    return { success: res.ok };
+  },
+
+  unbanUser: async (targetUserId: string) => {
+    const res = await api.delete<{ ok: boolean }>(`/api/v1/community/moderation/ban/${targetUserId}`);
+    return { success: res.ok };
+  },
+
+  resolveFlaggedMessage: async (messageId: string, action: 'keep' | 'delete', reason?: string) => {
+    const res = await api.patch<{ ok: boolean }>(`/api/v1/community/moderation/flagged/${messageId}`, { action, reason });
     return { success: res.ok };
   },
 
@@ -329,11 +362,6 @@ export const communityApi = {
   getAdminTickets: async (): Promise<SupportTicket[]> => {
     const res = await api.get<{ ok: boolean; tickets: SupportTicket[] }>('/api/v1/admin/community/tickets');
     return res.tickets || [];
-  },
-  
-  getAdminReports: async () => {
-    const res = await api.get<{ ok: boolean; reports: any[] }>('/api/v1/admin/community/reports');
-    return res.reports || [];
   },
   
   getAdminOnlineUsers: async () => {

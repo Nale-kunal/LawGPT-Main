@@ -7341,14 +7341,14 @@ html.dark .lp-mock-refined {
 .lp-footer-premium {
   background: var(--lp-pre-footer-bg) !important;
   border-top: 1px solid var(--lp-pre-card-border) !important;
-  padding: 60px 40px 30px !important;
+  padding: 30px 40px 20px !important; /* Compressed vertical padding */
   transition: all 0.3s ease !important;
 }
 
 .lp-footer-grid-premium {
   display: grid;
   grid-template-columns: 1.2fr 0.9fr 0.9fr 0.9fr;
-  gap: 40px;
+  gap: 32px; /* Reduced gap */
 }
 
 .lp-footer-brand-col {
@@ -7368,7 +7368,7 @@ html.dark .lp-mock-refined {
   color: var(--lp-pre-text-muted) !important;
   line-height: 1.5 !important;
   max-width: 240px !important;
-  margin-top: 12px !important;
+  margin-top: 8px !important; /* Reduced margin */
 }
 
 .lp-footer-col-title {
@@ -7377,13 +7377,20 @@ html.dark .lp-mock-refined {
   letter-spacing: 1.2px !important;
   color: #d4af37 !important;
   text-transform: uppercase !important;
-  margin-bottom: 20px !important;
+  margin-bottom: 12px !important; /* Compressed spacing */
 }
 
 .lp-footer-links-list {
   display: flex !important;
   flex-direction: column !important;
-  gap: 10px !important;
+  gap: 8px !important; /* Reduced vertical gap */
+}
+
+/* Two-column grid to split long link lists horizontally and reduce height */
+.lp-footer-links-list-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 8px 24px !important;
 }
 
 .lp-footer-link-btn {
@@ -7397,8 +7404,8 @@ html.dark .lp-mock-refined {
 }
 
 .lp-footer-bottom-premium {
-  margin-top: 60px !important;
-  padding-top: 20px !important;
+  margin-top: 24px !important; /* Vertically compressed spacing */
+  padding-top: 12px !important;
   border-top: 1px solid var(--lp-pre-card-border) !important;
   display: flex !important;
   justify-content: space-between !important;

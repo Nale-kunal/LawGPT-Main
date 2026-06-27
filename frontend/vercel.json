@@ -68,7 +68,7 @@
         },
         {
           "key": "Permissions-Policy",
-          "value": "accelerometer=(), ambient-light-sensor=(), autoplay=(), battery=(), camera=(), display-capture=(), document-domain=(), encrypted-media=(), execution-while-not-rendered=(), execution-while-out-of-viewport=(), fullscreen=(self), geolocation=(), gyroscope=(), keyboard-map=(), magnetometer=(), microphone=(), midi=(), navigation-override=(), payment=(self), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=()"
+          "value": "accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), keyboard-map=(), magnetometer=(), microphone=(), midi=(), payment=(self), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=()"
         },
         {
           "key": "Cross-Origin-Opener-Policy",
@@ -84,7 +84,7 @@
         },
         {
           "key": "Content-Security-Policy-Report-Only",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://res.cloudinary.com https://api.cloudinary.com https://lh3.googleusercontent.com https://*.gravatar.com https://checkout.razorpay.com; connect-src 'self' https://api.juriq.in wss://api.juriq.in https://res.cloudinary.com https://api.cloudinary.com https://upload.cloudinary.com https://accounts.google.com https://oauth2.googleapis.com https://sentry.io https://*.sentry.io https://o*.ingest.sentry.io; frame-src https://checkout.razorpay.com https://api.razorpay.com https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com https://api.razorpay.com; worker-src 'self' blob:; manifest-src 'self'; report-uri https://api.juriq.in/api/v1/security/csp-report"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://res.cloudinary.com https://api.cloudinary.com https://lh3.googleusercontent.com https://*.gravatar.com https://checkout.razorpay.com; connect-src 'self' https://api.juriq.in wss://api.juriq.in https://res.cloudinary.com https://api.cloudinary.com https://upload.cloudinary.com https://accounts.google.com https://oauth2.googleapis.com https://sentry.io https://*.sentry.io https://*.ingest.sentry.io; frame-src https://checkout.razorpay.com https://api.razorpay.com https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com https://api.razorpay.com; worker-src 'self' blob:; manifest-src 'self'; report-uri https://api.juriq.in/api/v1/security/csp-report"
         },
         {
           "key": "Cache-Control",

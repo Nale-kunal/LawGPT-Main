@@ -23,7 +23,7 @@ const IS_PROD_OR_STAGING = IS_PRODUCTION || IS_STAGING;
 
 const FRONTEND_ORIGIN = (process.env.CORS_ORIGIN || 'http://localhost:5173')
   .split(',')
-  .map(o => o.trim())
+  .map((o) => o.trim())
   .filter(Boolean)[0];
 
 const API_ORIGIN = process.env.API_URL || 'http://localhost:5000';
@@ -73,8 +73,10 @@ function buildCSP(nonce, env) {
   ];
 
   // Sentry error tracking (conditionally added)
+  // Note: CSP wildcards must be host-prefix only — 'o*.ingest.sentry.io' is invalid.
+  // Use '*.ingest.sentry.io' which covers all org-specific ingest endpoints.
   const sentrySrc = SENTRY_DSN
-    ? ['https://sentry.io', 'https://*.sentry.io', 'https://o*.ingest.sentry.io']
+    ? ['https://sentry.io', 'https://*.sentry.io', 'https://*.ingest.sentry.io']
     : [];
 
   // Socket.IO WebSocket endpoints
@@ -156,27 +158,26 @@ function buildReportToHeader() {
  * Permissions-Policy: disable all APIs not required by Juriq.
  * Only allows payment (Razorpay), fullscreen for document viewer.
  */
+// Permissions-Policy — only include directives that are currently recognized
+// by modern browsers (Chrome 113+). The following were removed from the spec
+// and cause browser console errors if included:
+//   ambient-light-sensor, battery, document-domain,
+//   execution-while-not-rendered, execution-while-out-of-viewport, navigation-override
 const PERMISSIONS_POLICY = [
   'accelerometer=()',
-  'ambient-light-sensor=()',
   'autoplay=()',
-  'battery=()',
   'camera=()',
   'cross-origin-isolated=()',
   'display-capture=()',
-  'document-domain=()',
   'encrypted-media=()',
-  'execution-while-not-rendered=()',
-  'execution-while-out-of-viewport=()',
-  'fullscreen=(self)',         // Needed for document full-screen viewer
+  'fullscreen=(self)', // Needed for document full-screen viewer
   'geolocation=()',
   'gyroscope=()',
   'keyboard-map=()',
   'magnetometer=()',
   'microphone=()',
   'midi=()',
-  'navigation-override=()',
-  'payment=(self)',            // Razorpay payment
+  'payment=(self)', // Razorpay payment
   'picture-in-picture=()',
   'publickey-credentials-get=()',
   'screen-wake-lock=()',
@@ -226,10 +227,7 @@ export function applySecurityHeaders(req, res, next) {
 
   // ── HSTS ───────────────────────────────────────────────────────────────────
   if (IS_PROD_OR_STAGING) {
-    res.setHeader(
-      'Strict-Transport-Security',
-      'max-age=63072000; includeSubDomains; preload'
-    );
+    res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
   }
 
   // ── X-Frame-Options ────────────────────────────────────────────────────────
@@ -265,23 +263,26 @@ export function cspReportHandler(req, res) {
     // Filter noise: ignore browser extension violations
     const blockedUri = report['blocked-uri'] || '';
     const IGNORED_URIS = ['chrome-extension://', 'moz-extension://', 'safari-extension://'];
-    if (IGNORED_URIS.some(prefix => blockedUri.startsWith(prefix))) {
+    if (IGNORED_URIS.some((prefix) => blockedUri.startsWith(prefix))) {
       return res.status(204).end();
     }
 
-    logger.warn({
-      event: 'csp_violation',
-      documentUri: report['document-uri'],
-      referrer: report['referrer'],
-      violatedDirective: report['violated-directive'],
-      effectiveDirective: report['effective-directive'],
-      originalPolicy: report['original-policy'],
-      blockedUri,
-      sourceFile: report['source-file'],
-      lineNumber: report['line-number'],
-      columnNumber: report['column-number'],
-      statusCode: report['status-code'],
-    }, 'CSP Violation Report');
+    logger.warn(
+      {
+        event: 'csp_violation',
+        documentUri: report['document-uri'],
+        referrer: report['referrer'],
+        violatedDirective: report['violated-directive'],
+        effectiveDirective: report['effective-directive'],
+        originalPolicy: report['original-policy'],
+        blockedUri,
+        sourceFile: report['source-file'],
+        lineNumber: report['line-number'],
+        columnNumber: report['column-number'],
+        statusCode: report['status-code'],
+      },
+      'CSP Violation Report'
+    );
 
     res.status(204).end();
   } catch (err) {
